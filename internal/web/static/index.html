@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f5f7fa" />
+  <title>wxread · 我的阅读账号</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="wxread 首页"><span class="brand-mark" aria-hidden="true">w</span><span>wxread<span class="brand-caption">微信读书账号管理</span></span></a>
+    <div class="nav-label">工作空间</div>
+    <a class="nav-item" href="/" aria-current="page"><span aria-hidden="true">▤</span> 我的账号 <span class="nav-arrow" aria-hidden="true">›</span></a>
+    <div class="sidebar-bottom"><span class="local-icon" aria-hidden="true">⌘</span><div>本地工作空间<small>你的账号，存于你的设备</small></div></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span>工作空间 <span class="breadcrumb-slash">/</span> <strong>我的账号</strong></span><span class="local-label">本地存储</span></header>
+    <main>
+      <section class="intro">
+        <div class="intro-copy"><h1>让阅读，随时继续。</h1><p>在这里连接与管理你的微信读书账号。<br>打理好账号，把时间留给下一本好书。</p><button id="add-btn" class="btn primary"><span aria-hidden="true">＋</span> 添加阅读账号</button></div>
+        <div class="reading-art" aria-hidden="true"><div class="art-orbit"></div><div class="book book-back"><span>阅读的日常</span></div><div class="book book-front"><div class="cover-top">wxread library</div><div class="cover-title">打开书，<br>遇见世界。</div><div class="cover-window"><i></i><i></i><i></i></div><div class="cover-bottom">A little reading, every day.</div></div><div class="book-shadow"></div></div>
+      </section>
+      <section class="accounts-section" aria-labelledby="accounts-heading">
+        <div class="section-heading"><div class="section-title"><h2 id="accounts-heading">我的账号</h2><span id="account-count" class="count">—</span></div><button id="reload-btn" class="btn subtle"><span aria-hidden="true">↻</span> 更新列表</button></div>
+        <div class="account-panel">
+          <div class="panel-toolbar"><span>全部账号</span><label class="search"><span aria-hidden="true">⌕</span><input id="account-search" type="search" placeholder="搜索备注或账号" aria-label="搜索备注或账号" /></label></div>
+          <table id="account-table"><thead><tr><th>账号信息</th><th>凭据</th><th>上次刷新</th><th class="ops">操作</th></tr></thead><tbody id="rows"></tbody></table>
+          <div id="empty" class="empty hidden"><div class="empty-book" aria-hidden="true">▤</div><h3>从连接第一个账号开始</h3><p>用微信扫一扫，即可把阅读账号添加到这里。</p><button id="empty-add" class="btn">添加阅读账号 <span aria-hidden="true">＋</span></button></div>
+          <div id="list-message" class="list-message" role="status">正在加载账号…</div>
+          <div class="panel-footer"><span id="list-summary">正在读取本地账号</span><span>点击账号备注即可编辑</span></div>
+        </div>
+        <div class="privacy-note"><span class="privacy-symbol" aria-hidden="true">◇</span><p><strong>安心留在本地</strong><span>账号凭据仅保存在本机，敏感令牌不会在页面中展示。</span></p></div>
+      </section>
+      <footer class="page-footer"><span>wxread</span><span>与好书相伴，让阅读成为日常。</span></footer>
+    </main>
+  </div>
+  <dialog id="login-dialog" aria-labelledby="login-title" aria-describedby="login-description">
+    <div class="dialog-body"><button id="login-close" class="close-button" aria-label="关闭">×</button><div class="dialog-mark" aria-hidden="true">＋</div><h2 id="login-title">连接你的阅读账号</h2><p id="login-description" class="dialog-description">使用微信扫码，确认后即可完成添加。</p>
+      <div class="fields"><label for="login-remark">账号备注 <span>选填</span></label><input id="login-remark" placeholder="例如：日常阅读、工作账号" maxlength="100" autocomplete="off" /></div>
+      <div id="qr-area" class="qr-area hidden"><img id="qr-img" width="220" height="220" alt="微信扫码登录微信读书" /><p id="login-status" class="status" role="status"></p><p class="qr-tip">打开微信扫一扫，并在手机上确认登录</p></div>
+      <div class="dialog-ops"><button id="login-start" class="btn primary">生成登录二维码</button></div><p class="dialog-note">同一账号再次扫码，将更新已有账号的凭据。</p>
+    </div>
+  </dialog>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
