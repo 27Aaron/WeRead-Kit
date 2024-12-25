@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -66,6 +67,38 @@ func versionHeaders() map[string]string {
 		"User-Agent": userAgent,
 	}
 }
+
+// authHeaders 是业务接口的鉴权头:vid + accessToken 直接平铺在请求头上,
+// 等价于网页版的 Cookie。
+func authHeaders(creds *Credentials) map[string]string {
+	return map[string]string{
+		"vid":         creds.Vid,
+		"accessToken": creds.AccessToken,
+	}
+}
+
+// checkBusinessCode 检查业务响应包络:errCode -2012 映射为会话过期,
+// 其它非 0 值转为错误。非 JSON 或无 errCode 的响应视为通过。
+func checkBusinessCode(body []byte) error {
+	var envelope struct {
+		ErrCode json.Number `json:"errCode"`
+		ErrMsg  string      `json:"errMsg"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil
+	}
+	if envelope.ErrCode.String() == "-2012" {
+		return ErrSessionExpired
+	}
+	if n, err := envelope.ErrCode.Int64(); err == nil && n != 0 {
+		return fmt.Errorf("errCode=%s errMsg=%q", envelope.ErrCode.String(), envelope.ErrMsg)
+	}
+	return nil
+}
+
+// ErrSessionExpired 表示服务端判定会话失效(errCode -2012 / HTTP 401),
+// 调用方应刷新凭据后重试一次。
+var ErrSessionExpired = errors.New("会话已过期")
 
 // sign 复刻服务端校验的防篡改签名:SHA-256(timestamp + deviceId + random) 的十六进制小写。
 func sign(timestampMs int64, deviceID string, random int) string {

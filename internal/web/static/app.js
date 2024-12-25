@@ -40,6 +40,7 @@ function toast(msg) {
 
 let allAccounts = [];
 let listRequest = 0;
+const profileAttempts = new Set();
 async function loadAccounts() {
   const request = ++listRequest;
   $("#reload-btn").disabled = true;
@@ -49,6 +50,18 @@ async function loadAccounts() {
     allAccounts = accounts;
     $("#account-count").textContent = accounts.length;
     renderAccounts();
+    for (const account of accounts) {
+      if (!account.profile_updated_at && !profileAttempts.has(account.alias)) {
+        profileAttempts.add(account.alias);
+        api(`/api/accounts/${encodeURIComponent(account.alias)}/profile`, { method: "POST" })
+          .then(updated => {
+            if (request !== listRequest) return;
+            const index = allAccounts.findIndex(a => a.alias === updated.alias);
+            if (index >= 0) { allAccounts[index] = updated; renderAccounts(); }
+          })
+          .catch(() => { /* Keep the cached ID visible; details or re-login can retry. */ });
+      }
+    }
   } catch (err) {
     if (request !== listRequest) return;
     $("#list-message").textContent = `无法加载账号：${err.message}。请点击「更新列表」重试。`;
@@ -62,9 +75,9 @@ async function loadAccounts() {
 
 function renderAccounts() {
   const query = $("#account-search").value.trim().toLocaleLowerCase();
-  const accounts = allAccounts.filter(a => `${a.remark || ""} ${a.alias}`.toLocaleLowerCase().includes(query));
+  const accounts = allAccounts.filter(a => `${a.name || ""} ${a.user_vid || a.vid} ${a.alias}`.toLocaleLowerCase().includes(query));
   $("#list-message").classList.toggle("hidden", !query || accounts.length > 0);
-  $("#list-message").textContent = "没有找到匹配的账号，试试其他备注或账号名称。";
+  $("#list-message").textContent = "没有找到匹配的账号，试试其他昵称或用户 ID。";
   $("#list-summary").textContent = query ? `找到 ${accounts.length} 个账号，共 ${allAccounts.length} 个` : `共 ${allAccounts.length} 个账号`;
   $("#account-table").classList.toggle("hidden", accounts.length === 0);
   const tbody = $("#rows");
@@ -74,48 +87,33 @@ function renderAccounts() {
   for (const a of accounts) {
     const tr = document.createElement("tr");
 
-    // 账号列:备注即显示名(可直接编辑),括号里是别名,供 CLI --alias 使用。
     const tdName = document.createElement("td");
     const nameWrap = document.createElement("div");
     nameWrap.className = "name-cell";
-
-    const remark = document.createElement("input");
-    remark.className = "remark";
-    remark.value = a.remark || "";
-    remark.placeholder = "添加备注";
-    remark.maxLength = 100;
-    remark.setAttribute("aria-label", `编辑 ${a.remark || a.alias} 的备注`);
-    remark.title = "点击编辑备注";
-    remark.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") remark.blur();
-      if (event.key === "Escape") { remark.value = a.remark || ""; remark.blur(); }
-    });
-    remark.addEventListener("change", async () => {
-      try {
-        await api(`/api/accounts/${encodeURIComponent(a.alias)}/remark`, {
-          method: "PUT",
-          body: JSON.stringify({ remark: remark.value.trim() }),
-        });
-        toast("备注已保存");
-        await loadAccounts();
-      } catch (err) {
-        remark.value = a.remark || "";
-        toast(`保存失败:${err.message}`);
-      }
-    });
-
-    const aliasRef = document.createElement("span");
-    aliasRef.className = "alias-ref";
-    aliasRef.title = `别名 ${a.alias}(CLI --alias 用)`;
-    aliasRef.textContent = a.alias;
-
+    const name = document.createElement("span");
+    name.className = "account-name";
+    name.textContent = a.name || "微信读书用户";
+    name.title = name.textContent;
+    const userID = document.createElement("span");
+    userID.className = "alias-ref";
+    userID.textContent = `用户 ID ${a.user_vid || a.vid}`;
     const avatar = document.createElement("span");
     avatar.className = "avatar";
     avatar.setAttribute("aria-hidden", "true");
-    avatar.textContent = Array.from(a.remark || a.alias)[0] || "读";
+    const initial = Array.from(a.name || "读")[0];
+    avatar.textContent = initial;
+    if (a.avatar && /^https?:\/\//i.test(a.avatar)) {
+      const image = document.createElement("img");
+      image.alt = "";
+      image.loading = "lazy";
+      image.referrerPolicy = "no-referrer";
+      image.src = a.avatar;
+      image.addEventListener("error", () => { avatar.textContent = initial; }, { once: true });
+      avatar.replaceChildren(image);
+    }
     const details = document.createElement("div");
     details.className = "account-details";
-    details.append(remark, aliasRef);
+    details.append(name, userID);
     nameWrap.append(avatar, details);
     tdName.append(nameWrap);
 
@@ -132,12 +130,14 @@ function renderAccounts() {
     const tdOps = document.createElement("td");
     tdOps.className = "ops";
 
+    const detailBtn = button("详情", "btn small", () => showDetails(a));
+
     const refreshBtn = button("刷新", "btn small", async () => {
       refreshBtn.disabled = true;
       refreshBtn.textContent = "刷新中…";
       try {
         await api(`/api/accounts/${encodeURIComponent(a.alias)}/refresh`, { method: "POST" });
-        toast(`已刷新 ${a.remark || a.alias}`);
+        toast(`已刷新 ${a.name || a.user_vid || a.vid}`);
         await loadAccounts();
       } catch (err) {
         toast(`刷新失败:${err.message}`);
@@ -147,7 +147,7 @@ function renderAccounts() {
     });
 
     const delBtn = button("删除", "btn small danger", async () => {
-      const displayName = a.remark || a.alias;
+      const displayName = a.name || a.user_vid || a.vid;
       if (!confirm(`确定删除账号「${displayName}」?仅删除本地凭据,不影响微信读书账号。`)) return;
       try {
         await api(`/api/accounts/${encodeURIComponent(a.alias)}`, { method: "DELETE" });
@@ -158,7 +158,7 @@ function renderAccounts() {
       }
     });
 
-    tdOps.append(refreshBtn, " ", delBtn);
+    tdOps.append(detailBtn, " ", refreshBtn, " ", delBtn);
     tr.append(tdName, tdCredential, tdTime, tdOps);
     tbody.append(tr);
   }
@@ -196,24 +196,21 @@ function resetLoginUI() {
   $("#login-status").className = "status";
   $("#login-start").disabled = false;
   $("#login-start").textContent = "生成登录二维码";
-  $("#login-remark").disabled = false;
 }
 
 async function startLogin() {
   const generation = ++loginGeneration;
   stopPolling();
-  const remark = $("#login-remark").value.trim();
   $("#login-start").disabled = true;
   $("#login-start").textContent = "正在生成…";
   try {
     const data = await api("/api/login", {
       method: "POST",
-      body: JSON.stringify({ remark }),
+      body: JSON.stringify({}),
     });
     if (generation !== loginGeneration) return;
     loginId = data.id;
     $("#login-start").textContent = "等待扫码确认";
-    $("#login-remark").disabled = true;
     $("#qr-area").classList.remove("hidden");
     $("#qr-img").src = `${data.qr_url}?t=${Date.now()}`;
     setStatus("pending");
@@ -240,7 +237,7 @@ async function pollLogin() {
 
   if (data.status === "success") {
     stopPolling();
-    const name = data.account.remark || data.account.alias;
+    const name = data.account.name || data.account.vid;
     toast(`账号「${name}」登录成功`);
     successTimer = setTimeout(() => {
       $("#login-dialog").close();
@@ -259,12 +256,177 @@ function setStatus(status, errMsg) {
   el.className = "status" + (status === "success" ? " ok" : ["expired", "declined", "error", "canceled"].includes(status) ? " err" : "");
 }
 
+/* ---------- 账号详情 ---------- */
+
+let detailAccount = null;
+let detailRequest = 0;
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function showDetails(account) {
+  if (!account) return;
+  const generation = ++detailRequest;
+  detailAccount = account;
+  const name = account.name || "账号详情";
+  $("#detail-title").textContent = name;
+  $("#detail-content").innerHTML = `<p class="empty">正在加载 ${escapeHtml(name)} 的书架与账号信息…</p>`;
+  if (!$("#detail-dialog").open) $("#detail-dialog").showModal();
+  $("#detail-reload").disabled = true;
+  try {
+    const data = await api(`/api/accounts/${encodeURIComponent(account.alias)}/details`);
+    if (generation !== detailRequest) return;
+    renderDetails(data);
+    loadAccounts();
+  } catch (err) {
+    if (generation !== detailRequest) return;
+    $("#detail-content").innerHTML = `<p class="empty">加载失败:${escapeHtml(err.message)}</p>`;
+  } finally {
+    if (generation === detailRequest) $("#detail-reload").disabled = false;
+  }
+}
+
+const detailSectionNames = { shelf: "书架", user: "用户信息", balance: "账户余额", card: "会员卡", session: "网页会话", profile: "资料缓存" };
+
+function renderDetails(d) {
+  const root = $("#detail-content");
+  root.textContent = "";
+
+  const failed = Object.entries(d.errors || {});
+  if (failed.length) {
+    const warn = document.createElement("p");
+    warn.className = "detail-warn";
+    warn.textContent = `部分数据未能获取(${failed.map(([k]) => detailSectionNames[k] || k).join("、")}),可点击「刷新数据」重试。`;
+    root.append(warn);
+  }
+
+  const user = nested(d.user, "user");
+  if (user && (user.name || user.nickname)) $("#detail-title").textContent = user.name || user.nickname;
+  if (user) root.append(detailSection("用户信息", userCard(user)));
+  if (d.balance) root.append(detailSection("账户余额", kvBlock(d.balance)));
+  if (d.card) root.append(detailSection("会员卡", kvBlock(d.card)));
+
+  const books = Array.isArray(d.books) ? d.books : [];
+  root.append(detailSection(`书架(${books.length} 本)`, shelfGrid(books)));
+}
+
+function detailSection(title, el) {
+  const sec = document.createElement("section");
+  sec.className = "detail-section";
+  const h = document.createElement("h3");
+  h.textContent = title;
+  sec.append(h, el);
+  return sec;
+}
+
+// nested: 微信读书接口的返回有的把对象包在子字段里,有的直接平铺,这里做兼容。
+function nested(obj, ...keys) {
+  if (!obj || typeof obj !== "object") return null;
+  for (const k of keys) {
+    if (obj[k] && typeof obj[k] === "object" && !Array.isArray(obj[k])) return obj[k];
+  }
+  return obj;
+}
+
+function kvEntries(o, skip = new Set()) {
+  const NOISE = new Set(["errCode", "errMsg", "synckey", "succ"]);
+  return Object.entries(o || {})
+    .filter(([k]) => !NOISE.has(k) && !skip.has(k))
+    .map(([k, v]) => {
+      let val = v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+      if (val.length > 90) val = val.slice(0, 90) + "…";
+      return [k, val];
+    });
+}
+
+function kvListEl(entries) {
+  const wrap = document.createElement("div");
+  wrap.className = "kv-list";
+  for (const [k, v] of entries) {
+    const row = document.createElement("div");
+    row.className = "kv-row";
+    const key = document.createElement("span");
+    key.className = "kv-key";
+    key.textContent = k;
+    const val = document.createElement("span");
+    val.className = "kv-val";
+    val.textContent = v;
+    row.append(key, val);
+    wrap.append(row);
+  }
+  return wrap;
+}
+
+function kvBlock(o) {
+  if (!o || typeof o !== "object") {
+    const p = document.createElement("p");
+    p.className = "kv-raw";
+    p.textContent = o === undefined || o === null ? "(空)" : JSON.stringify(o);
+    return p;
+  }
+  const entries = kvEntries(o);
+  return kvListEl(entries.length ? entries : [["原始返回", JSON.stringify(o).slice(0, 200)]]);
+}
+
+function userCard(u) {
+  const wrap = document.createElement("div");
+  wrap.className = "user-card";
+  const head = document.createElement("div");
+  head.className = "user-head";
+  if (u.avatar) {
+    const img = document.createElement("img");
+    img.className = "user-avatar";
+    img.src = u.avatar;
+    img.alt = "头像";
+    head.append(img);
+  }
+  const name = document.createElement("div");
+  name.className = "user-name";
+  name.textContent = u.name || u.nickname || u.vid || u.userVid || "微信读书用户";
+  head.append(name);
+  wrap.append(head);
+  const kv = kvEntries(u, new Set(["name", "nickname", "avatar"]));
+  if (kv.length) wrap.append(kvListEl(kv));
+  return wrap;
+}
+
+function shelfGrid(books) {
+  const wrap = document.createElement("div");
+  wrap.className = "shelf-grid";
+  if (!books.length) {
+    wrap.innerHTML = '<p class="empty">书架暂无书籍</p>';
+    return wrap;
+  }
+  for (const b of books) {
+    const item = document.createElement("div");
+    item.className = "shelf-item";
+    if (b.cover) {
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.src = b.cover;
+      img.alt = "";
+      item.append(img);
+    }
+    const title = document.createElement("div");
+    title.className = "shelf-title";
+    title.textContent = b.title || b.bookId;
+    title.title = b.title || b.bookId || "";
+    const author = document.createElement("div");
+    author.className = "shelf-author";
+    author.textContent = b.author || "";
+    item.append(title, author);
+    wrap.append(item);
+  }
+  return wrap;
+}
+
 /* ---------- 事件绑定 ---------- */
 
 function openLogin() {
   resetLoginUI();
-  $("#login-remark").value = "";
   $("#login-dialog").showModal();
+  startLogin();
 }
 $("#add-btn").addEventListener("click", openLogin);
 $("#empty-add").addEventListener("click", openLogin);
@@ -276,5 +438,7 @@ $("#login-dialog").addEventListener("close", () => {
   resetLoginUI();
   loadAccounts();
 });
+$("#detail-close").addEventListener("click", () => $("#detail-dialog").close());
+$("#detail-reload").addEventListener("click", () => showDetails(detailAccount));
 
 loadAccounts();

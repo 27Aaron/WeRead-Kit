@@ -53,7 +53,17 @@ func Open(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("迁移 remark 列失败: %w", err)
 	}
-	// 这个文件等于账号控制权,SQLite 新建文件不会自动收紧权限,WAL 伴生文件同理。
+	for _, column := range []string{"name", "avatar", "user_vid"} {
+        if err := ensureColumn(db, "weread_account", column, "TEXT NOT NULL DEFAULT ''"); err != nil {
+            db.Close()
+            return nil, fmt.Errorf("迁移用户资料失败: %w", err)
+        }
+    }
+    if err := ensureColumn(db, "weread_account", "profile_updated_at", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+        db.Close()
+        return nil, err
+    }
+    // 这个文件等于账号控制权,SQLite 新建文件不会自动收紧权限,WAL 伴生文件同理。
 	for _, p := range []string{path, path + "-wal", path + "-shm"} {
 		_ = os.Chmod(p, 0o600)
 	}
@@ -98,16 +108,20 @@ type Credential struct {
 	DeviceID     string
 	AccessToken  string
 	Remark       string
+    Name string
+    Avatar string
+    UserVid string
+    ProfileUpdatedAt int64
 	RotatedAt    time.Time
 	CreatedAt    time.Time
 }
 
-const selectCols = `alias, vid, refresh_token, device_id, access_token, remark, rotated_at, created_at`
+const selectCols = `alias, vid, refresh_token, device_id, access_token, remark, rotated_at, created_at, name, avatar, user_vid, profile_updated_at`
 
 func scanCredential(scan func(...any) error) (*Credential, error) {
 	var c Credential
 	var rotated, created int64
-	if err := scan(&c.Alias, &c.Vid, &c.RefreshToken, &c.DeviceID, &c.AccessToken, &c.Remark, &rotated, &created); err != nil {
+	if err := scan(&c.Alias, &c.Vid, &c.RefreshToken, &c.DeviceID, &c.AccessToken, &c.Remark, &rotated, &created, &c.Name, &c.Avatar, &c.UserVid, &c.ProfileUpdatedAt); err != nil {
 		return nil, err
 	}
 	c.RotatedAt = time.Unix(rotated, 0)
@@ -204,4 +218,15 @@ func Delete(db *sql.DB, alias string) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// UpdateProfile saves display information independently of token rotation.
+// The vid condition prevents an in-flight request overwriting a replaced account.
+func UpdateProfile(db *sql.DB, alias, vid, name, avatar, userVid string) error {
+    res, err := db.Exec(`UPDATE weread_account SET name = ?, avatar = ?, user_vid = ?, profile_updated_at = ? WHERE alias = ? AND vid = ?`, name, avatar, userVid, time.Now().Unix(), alias, vid)
+    if err != nil { return err }
+    n, err := res.RowsAffected()
+    if err != nil { return err }
+    if n == 0 { return ErrNotFound }
+    return nil
 }

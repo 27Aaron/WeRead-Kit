@@ -45,6 +45,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE /api/accounts/{alias}", s.handleDeleteAccount)
 	mux.HandleFunc("PUT /api/accounts/{alias}/remark", s.handleUpdateRemark)
 	mux.HandleFunc("POST /api/accounts/{alias}/refresh", s.handleRefreshAccount)
+	mux.HandleFunc("POST /api/accounts/{alias}/profile", s.handleSyncProfile)
+	mux.HandleFunc("GET /api/accounts/{alias}/details", s.handleAccountDetails)
 	mux.HandleFunc("GET /api/accounts/{alias}/token", s.handleAccountToken)
 	mux.HandleFunc("POST /api/login", s.handleStartLogin)
 	mux.HandleFunc("GET /api/login/{id}", s.handleLoginStatus)
@@ -63,6 +65,10 @@ func writeErr(w http.ResponseWriter, status int, err error) {
 }
 
 type accountView struct {
+    Name string `json:"name"`
+    Avatar string `json:"avatar"`
+    UserVid string `json:"user_vid"`
+    ProfileUpdatedAt int64 `json:"profile_updated_at"`
 	Alias          string `json:"alias"`
 	Remark         string `json:"remark"`
 	Vid            string `json:"vid"`
@@ -74,6 +80,7 @@ type accountView struct {
 
 func toView(c *store.Credential) accountView {
 	return accountView{
+        Name: c.Name, Avatar: c.Avatar, UserVid: c.UserVid, ProfileUpdatedAt: c.ProfileUpdatedAt,
 		Alias:          c.Alias,
 		Remark:         c.Remark,
 		Vid:            c.Vid,

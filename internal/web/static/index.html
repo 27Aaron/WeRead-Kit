@@ -24,11 +24,11 @@
       <section class="accounts-section" aria-labelledby="accounts-heading">
         <div class="section-heading"><div class="section-title"><h2 id="accounts-heading">我的账号</h2><span id="account-count" class="count">—</span></div><button id="reload-btn" class="btn subtle"><span aria-hidden="true">↻</span> 更新列表</button></div>
         <div class="account-panel">
-          <div class="panel-toolbar"><span>全部账号</span><label class="search"><span aria-hidden="true">⌕</span><input id="account-search" type="search" placeholder="搜索备注或账号" aria-label="搜索备注或账号" /></label></div>
+          <div class="panel-toolbar"><span>全部账号</span><label class="search"><span aria-hidden="true">⌕</span><input id="account-search" type="search" placeholder="搜索昵称或用户 ID" aria-label="搜索昵称或用户 ID" /></label></div>
           <table id="account-table"><thead><tr><th>账号信息</th><th>凭据</th><th>上次刷新</th><th class="ops">操作</th></tr></thead><tbody id="rows"></tbody></table>
           <div id="empty" class="empty hidden"><div class="empty-book" aria-hidden="true">▤</div><h3>从连接第一个账号开始</h3><p>用微信扫一扫，即可把阅读账号添加到这里。</p><button id="empty-add" class="btn">添加阅读账号 <span aria-hidden="true">＋</span></button></div>
           <div id="list-message" class="list-message" role="status">正在加载账号…</div>
-          <div class="panel-footer"><span id="list-summary">正在读取本地账号</span><span>点击账号备注即可编辑</span></div>
+          <div class="panel-footer"><span id="list-summary">正在读取本地账号</span><span>头像与昵称自动同步</span></div>
         </div>
         <div class="privacy-note"><span class="privacy-symbol" aria-hidden="true">◇</span><p><strong>安心留在本地</strong><span>账号凭据仅保存在本机，敏感令牌不会在页面中展示。</span></p></div>
       </section>
@@ -36,10 +36,16 @@
     </main>
   </div>
   <dialog id="login-dialog" aria-labelledby="login-title" aria-describedby="login-description">
-    <div class="dialog-body"><button id="login-close" class="close-button" aria-label="关闭">×</button><div class="dialog-mark" aria-hidden="true">＋</div><h2 id="login-title">连接你的阅读账号</h2><p id="login-description" class="dialog-description">使用微信扫码，确认后即可完成添加。</p>
-      <div class="fields"><label for="login-remark">账号备注 <span>选填</span></label><input id="login-remark" placeholder="例如：日常阅读、工作账号" maxlength="100" autocomplete="off" /></div>
+    <div class="dialog-body"><button id="login-close" class="close-button" aria-label="关闭">×</button><div class="dialog-mark" aria-hidden="true">＋</div><h2 id="login-title">连接你的阅读账号</h2><p id="login-description" class="dialog-description">使用微信扫码，自动获取头像、昵称与用户 ID。</p>
       <div id="qr-area" class="qr-area hidden"><img id="qr-img" width="220" height="220" alt="微信扫码登录微信读书" /><p id="login-status" class="status" role="status"></p><p class="qr-tip">打开微信扫一扫，并在手机上确认登录</p></div>
       <div class="dialog-ops"><button id="login-start" class="btn primary">生成登录二维码</button></div><p class="dialog-note">同一账号再次扫码，将更新已有账号的凭据。</p>
+    </div>
+  </dialog>
+  <dialog id="detail-dialog" aria-labelledby="detail-title">
+    <div class="dialog-body detail-body"><button id="detail-close" class="close-button" aria-label="关闭">×</button>
+      <h2 id="detail-title">账号详情</h2>
+      <div id="detail-content" class="detail-content"><p class="empty">正在加载…</p></div>
+      <div class="dialog-ops"><button id="detail-reload" class="btn">刷新数据</button></div>
     </div>
   </dialog>
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>

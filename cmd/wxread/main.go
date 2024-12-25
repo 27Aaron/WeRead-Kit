@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -35,6 +36,10 @@ func main() {
 		code = cmdToken(ctx, os.Args[2:])
 	case "refresh":
 		code = cmdRefresh(ctx, os.Args[2:])
+	case "shelf":
+		code = cmdShelf(ctx, os.Args[2:])
+	case "info":
+		code = cmdInfo(ctx, os.Args[2:])
 	case "keepalive":
 		code = cmdKeepalive(ctx, os.Args[2:])
 	case "serve":
@@ -58,6 +63,8 @@ func usage() {
   wxread login     [--alias 别名] [--db 路径]      终端扫码登录,凭据写入 SQLite
   wxread token     [--alias 别名] [--max-age 24h]  输出可用的 accessToken,过期自动刷新
   wxread refresh   [--alias 别名]                  立刻用 refreshToken 换新凭据
+  wxread shelf     [--alias 别名]                  列出书架中的书籍
+  wxread info      [--alias 别名]                  查看用户信息、账户余额与会员卡
   wxread keepalive [--alias 别名] [--every 24h]    周期刷新,长期不用的账号也不会失效
   wxread serve     [--addr 127.0.0.1:8080]        启动 Web UI(扫码添加账号、备注、续期)
   wxread show      [--alias 别名]                  查看账号信息(不含令牌)
@@ -234,6 +241,117 @@ func cmdRefresh(ctx context.Context, args []string) int {
 	}
 	fmt.Printf("已刷新:alias=%s vid=%s 时间=%s\n",
 		*alias, refreshed.Vid, time.Now().Format("2006-01-02 15:04:05"))
+	return 0
+}
+
+// runWithRefresh 执行 run;若返回会话过期,先用 refreshToken 续期落库,再重试一次。
+func runWithRefresh(ctx context.Context, client *weread.Client, db *sql.DB, alias string, c *store.Credential, run func(*weread.Credentials) error) error {
+	err := run(toWeread(c))
+	if !errors.Is(err, weread.ErrSessionExpired) {
+		return err
+	}
+	refreshed, rerr := client.Refresh(ctx, toWeread(c))
+	if rerr != nil {
+		return fmt.Errorf("续期失败: %w", rerr)
+	}
+	if serr := store.Save(db, toStore(alias, refreshed)); serr != nil {
+		return serr
+	}
+	return run(refreshed)
+}
+
+func cmdShelf(ctx context.Context, args []string) int {
+	fs := flag.NewFlagSet("shelf", flag.ExitOnError)
+	alias, dbPath := commonFlags(fs)
+	_ = fs.Parse(args)
+
+	db := mustOpenDB(*dbPath)
+	defer db.Close()
+	c := loadOrExit(db, *alias)
+	client := weread.NewClient()
+
+	var shelf *weread.ShelfSync
+	err := runWithRefresh(ctx, client, db, *alias, c, func(creds *weread.Credentials) (err error) {
+		shelf, err = client.ShelfSync(ctx, creds)
+		return err
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "获取书架失败: %v\n", err)
+		return 1
+	}
+	fmt.Printf("书架共 %d 本:\n", len(shelf.Books))
+	for i, b := range shelf.Books {
+		title := b.Title
+		if title == "" {
+			title = b.BookID
+		}
+		author := b.Author
+		if author != "" {
+			author = " — " + author
+		}
+		fmt.Printf("%3d. %s%s\n", i+1, title, author)
+	}
+	return 0
+}
+
+func cmdInfo(ctx context.Context, args []string) int {
+	fs := flag.NewFlagSet("info", flag.ExitOnError)
+	alias, dbPath := commonFlags(fs)
+	_ = fs.Parse(args)
+
+	db := mustOpenDB(*dbPath)
+	defer db.Close()
+	c := loadOrExit(db, *alias)
+	client := weread.NewClient()
+
+	var cookie string
+	if err := runWithRefresh(ctx, client, db, *alias, c, func(creds *weread.Credentials) (err error) {
+		cookie, err = client.WebCookie(ctx, creds)
+		return err
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "桥接网页会话失败: %v\n", err)
+		return 1
+	}
+
+	type section struct {
+		name string
+		raw  json.RawMessage
+	}
+	var sections []section
+	fetch := map[string]func() (json.RawMessage, error){
+		"用户信息": func() (json.RawMessage, error) { return client.WebUserInfo(ctx, cookie, c.Vid) },
+		"账户余额": func() (json.RawMessage, error) { return client.WebBalance(ctx, cookie) },
+		"会员卡":  func() (json.RawMessage, error) { return client.WebMemberCard(ctx, cookie) },
+	}
+	failed := 0
+	for _, name := range []string{"用户信息", "账户余额", "会员卡"} {
+		raw, err := fetch[name]()
+		if errors.Is(err, weread.ErrSessionExpired) {
+			// 网页会话半路过期:重新桥接再试一次这一节。
+			if cerr := runWithRefresh(ctx, client, db, *alias, c, func(creds *weread.Credentials) (err error) {
+				cookie, err = client.WebCookie(ctx, creds)
+				return err
+			}); cerr == nil {
+				raw, err = fetch[name]()
+			}
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "== %s == 获取失败: %v\n", name, err)
+			failed++
+			continue
+		}
+		sections = append(sections, section{name, raw})
+	}
+	for _, sec := range sections {
+		pretty, err := json.MarshalIndent(json.RawMessage(sec.raw), "", "  ")
+		if err != nil {
+			pretty = sec.raw
+		}
+		fmt.Printf("== %s ==\n%s\n\n", sec.name, pretty)
+	}
+	if failed == 3 {
+		return 1
+	}
 	return 0
 }
 
