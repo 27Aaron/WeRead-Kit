@@ -54,16 +54,27 @@ func Open(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("迁移 remark 列失败: %w", err)
 	}
 	for _, column := range []string{"name", "avatar", "user_vid"} {
-        if err := ensureColumn(db, "weread_account", column, "TEXT NOT NULL DEFAULT ''"); err != nil {
-            db.Close()
-            return nil, fmt.Errorf("迁移用户资料失败: %w", err)
-        }
-    }
-    if err := ensureColumn(db, "weread_account", "profile_updated_at", "INTEGER NOT NULL DEFAULT 0"); err != nil {
-        db.Close()
-        return nil, err
-    }
-    // 这个文件等于账号控制权,SQLite 新建文件不会自动收紧权限,WAL 伴生文件同理。
+		if err := ensureColumn(db, "weread_account", column, "TEXT NOT NULL DEFAULT ''"); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("迁移用户资料失败: %w", err)
+		}
+	}
+	if err := ensureColumn(db, "weread_account", "profile_updated_at", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		db.Close()
+		return nil, err
+	}
+	// 详情缓存:用户信息/会员卡/书架的原始 JSON,登录后预热,详情页免回源。
+	for _, column := range []string{"profile", "card", "shelf"} {
+		if err := ensureColumn(db, "weread_account", column, "TEXT NOT NULL DEFAULT ''"); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("迁移详情缓存列失败: %w", err)
+		}
+	}
+	if err := ensureColumn(db, "weread_account", "details_cached_at", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		db.Close()
+		return nil, err
+	}
+	// 这个文件等于账号控制权,SQLite 新建文件不会自动收紧权限,WAL 伴生文件同理。
 	for _, p := range []string{path, path + "-wal", path + "-shm"} {
 		_ = os.Chmod(p, 0o600)
 	}
@@ -102,26 +113,31 @@ func ensureColumn(db *sql.DB, table, column, definition string) error {
 
 // Credential 是 weread_account 表一行的内存表示。
 type Credential struct {
-	Alias        string
-	Vid          string
-	RefreshToken string
-	DeviceID     string
-	AccessToken  string
-	Remark       string
-    Name string
-    Avatar string
-    UserVid string
-    ProfileUpdatedAt int64
-	RotatedAt    time.Time
-	CreatedAt    time.Time
+	Alias            string
+	Vid              string
+	RefreshToken     string
+	DeviceID         string
+	AccessToken      string
+	Remark           string
+	Name             string
+	Avatar           string
+	UserVid          string
+	ProfileUpdatedAt int64
+	// 详情缓存:三段原始 JSON 与采集时间;空串表示还没有缓存。
+	Profile         string
+	Card            string
+	Shelf           string
+	DetailsCachedAt int64
+	RotatedAt       time.Time
+	CreatedAt       time.Time
 }
 
-const selectCols = `alias, vid, refresh_token, device_id, access_token, remark, rotated_at, created_at, name, avatar, user_vid, profile_updated_at`
+const selectCols = `alias, vid, refresh_token, device_id, access_token, remark, rotated_at, created_at, name, avatar, user_vid, profile_updated_at, profile, card, shelf, details_cached_at`
 
 func scanCredential(scan func(...any) error) (*Credential, error) {
 	var c Credential
 	var rotated, created int64
-	if err := scan(&c.Alias, &c.Vid, &c.RefreshToken, &c.DeviceID, &c.AccessToken, &c.Remark, &rotated, &created, &c.Name, &c.Avatar, &c.UserVid, &c.ProfileUpdatedAt); err != nil {
+	if err := scan(&c.Alias, &c.Vid, &c.RefreshToken, &c.DeviceID, &c.AccessToken, &c.Remark, &rotated, &created, &c.Name, &c.Avatar, &c.UserVid, &c.ProfileUpdatedAt, &c.Profile, &c.Card, &c.Shelf, &c.DetailsCachedAt); err != nil {
 		return nil, err
 	}
 	c.RotatedAt = time.Unix(rotated, 0)
@@ -223,10 +239,33 @@ func Delete(db *sql.DB, alias string) error {
 // UpdateProfile saves display information independently of token rotation.
 // The vid condition prevents an in-flight request overwriting a replaced account.
 func UpdateProfile(db *sql.DB, alias, vid, name, avatar, userVid string) error {
-    res, err := db.Exec(`UPDATE weread_account SET name = ?, avatar = ?, user_vid = ?, profile_updated_at = ? WHERE alias = ? AND vid = ?`, name, avatar, userVid, time.Now().Unix(), alias, vid)
-    if err != nil { return err }
-    n, err := res.RowsAffected()
-    if err != nil { return err }
-    if n == 0 { return ErrNotFound }
-    return nil
+	res, err := db.Exec(`UPDATE weread_account SET name = ?, avatar = ?, user_vid = ?, profile_updated_at = ? WHERE alias = ? AND vid = ?`, name, avatar, userVid, time.Now().Unix(), alias, vid)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// SaveDetailsCache 持久化详情聚合数据(用户信息/会员卡/书架的原始 JSON)。
+// 与凭据轮换写入互不覆盖:本函数只碰缓存列,Save 只碰凭据列。
+func SaveDetailsCache(db *sql.DB, alias string, profile, card, shelf []byte) error {
+	res, err := db.Exec(`
+		UPDATE weread_account
+		SET profile = ?, card = ?, shelf = ?, details_cached_at = ?
+		WHERE alias = ?`,
+		string(profile), string(card), string(shelf), time.Now().Unix(), alias)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err == nil && n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

@@ -189,6 +189,20 @@ func cmdLogin(ctx context.Context, args []string) int {
 		fmt.Fprintf(os.Stderr, "保存凭据失败: %v\n", err)
 		return 1
 	}
+	// 登录即预热详情缓存(用户信息/会员卡/书架),Web 详情页首开秒出。
+	// 失败只提示,不影响登录结果。
+	fmt.Println("正在缓存账号资料与书架……")
+	if d, next, err := weread.NewClient().Details(ctx, creds); err != nil {
+		fmt.Fprintf(os.Stderr, "资料缓存失败(不影响登录,可稍后在 Web UI 里刷新): %v\n", err)
+	} else {
+		shelfJSON, _ := json.Marshal(d.Shelf)
+		if cerr := store.SaveDetailsCache(db, *alias, d.User, d.Card, shelfJSON); cerr != nil {
+			fmt.Fprintf(os.Stderr, "资料缓存写入失败: %v\n", cerr)
+		}
+		if next != nil {
+			_ = store.Save(db, toStore(*alias, next))
+		}
+	}
 	fmt.Printf("登录成功:alias=%s vid=%s deviceId=%s\n凭据已写入 %s\n", *alias, creds.Vid, creds.DeviceID, *dbPath)
 	return 0
 }

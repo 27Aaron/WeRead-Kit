@@ -1,18 +1,18 @@
 package web
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
+	"time"
 
 	"wxread/internal/store"
-	"wxread/internal/weread"
 )
 
-// handleAccountDetails 聚合一个账号的用户信息、会员卡和书架。
-// 三路独立采集,单路失败不影响其它路;会话过期时自动续期并整体重试一次。
+// handleAccountDetails 返回账号详情(用户信息/会员卡/书架)。
+//
+// GET 走数据库缓存,毫秒级响应;POST 强制回源微信读书并更新缓存,
+// 前端「刷新数据」按钮走 POST。缓存不存在时 GET 也会回源并落库。
 func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 	alias := r.PathValue("alias")
 	c, err := store.Load(s.db, alias)
@@ -25,19 +25,26 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, expired, err := s.collectDetails(r.Context(), toWeread(c))
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err)
+	if r.Method != http.MethodPost && c.Profile != "" && c.Card != "" && c.Shelf != "" {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"alias":     alias,
+			"remark":    c.Remark,
+			"user":      json.RawMessage(c.Profile),
+			"card":      json.RawMessage(c.Card),
+			"books":     json.RawMessage(c.Shelf),
+			"cached_at": c.DetailsCachedAt,
+		})
 		return
 	}
-	if expired {
-		// 凭据过期:续期落库后重试一次。
-		refreshed, rerr := s.client.Refresh(r.Context(), toWeread(c))
-		if rerr != nil {
-			writeErr(w, http.StatusBadGateway, fmt.Errorf("续期失败: %w", rerr))
-			return
-		}
-		if serr := store.Save(s.db, toStore(alias, refreshed)); serr != nil {
+
+	d, next, err := s.client.Details(r.Context(), toWeread(c))
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, err)
+		return
+	}
+	// 采集途中发生过续期,轮换出的新凭据必须落库。
+	if next != nil {
+		if serr := store.Save(s.db, toStore(alias, next)); serr != nil {
 			writeErr(w, http.StatusInternalServerError, serr)
 			return
 		}
@@ -45,75 +52,35 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusInternalServerError, err)
 			return
 		}
-		result, expired, err = s.collectDetails(r.Context(), toWeread(c))
-		if err != nil {
-			writeErr(w, http.StatusInternalServerError, err)
-			return
+	}
+
+	shelfJSON, merr := json.Marshal(d.Shelf)
+	if merr != nil {
+		writeErr(w, http.StatusInternalServerError, merr)
+		return
+	}
+	if cerr := store.SaveDetailsCache(s.db, alias, d.User, d.Card, shelfJSON); cerr != nil {
+		// 缓存写失败不影响本次返回,前端下次仍可强制刷新。
+		if d.Errs == nil {
+			d.Errs = map[string]string{}
 		}
-		if expired {
-			writeErr(w, http.StatusUnauthorized, errors.New("凭据已失效,请重新扫码登录"))
-			return
+		d.Errs["cache"] = "缓存写入失败: " + cerr.Error()
+	}
+	// 同步展示名/头像缓存(独立于详情缓存,列表页用)。
+	if err := saveProfile(s.db, c, d.User); err != nil {
+		if d.Errs == nil {
+			d.Errs = map[string]string{}
 		}
+		d.Errs["profile"] = "保存用户资料失败"
 	}
 
-    if raw, ok := result["user"].(json.RawMessage); ok {
-        if err := saveProfile(s.db, c, raw); err != nil {
-            errs, _ := result["errors"].(map[string]string)
-            if errs == nil { errs = map[string]string{} }
-            errs["profile"] = "保存用户资料失败"
-            result["errors"] = errs
-        }
-    }
-    result["alias"] = alias
-	if c.Remark != "" {
-		result["remark"] = c.Remark
-	}
-	writeJSON(w, http.StatusOK, result)
-}
-
-// collectDetails 采集四路数据。第二返回值为 true 表示中途发现会话过期,
-// 调用方应续期后整体重试一次。
-func (s *Server) collectDetails(ctx context.Context, creds *weread.Credentials) (map[string]any, bool, error) {
-	result := map[string]any{"books": []any{}}
-	errs := map[string]string{}
-
-	// 书架:移动端接口,现有凭据直连。
-	shelf, err := s.client.ShelfSync(ctx, creds)
-	switch {
-	case err == nil:
-		result["books"] = shelf.Books
-	case errors.Is(err, weread.ErrSessionExpired):
-		return nil, true, nil
-	default:
-		errs["shelf"] = err.Error()
-	}
-
-	// 用户/会员卡:网页版接口,先桥接网页会话。
-	cookie, err := s.client.WebCookie(ctx, creds)
-	switch {
-	case err == nil:
-		for name, fetch := range map[string]func() (json.RawMessage, error){
-			"user": func() (json.RawMessage, error) { return s.client.WebUserInfo(ctx, cookie, creds.Vid) },
-			"card": func() (json.RawMessage, error) { return s.client.WebMemberCard(ctx, cookie) },
-		} {
-			data, err := fetch()
-			switch {
-			case err == nil:
-				result[name] = data
-			case errors.Is(err, weread.ErrSessionExpired):
-				return nil, true, nil
-			default:
-				errs[name] = err.Error()
-			}
-		}
-	case errors.Is(err, weread.ErrSessionExpired):
-		return nil, true, nil
-	default:
-		errs["session"] = err.Error()
-	}
-
-	if len(errs) > 0 {
-		result["errors"] = errs
-	}
-	return result, false, nil
+	writeJSON(w, http.StatusOK, map[string]any{
+		"alias":     alias,
+		"remark":    c.Remark,
+		"user":      d.User,
+		"card":      d.Card,
+		"books":     d.Shelf,
+		"errors":    d.Errs,
+		"cached_at": time.Now().Unix(),
+	})
 }

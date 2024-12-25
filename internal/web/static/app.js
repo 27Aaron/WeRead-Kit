@@ -265,17 +265,19 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-async function showDetails(account) {
+async function showDetails(account, force = false) {
   if (!account) return;
   const generation = ++detailRequest;
   detailAccount = account;
   const name = account.name || "账号详情";
   $("#detail-title").textContent = name;
-  $("#detail-content").innerHTML = `<p class="empty">正在加载 ${escapeHtml(name)} 的书架与账号信息…</p>`;
+  $("#detail-content").innerHTML = `<p class="empty">${force ? "正在从微信读书更新数据…" : `正在加载 ${escapeHtml(name)} 的书架与账号信息…`}</p>`;
   if (!$("#detail-dialog").open) $("#detail-dialog").showModal();
   $("#detail-reload").disabled = true;
   try {
-    const data = await api(`/api/accounts/${encodeURIComponent(account.alias)}/details`);
+    const data = await api(`/api/accounts/${encodeURIComponent(account.alias)}/details`, {
+      method: force ? "POST" : "GET",
+    });
     if (generation !== detailRequest) return;
     renderDetails(data);
     loadAccounts();
@@ -292,6 +294,14 @@ const detailSectionNames = { shelf: "书架", user: "用户信息", card: "会�
 function renderDetails(d) {
   const root = $("#detail-content");
   root.textContent = "";
+
+  if (d.cached_at) {
+    const updated = document.createElement("p");
+    updated.className = "kv-raw";
+    updated.style.padding = "8px 18px 0";
+    updated.textContent = `数据更新于 ${fmtTime(d.cached_at)}(点「刷新数据」强制回源)`;
+    root.append(updated);
+  }
 
   const failed = Object.entries(d.errors || {});
   if (failed.length) {
@@ -442,6 +452,6 @@ $("#login-dialog").addEventListener("close", () => {
   loadAccounts();
 });
 $("#detail-close").addEventListener("click", () => $("#detail-dialog").close());
-$("#detail-reload").addEventListener("click", () => showDetails(detailAccount));
+$("#detail-reload").addEventListener("click", () => showDetails(detailAccount, true));
 
 loadAccounts();

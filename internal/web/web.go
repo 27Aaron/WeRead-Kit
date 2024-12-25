@@ -47,6 +47,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/accounts/{alias}/refresh", s.handleRefreshAccount)
 	mux.HandleFunc("POST /api/accounts/{alias}/profile", s.handleSyncProfile)
 	mux.HandleFunc("GET /api/accounts/{alias}/details", s.handleAccountDetails)
+	mux.HandleFunc("POST /api/accounts/{alias}/details", s.handleAccountDetails)
 	mux.HandleFunc("GET /api/accounts/{alias}/token", s.handleAccountToken)
 	mux.HandleFunc("POST /api/login", s.handleStartLogin)
 	mux.HandleFunc("GET /api/login/{id}", s.handleLoginStatus)

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -171,7 +172,7 @@ func (m *loginManager) finish(id string, creds *weread.Credentials, err error) {
 			}
 		}
 		// Credentials are already durable. Profile failures must not undo login.
-		_ = syncProfile(context.Background(), m.db, m.client, record)
+		go m.warmDetails(record)
 		m.mu.Lock()
 		sess.alias = alias
 		sess.status = "success"
@@ -189,6 +190,33 @@ func (m *loginManager) finish(id string, creds *weread.Credentials, err error) {
 }
 
 // gc 清理超时会话,释放内存并取消仍在轮询的 goroutine。
+// warmDetails 在登录成功后异步拉一次详情(用户信息/会员卡/书架)写入缓存,
+// 让详情页首次打开就是秒开。失败静默:前端「刷新数据」随时可以强制回源。
+func (m *loginManager) warmDetails(record *store.Credential) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	d, next, err := m.client.Details(ctx, toWeread(record))
+	if err != nil {
+		return
+	}
+	if next != nil {
+		updated := toStore(record.Alias, next)
+		updated.Remark = record.Remark
+		if err := store.Save(m.db, updated); err != nil {
+			return
+		}
+		record = updated
+	}
+	shelfJSON, err := json.Marshal(d.Shelf)
+	if err != nil {
+		return
+	}
+	if err := store.SaveDetailsCache(m.db, record.Alias, d.User, d.Card, shelfJSON); err != nil {
+		return
+	}
+	_ = saveProfile(m.db, record, d.User)
+}
+
 func (m *loginManager) gc() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
