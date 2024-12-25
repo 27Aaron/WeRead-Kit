@@ -18,3 +18,25 @@ dialog{border:1px solid var(--line);border-radius:18px;padding:0;width:420px;max
 .detail-body>h2{margin-bottom:24px;padding-right:30px}
 @media(min-width:561px){th:first-child{width:34%}th:nth-child(2){width:14%}th:nth-child(3){width:24%}th:last-child{width:28%}}
 .user-info{min-width:0}.user-name{display:flex;align-items:center;gap:8px}.user-vid{font-size:11px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}.kv-val.on{color:#397766;font-weight:550}.kv-val.off{color:#a0702c}
+.account-select{padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:white;font-size:12px;color:var(--text)}
+.challenge-banner{display:flex;align-items:center;gap:26px;background:white;border:1px solid var(--line);border-radius:12px;padding:19px 25px;margin-bottom:17px;box-shadow:0 4px 20px #24344b03}.challenge-state{font-size:15px;font-weight:650;display:inline-flex;align-items:center;gap:8px}.challenge-state::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}.challenge-banner.off .challenge-state{color:#a0702c}.challenge-banner.on .challenge-state{color:#397766}.challenge-banner-meta{font-size:12px;color:var(--muted)}.challenge-banner-meta strong{color:var(--text);font-weight:550;margin-left:5px;font-variant-numeric:tabular-nums}.challenge-banner-note{margin-left:auto;font-size:10px;color:#98a3b1}
+.challenge-config{display:flex;align-items:center;gap:28px;padding:19px 25px;border-bottom:1px solid var(--line);flex-wrap:wrap}.challenge-toggle{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600}.challenge-field{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted)}.challenge-field input{padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-size:12px;color:var(--text);background:white}.challenge-field input[type=number]{width:88px}
+.challenge-books-hint{font-size:11px;color:var(--muted);padding:14px 25px 0}
+.challenge-books{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:15px;max-height:480px;overflow-y:auto;padding:15px 25px 20px;scrollbar-width:thin}
+.challenge-book{position:relative;cursor:pointer;min-width:0}.challenge-book img{width:100%;aspect-ratio:96/133;object-fit:cover;border-radius:4px 7px 7px 4px;border:2px solid transparent;background:#eef2f8;display:block;transition:border-color .12s,transform .12s}.challenge-book:hover img{transform:translateY(-2px)}.challenge-book.selected img{border-color:var(--blue)}.challenge-book-placeholder{width:100%;aspect-ratio:96/133;display:grid;place-items:center;background:#eef2f8;border-radius:4px 7px 7px 4px;color:#9db2cd;font-size:26px}.challenge-check{position:absolute;top:6px;right:6px;width:21px;height:21px;border-radius:50%;background:#c3cede;color:white;display:grid;place-items:center;font-size:12px;opacity:0;transform:scale(.6);transition:all .12s}.challenge-book.selected .challenge-check{opacity:1;transform:scale(1);background:var(--blue)}.challenge-book-title{font-size:11px;line-height:1.45;margin-top:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.challenge-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:1px solid var(--line);padding:14px 25px}.challenge-laststatus{font-size:11px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.challenge-footer-ops{display:flex;gap:10px;flex-shrink:0}
+@media(max-width:800px){.challenge-banner{flex-wrap:wrap;gap:10px 20px}.challenge-banner-note{display:none}.challenge-books{grid-template-columns:repeat(auto-fill,minmax(80px,1fr));padding-inline:16px}.challenge-config{padding-inline:16px;gap:14px}.challenge-footer{padding-inline:16px;flex-direction:column;align-items:stretch}.challenge-footer-ops{justify-content:flex-end}}
+
+.logs-toolbar{display:flex;align-items:center;gap:10px}
+.logs-header{display:grid;grid-template-columns:150px 64px 70px 120px 1fr;gap:12px;padding:11px 20px;font-size:10px;font-weight:500;color:var(--muted);background:#fafbfd;border-bottom:1px solid var(--line)}
+.logs-list{max-height:560px;overflow-y:auto;scrollbar-width:thin}
+.log-row{display:grid;grid-template-columns:150px 64px 70px 120px 1fr;gap:12px;padding:8px 20px;font-size:11px;border-bottom:1px solid #f2f5f9;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.log-row:hover{background:#fafcff}
+.log-time{color:#8a95a5;font-variant-numeric:tabular-nums}
+.log-level{text-transform:uppercase;font-weight:600}
+.log-info .log-level{color:#6b7f9c}.log-warn .log-level{color:#a0702c}.log-error .log-level{color:var(--danger)}
+.log-warn{background:#fffdf5}.log-error{background:#fff8f8}
+.log-source{color:#7d8fa8}
+.log-alias{color:#7d8fa8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-msg{color:var(--text);word-break:break-all}
+@media(max-width:800px){.logs-header{display:none}.log-row{grid-template-columns:auto auto 1fr;row-gap:3px}.log-msg{grid-column:1/-1}}

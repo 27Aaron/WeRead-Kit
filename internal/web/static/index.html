@@ -11,12 +11,15 @@
   <aside class="sidebar">
     <a class="brand" href="/" aria-label="wxread 首页"><span class="brand-mark" aria-hidden="true">w</span><span>wxread<span class="brand-caption">微信读书账号管理</span></span></a>
     <div class="nav-label">工作空间</div>
-    <a class="nav-item" href="/" aria-current="page"><span aria-hidden="true">▤</span> 我的账号 <span class="nav-arrow" aria-hidden="true">›</span></a>
+    <a class="nav-item active" href="/" id="nav-accounts" aria-current="page"><span aria-hidden="true">▤</span> 我的账号 <span class="nav-arrow" aria-hidden="true">›</span></a>
+    <a class="nav-item" href="#challenge" id="nav-challenge"><span aria-hidden="true">⚑</span> 挑战赛 <span class="nav-arrow" aria-hidden="true">›</span></a>
+    <a class="nav-item" href="#logs" id="nav-logs"><span aria-hidden="true">☰</span> 日志 <span class="nav-arrow" aria-hidden="true">›</span></a>
     <div class="sidebar-bottom"><span class="local-icon" aria-hidden="true">⌘</span><div>本地工作空间<small>你的账号，存于你的设备</small></div></div>
   </aside>
   <div class="workspace">
-    <header class="topbar"><span>工作空间 <span class="breadcrumb-slash">/</span> <strong>我的账号</strong></span><span class="local-label">本地存储</span></header>
+    <header class="topbar"><span>工作空间 <span class="breadcrumb-slash">/</span> <strong id="crumb">我的账号</strong></span><span class="local-label">本地存储</span></header>
     <main>
+      <div id="accounts-view">
       <section class="intro">
         <div class="intro-copy"><h1>让阅读，随时继续。</h1><p>在这里连接与管理你的微信读书账号。<br>打理好账号，把时间留给下一本好书。</p><button id="add-btn" class="btn primary"><span aria-hidden="true">＋</span> 添加阅读账号</button></div>
         <div class="reading-art" aria-hidden="true"><div class="art-orbit"></div><div class="book book-back"><span>阅读的日常</span></div><div class="book book-front"><div class="cover-top">wxread library</div><div class="cover-title">打开书，<br>遇见世界。</div><div class="cover-window"><i></i><i></i><i></i></div><div class="cover-bottom">A little reading, every day.</div></div><div class="book-shadow"></div></div>
@@ -31,6 +34,55 @@
           <div class="panel-footer"><span id="list-summary">正在读取本地账号</span><span>头像与昵称自动同步</span></div>
         </div>
         <div class="privacy-note"><span class="privacy-symbol" aria-hidden="true">◇</span><p><strong>安心留在本地</strong><span>账号凭据仅保存在本机，敏感令牌不会在页面中展示。</span></p></div>
+      </section>
+      </div>
+      <section id="challenge-view" class="hidden">
+        <div class="section-heading"><div class="section-title"><h2>挑战赛 · 自动阅读</h2><span class="count">每日</span></div>
+          <label class="challenge-account-label">账号 <select id="challenge-account" class="account-select"></select></label>
+        </div>
+        <div id="challenge-banner" class="challenge-banner off">
+          <span class="challenge-state" id="challenge-state">未开启</span>
+          <span class="challenge-banner-meta">开始时间 <strong id="challenge-runat">—</strong></span>
+          <span class="challenge-banner-meta">每天时长 <strong id="challenge-minutes">—</strong></span>
+          <span class="challenge-banner-note">由本机 serve 进程每日到点自动执行</span>
+        </div>
+        <div class="account-panel">
+          <div class="challenge-config">
+            <label class="challenge-toggle"><input type="checkbox" id="challenge-enabled" /> 每天自动阅读</label>
+            <label class="challenge-field">开始时间 <input type="time" id="challenge-runat-input" value="03:00" /></label>
+            <label class="challenge-field">每天时长 <input type="number" id="challenge-minutes-input" min="1" max="480" value="30" /> 分钟</label>
+          </div>
+          <div class="challenge-books-hint">点击封面勾选要阅读的书籍,可多选;选多本时每天随机刷其中一本</div>
+          <div id="challenge-books" class="challenge-books"><p class="empty">正在加载书架…</p></div>
+          <div class="challenge-footer">
+            <span id="challenge-laststatus" class="challenge-laststatus">尚未执行过</span>
+            <span class="challenge-footer-ops">
+              <button id="challenge-run" class="btn">立即刷一次</button>
+              <button id="challenge-save" class="btn primary">保存</button>
+            </span>
+          </div>
+        </div>
+        <div class="privacy-note"><span class="privacy-symbol" aria-hidden="true">◇</span><p><strong>阅读真实发生</strong><span>脚本以 30 秒节奏向微信读书上报阅读进度,需要本机 serve 进程保持运行。</span></p></div>
+      </section>
+      <section id="logs-view" class="hidden">
+        <div class="section-heading"><div class="section-title"><h2>日志</h2><span id="log-count" class="count">—</span></div>
+          <div class="logs-toolbar">
+            <select id="log-alias" class="account-select"><option value="">全部账号</option></select>
+            <select id="log-level" class="account-select">
+              <option value="">全部级别</option>
+              <option value="info">info</option>
+              <option value="warn">warn</option>
+              <option value="error">error</option>
+            </select>
+            <button id="logs-reload" class="btn subtle"><span aria-hidden="true">↻</span> 刷新</button>
+            <button id="logs-clear" class="btn subtle">清空</button>
+          </div>
+        </div>
+        <div class="account-panel">
+          <div class="logs-header"><span>时间</span><span>级别</span><span>来源</span><span>账号</span><span>内容</span></div>
+          <div id="logs-list" class="logs-list"><p class="empty">暂无日志</p></div>
+          <div class="panel-footer"><span>保留最近 1000 条</span><span id="logs-updated">—</span></div>
+        </div>
       </section>
       <footer class="page-footer"><span>wxread</span><span>与好书相伴，让阅读成为日常。</span></footer>
     </main>

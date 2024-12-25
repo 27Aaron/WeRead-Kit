@@ -320,6 +320,7 @@ function renderDetails(d) {
   root.append(detailSection(`书架(${books.length} 本)`, shelfGrid(books)));
 }
 
+
 function detailSection(title, el) {
   const sec = document.createElement("section");
   sec.className = "detail-section";
@@ -434,6 +435,259 @@ function shelfGrid(books) {
   return wrap;
 }
 
+/* ---------- 挑战赛 · 自动阅读 ---------- */
+
+let challengeAlias = null;
+let challengeBooks = [];
+const challengePicked = new Set();
+let challengeRunTimer = null;
+
+let currentView = "accounts";
+
+function setView(view) {
+  currentView = view;
+  $("#accounts-view").classList.toggle("hidden", view !== "accounts");
+  $("#challenge-view").classList.toggle("hidden", view !== "challenge");
+  $("#logs-view").classList.toggle("hidden", view !== "logs");
+  for (const [id, name] of [["nav-accounts", "accounts"], ["nav-challenge", "challenge"], ["nav-logs", "logs"]]) {
+    $(`#${id}`).classList.toggle("active", view === name);
+    if (view === name) $(`#${id}`).setAttribute("aria-current", "page");
+    else $(`#${id}`).removeAttribute("aria-current");
+  }
+  $("#crumb").textContent = { accounts: "我的账号", challenge: "挑战赛", logs: "日志" }[view] || "我的账号";
+}
+
+async function openChallenge() {
+  setView("challenge");
+  const accounts = allAccounts.length ? allAccounts : await api("/api/accounts");
+  const sel = $("#challenge-account");
+  sel.textContent = "";
+  if (!accounts.length) {
+    challengeAlias = null;
+    $("#challenge-books").innerHTML = '<p class="empty">还没有账号,先到「我的账号」扫码添加。</p>';
+    $("#challenge-banner").classList.add("hidden");
+    $("#challenge-laststatus").textContent = "尚未执行过";
+    return;
+  }
+  $("#challenge-banner").classList.remove("hidden");
+  const stillThere = accounts.some((a) => a.alias === challengeAlias);
+  if (!stillThere) challengeAlias = accounts[0].alias;
+  for (const a of accounts) {
+    const opt = document.createElement("option");
+    opt.value = a.alias;
+    opt.textContent = a.name || a.remark || a.alias;
+    sel.append(opt);
+  }
+  sel.value = challengeAlias;
+  await loadChallenge();
+}
+
+async function loadChallenge() {
+  if (!challengeAlias) return;
+  $("#challenge-books").innerHTML = '<p class="empty">正在加载书架…</p>';
+  try {
+    // GET details 走本地缓存,瞬时返回;书架取自缓存封面墙。
+    const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/details`);
+    renderChallenge(d);
+  } catch (err) {
+    $("#challenge-books").innerHTML = `<p class="empty">加载失败:${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderChallenge(d) {
+  challengeBooks = Array.isArray(d.books) ? d.books : [];
+  const cfg = d.reading || {};
+  challengePicked.clear();
+  for (const id of cfg.book_ids || []) challengePicked.add(id);
+
+  $("#challenge-state").textContent = cfg.enabled ? "已开启" : "未开启";
+  $("#challenge-banner").classList.toggle("off", !cfg.enabled);
+  $("#challenge-banner").classList.toggle("on", !!cfg.enabled);
+  $("#challenge-runat").textContent = cfg.run_at || "—";
+  $("#challenge-minutes").textContent = `${cfg.minutes || 30} 分钟`;
+  $("#challenge-enabled").checked = !!cfg.enabled;
+  $("#challenge-runat-input").value = cfg.run_at || "03:00";
+  $("#challenge-minutes-input").value = cfg.minutes || 30;
+  $("#challenge-laststatus").textContent = cfg.last_status
+    ? `上次执行(${cfg.last_run_date || "—"}):${cfg.last_status}`
+    : "尚未执行过";
+
+  const grid = $("#challenge-books");
+  grid.textContent = "";
+  if (!challengeBooks.length) {
+    grid.innerHTML = '<p class="empty">书架为空,先在详情里刷新数据。</p>';
+    return;
+  }
+  for (const b of challengeBooks) {
+    const card = document.createElement("div");
+    card.className = "challenge-book" + (challengePicked.has(b.bookId) ? " selected" : "");
+    card.title = b.title || b.bookId || "";
+    if (b.cover) {
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.src = b.cover;
+      img.alt = "";
+      card.append(img);
+    } else {
+      const placeholder = document.createElement("div");
+      placeholder.className = "challenge-book-placeholder";
+      placeholder.textContent = "▤";
+      card.append(placeholder);
+    }
+    const check = document.createElement("span");
+    check.className = "challenge-check";
+    check.textContent = "✓";
+    card.append(check);
+    const title = document.createElement("div");
+    title.className = "challenge-book-title";
+    title.textContent = b.title || b.bookId;
+    card.append(title);
+    card.addEventListener("click", () => {
+      if (challengePicked.has(b.bookId)) {
+        challengePicked.delete(b.bookId);
+        card.classList.remove("selected");
+      } else {
+        challengePicked.add(b.bookId);
+        card.classList.add("selected");
+      }
+    });
+    grid.append(card);
+  }
+}
+
+function challengeBannerFromInputs() {
+  const enabled = $("#challenge-enabled").checked;
+  $("#challenge-state").textContent = enabled ? "已开启" : "未开启";
+  $("#challenge-banner").classList.toggle("off", !enabled);
+  $("#challenge-banner").classList.toggle("on", enabled);
+  $("#challenge-runat").textContent = $("#challenge-runat-input").value || "—";
+  $("#challenge-minutes").textContent = `${$("#challenge-minutes-input").value || 30} 分钟`;
+}
+
+async function saveChallenge() {
+  if (!challengeAlias) return;
+  const saveBtn = $("#challenge-save");
+  saveBtn.disabled = true;
+  try {
+    await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`, {
+      method: "POST",
+      body: JSON.stringify({
+        enabled: $("#challenge-enabled").checked,
+        book_ids: Array.from(challengePicked),
+        minutes: Number($("#challenge-minutes-input").value) || 30,
+        run_at: $("#challenge-runat-input").value || "03:00",
+      }),
+    });
+    challengeBannerFromInputs();
+    toast($("#challenge-enabled").checked ? "已开启,到点自动阅读" : "配置已保存(未开启)");
+  } catch (err) {
+    toast(`保存失败:${err.message}`);
+  }
+  saveBtn.disabled = false;
+}
+
+async function runChallengeNow() {
+  if (!challengeAlias) return;
+  const runBtn = $("#challenge-run");
+  runBtn.disabled = true;
+  try {
+    await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/run`, { method: "POST" });
+    toast("阅读会话已启动,每 30 秒记 0.5 分钟");
+    $("#challenge-laststatus").textContent = "阅读中…";
+  } catch (err) {
+    toast(`启动失败:${err.message}`);
+    runBtn.disabled = false;
+    return;
+  }
+  let polls = 0;
+  if (challengeRunTimer) clearInterval(challengeRunTimer);
+  challengeRunTimer = setInterval(async () => {
+    polls++;
+    try {
+      const cfg = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`);
+      if (cfg.last_status && !cfg.last_status.startsWith("阅读中")) {
+        $("#challenge-laststatus").textContent = `上次执行(${cfg.last_run_date || "—"}):${cfg.last_status}`;
+        clearInterval(challengeRunTimer);
+        runBtn.disabled = false;
+        return;
+      }
+      $("#challenge-laststatus").textContent = cfg.last_status || "阅读中…";
+    } catch { /* 单次轮询失败忽略 */ }
+    if (polls > 360) { clearInterval(challengeRunTimer); runBtn.disabled = false; }
+  }, 5000);
+}
+
+/* ---------- 日志 ---------- */
+
+let logsTimer = null;
+
+async function openLogs() {
+  setView("logs");
+  const sel = $("#log-alias");
+  const current = sel.value;
+  sel.textContent = "";
+  const defaultOpt = document.createElement("option");
+  defaultOpt.value = "";
+  defaultOpt.textContent = "全部账号";
+  sel.append(defaultOpt);
+  const accounts = allAccounts.length ? allAccounts : await api("/api/accounts").catch(() => []);
+  for (const a of accounts) {
+    const opt = document.createElement("option");
+    opt.value = a.alias;
+    opt.textContent = a.name || a.remark || a.alias;
+    sel.append(opt);
+  }
+  sel.value = current;
+  await loadLogs();
+  if (!logsTimer) logsTimer = setInterval(() => { if (currentView === "logs") loadLogs(true); }, 10000);
+}
+
+async function loadLogs(silent = false) {
+  const params = new URLSearchParams({ limit: "200" });
+  if ($("#log-alias").value) params.set("alias", $("#log-alias").value);
+  if ($("#log-level").value) params.set("level", $("#log-level").value);
+  try {
+    const logs = await api(`/api/logs?${params}`);
+    $("#log-count").textContent = logs.length;
+    $("#logs-updated").textContent = `更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
+    renderLogs(logs, silent);
+  } catch (err) {
+    if (!silent) toast(`加载日志失败:${err.message}`);
+  }
+}
+
+function renderLogs(logs, silent) {
+  const list = $("#logs-list");
+  list.textContent = "";
+  if (!logs.length) {
+    list.innerHTML = '<p class="empty">暂无日志</p>';
+    return;
+  }
+  for (const e of logs) {
+    const row = document.createElement("div");
+    row.className = `log-row log-${e.level}`;
+    const time = document.createElement("span");
+    time.className = "log-time";
+    time.textContent = fmtTime(e.ts);
+    const level = document.createElement("span");
+    level.className = "log-level";
+    level.textContent = e.level;
+    const source = document.createElement("span");
+    source.className = "log-source";
+    source.textContent = e.source || "-";
+    const alias = document.createElement("span");
+    alias.className = "log-alias";
+    alias.textContent = e.alias || "-";
+    const msg = document.createElement("span");
+    msg.className = "log-msg";
+    msg.textContent = e.message;
+    msg.title = e.message;
+    row.append(time, level, source, alias, msg);
+    list.append(row);
+  }
+  list.scrollTop = 0; // 最新在最上
+}
+
 /* ---------- 事件绑定 ---------- */
 
 function openLogin() {
@@ -453,5 +707,24 @@ $("#login-dialog").addEventListener("close", () => {
 });
 $("#detail-close").addEventListener("click", () => $("#detail-dialog").close());
 $("#detail-reload").addEventListener("click", () => showDetails(detailAccount, true));
+$("#nav-accounts").addEventListener("click", (e) => { e.preventDefault(); setView("accounts"); });
+$("#nav-challenge").addEventListener("click", (e) => { e.preventDefault(); openChallenge(); });
+$("#nav-logs").addEventListener("click", (e) => { e.preventDefault(); openLogs(); });
+$("#challenge-account").addEventListener("change", (e) => { challengeAlias = e.target.value; loadChallenge(); });
+$("#challenge-save").addEventListener("click", saveChallenge);
+$("#challenge-run").addEventListener("click", runChallengeNow);
+$("#log-alias").addEventListener("change", () => loadLogs());
+$("#log-level").addEventListener("change", () => loadLogs());
+$("#logs-reload").addEventListener("click", () => loadLogs());
+$("#logs-clear").addEventListener("click", async () => {
+  if (!confirm("确定清空全部日志?")) return;
+  try {
+    await api("/api/logs", { method: "DELETE" });
+    toast("日志已清空");
+    loadLogs();
+  } catch (err) {
+    toast(`清空失败:${err.message}`);
+  }
+});
 
 loadAccounts();
