@@ -56,6 +56,17 @@ func Open(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("初始化日志表失败: %w", err)
 	}
+	// 阅读配置表加断点续跑列(旧库迁移)。
+	for _, column := range []struct{ name, def string }{
+		{"run_book_id", "TEXT NOT NULL DEFAULT ''"},
+		{"run_done", "INTEGER NOT NULL DEFAULT 0"},
+		{"run_total", "INTEGER NOT NULL DEFAULT 0"},
+	} {
+		if err := ensureColumn(db, "weread_reading", column.name, column.def); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("迁移阅读断点列失败: %w", err)
+		}
+	}
 	// 早期版本的库没有 remark 列,补上(表名列名是包内常量,无注入面)。
 	if err := ensureColumn(db, "weread_account", "remark", "TEXT NOT NULL DEFAULT ''"); err != nil {
 		db.Close()

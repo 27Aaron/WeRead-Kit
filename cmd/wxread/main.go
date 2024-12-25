@@ -395,17 +395,26 @@ func cmdFarmRun(ctx context.Context, args []string) int {
 	if *minutes > 0 {
 		target = *minutes
 	}
+	// 当日有未完成的会话则续跑,否则随机选一本开新场。
+	var task weread.FarmTask
+	if bookID, done, total, ok := cfg.ResumeTask(); ok {
+		task = weread.FarmTask{BookID: bookID, Done: done, Total: total}
+	} else {
+		task = weread.NewFarmTask(cfg.BookIDs, target)
+	}
 
 	client := weread.NewClient()
-	fmt.Printf("开始阅读:《书架所选》目标 %d 分钟(每 30 秒记 0.5 分钟)……\n", target)
-	result, next, err := client.FarmSession(ctx, toWeread(c), cfg.BookIDs, target, func(done, total int, msg string) {
+	store.AddLog(db, "info", "farm", *alias, fmt.Sprintf("CLI 触发阅读会话,目标 %.1f 分钟", float64(task.Total)*0.5))
+	fmt.Printf("开始阅读,目标 %.1f 分钟(每 30 秒记 0.5 分钟)……\n", float64(task.Total)*0.5)
+	result, next, err := client.FarmSession(ctx, toWeread(c), task, func(done, total int, msg string) {
 		fmt.Printf("  进度 %d/%d:%s\n", done, total, msg)
-	})
+	}, nil)
 	if next != nil {
 		_ = store.Save(db, toStore(*alias, next))
 	}
 	if result != nil {
-		fmt.Printf("阅读了 %.1f 分钟(记 %d/%d 次心跳)\n", float64(result.Heartbeats)*0.5, result.Heartbeats, target*2)
+		fmt.Printf("阅读了 %.1f 分钟(记 %d/%d 次心跳)\n", float64(result.Done)*0.5, result.Done, task.Total)
+		store.AddLog(db, "info", "farm", *alias, fmt.Sprintf("CLI 会话结束:已记 %.1f 分钟", float64(result.Done)*0.5))
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "阅读会话失败: %v\n", err)
@@ -472,6 +481,7 @@ func cmdServe(ctx context.Context, args []string) int {
 
 	webServer := web.New(db)
 	webServer.StartFarmScheduler(ctx)
+	webServer.ResumeInterrupted()
 	store.AddLog(db, "info", "serve", "", "Web 服务已启动,监听 "+*addr)
 	srv := &http.Server{Addr: *addr, Handler: webServer.Handler()}
 	go func() {

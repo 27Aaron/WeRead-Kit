@@ -17,6 +17,10 @@ type ReadingConfig struct {
 	LastRunDate string   `json:"last_run_date"` // 最近一次执行归属的日期 YYYY-MM-DD(用于每日去重)
 	LastRunAt   int64    `json:"last_run_at"`   // 最近一次执行开始时刻
 	LastStatus  string   `json:"last_status"`   // 最近一次执行结果描述
+	// 断点续跑:当日会话被停止/中断后,据此接着刷
+	RunBookID string `json:"run_book_id"`
+	RunDone   int    `json:"run_done"`
+	RunTotal  int    `json:"run_total"`
 }
 
 const readingSchema = `
@@ -28,7 +32,10 @@ CREATE TABLE IF NOT EXISTS weread_reading (
   run_at        TEXT NOT NULL DEFAULT '03:00',
   last_run_date TEXT NOT NULL DEFAULT '',
   last_run_at   INTEGER NOT NULL DEFAULT 0,
-  last_status   TEXT NOT NULL DEFAULT ''
+  last_status   TEXT NOT NULL DEFAULT '',
+  run_book_id   TEXT NOT NULL DEFAULT '',
+  run_done      INTEGER NOT NULL DEFAULT 0,
+  run_total     INTEGER NOT NULL DEFAULT 0
 );`
 
 // DefaultReadingConfig 返回一份默认配置(未启用、30 分钟、凌晨 3 点)。
@@ -45,12 +52,13 @@ func DefaultReadingConfig(alias string) *ReadingConfig {
 // GetReadingConfig 读取配置;没有记录时返回默认值。
 func GetReadingConfig(db *sql.DB, alias string) (*ReadingConfig, error) {
 	row := db.QueryRow(`
-		SELECT alias, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status
+		SELECT alias, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status,
+		       run_book_id, run_done, run_total
 		FROM weread_reading WHERE alias = ?`, alias)
 	cfg := &ReadingConfig{}
 	var enabled int
 	var bookIDs string
-	err := row.Scan(&cfg.Alias, &enabled, &bookIDs, &cfg.Minutes, &cfg.RunAt, &cfg.LastRunDate, &cfg.LastRunAt, &cfg.LastStatus)
+	err := row.Scan(&cfg.Alias, &enabled, &bookIDs, &cfg.Minutes, &cfg.RunAt, &cfg.LastRunDate, &cfg.LastRunAt, &cfg.LastStatus, &cfg.RunBookID, &cfg.RunDone, &cfg.RunTotal)
 	if errors.Is(err, sql.ErrNoRows) {
 		def := DefaultReadingConfig(alias)
 		return def, nil
@@ -89,7 +97,8 @@ func SaveReadingConfig(db *sql.DB, cfg *ReadingConfig) error {
 // ListEnabledReadingConfigs 列出所有启用了自动阅读的账号,供调度器扫描。
 func ListEnabledReadingConfigs(db *sql.DB) ([]*ReadingConfig, error) {
 	rows, err := db.Query(`
-		SELECT alias, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status
+		SELECT alias, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status,
+		       run_book_id, run_done, run_total
 		FROM weread_reading WHERE enabled = 1`)
 	if err != nil {
 		return nil, err
@@ -100,7 +109,7 @@ func ListEnabledReadingConfigs(db *sql.DB) ([]*ReadingConfig, error) {
 		cfg := &ReadingConfig{}
 		var enabled int
 		var bookIDs string
-		if err := rows.Scan(&cfg.Alias, &enabled, &bookIDs, &cfg.Minutes, &cfg.RunAt, &cfg.LastRunDate, &cfg.LastRunAt, &cfg.LastStatus); err != nil {
+		if err := rows.Scan(&cfg.Alias, &enabled, &bookIDs, &cfg.Minutes, &cfg.RunAt, &cfg.LastRunDate, &cfg.LastRunAt, &cfg.LastStatus, &cfg.RunBookID, &cfg.RunDone, &cfg.RunTotal); err != nil {
 			return nil, err
 		}
 		cfg.Enabled = enabled != 0
@@ -110,8 +119,30 @@ func ListEnabledReadingConfigs(db *sql.DB) ([]*ReadingConfig, error) {
 	return out, rows.Err()
 }
 
-// SaveReadingRunState 记录一次运行的归属日期与结果。
-func SaveReadingRunState(db *sql.DB, alias, runDate string, status string) error {
+// RunProgress 是阅读会话的断点信息,用于中断后续跑。
+type RunProgress struct {
+	BookID string
+	Done   int
+	Total  int
+}
+
+// SaveReadingRunState 记录一次运行的归属日期与结果;progress 非 nil 时同步断点。
+func SaveReadingRunState(db *sql.DB, alias, runDate, status string, progress *RunProgress) error {
+	now := time.Now().Unix()
+	if progress != nil {
+		_, err := db.Exec(`
+			INSERT INTO weread_reading (alias, last_run_date, last_run_at, last_status, run_book_id, run_done, run_total)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(alias) DO UPDATE SET
+				last_run_date = excluded.last_run_date,
+				last_run_at = excluded.last_run_at,
+				last_status = excluded.last_status,
+				run_book_id = excluded.run_book_id,
+				run_done = excluded.run_done,
+				run_total = excluded.run_total`,
+			alias, runDate, now, status, progress.BookID, progress.Done, progress.Total)
+		return err
+	}
 	_, err := db.Exec(`
 		INSERT INTO weread_reading (alias, last_run_date, last_run_at, last_status)
 		VALUES (?, ?, ?, ?)
@@ -119,8 +150,16 @@ func SaveReadingRunState(db *sql.DB, alias, runDate string, status string) error
 			last_run_date = excluded.last_run_date,
 			last_run_at = excluded.last_run_at,
 			last_status = excluded.last_status`,
-		alias, runDate, time.Now().Unix(), status)
+		alias, runDate, now, status)
 	return err
+}
+
+// ResumeTask 返回当日未完成会话的续跑参数;没有可续跑的返回 ok=false。
+func (c *ReadingConfig) ResumeTask() (bookID string, done, total int, ok bool) {
+	if c.LastRunDate == "" || c.RunTotal <= 0 || c.RunDone >= c.RunTotal || c.RunBookID == "" {
+		return "", 0, 0, false
+	}
+	return c.RunBookID, c.RunDone, c.RunTotal, true
 }
 
 func splitBookIDs(s string) []string {

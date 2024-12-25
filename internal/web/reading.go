@@ -66,7 +66,14 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, cfg)
+	running, paused := farmState(alias)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"alias": cfg.Alias, "enabled": cfg.Enabled, "book_ids": cfg.BookIDs,
+		"minutes": cfg.Minutes, "run_at": cfg.RunAt,
+		"last_run_date": cfg.LastRunDate, "last_run_at": cfg.LastRunAt, "last_status": cfg.LastStatus,
+		"run_book_id": cfg.RunBookID, "run_done": cfg.RunDone, "run_total": cfg.RunTotal,
+		"running": running, "paused": paused,
+	})
 }
 
 // handleReadingRun 立即执行一次阅读会话(异步),执行状态写库,前端轮询配置接口可见。
@@ -90,49 +97,74 @@ func (s *Server) handleReadingRun(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, errors.New("请先选择要阅读的书籍并保存配置"))
 		return
 	}
-	if !s.startFarm(alias, cfg, toWeread(c)) {
+	// 当日有未完成的会话(误停/中断)则续跑,否则开一场新的。
+	var task weread.FarmTask
+	if bookID, done, total, ok := cfg.ResumeTask(); ok {
+		task = weread.FarmTask{BookID: bookID, Done: done, Total: total}
+	} else {
+		task = weread.NewFarmTask(cfg.BookIDs, cfg.Minutes)
+	}
+	if !s.startFarm(alias, task, toWeread(c)) {
 		writeErr(w, http.StatusConflict, errors.New("该账号已有阅读会话在进行中"))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"started": true})
+	writeJSON(w, http.StatusOK, map[string]bool{"started": true, "resumed": task.Done > 0})
 }
 
-// farmRunner 是一个账号当前是否在跑阅读会话的内存标记。
-var farmRunning = struct {
+// farmSessions 记录每个账号进行中的阅读会话句柄(取消函数 + 暂停控制)。
+var farmSessions = struct {
 	sync.Mutex
-	set map[string]bool
-}{set: map[string]bool{}}
+	m map[string]*farmSessionHandle
+}{m: map[string]*farmSessionHandle{}}
 
-func (s *Server) startFarm(alias string, cfg *store.ReadingConfig, creds *weread.Credentials) bool {
-	farmRunning.Lock()
-	if farmRunning.set[alias] {
-		farmRunning.Unlock()
+type farmSessionHandle struct {
+	cancel context.CancelFunc
+	ctrl   *weread.FarmControl
+}
+
+func farmState(alias string) (running, paused bool) {
+	farmSessions.Lock()
+	defer farmSessions.Unlock()
+	h, ok := farmSessions.m[alias]
+	if !ok {
+		return false, false
+	}
+	return true, h.ctrl.IsPaused()
+}
+
+func (s *Server) startFarm(alias string, task weread.FarmTask, creds *weread.Credentials) bool {
+	farmSessions.Lock()
+	if _, running := farmSessions.m[alias]; running {
+		farmSessions.Unlock()
 		return false
 	}
-	farmRunning.set[alias] = true
-	farmRunning.Unlock()
+	ctrl := weread.NewFarmControl()
+	// 会话 ctx 与句柄共享同一个 cancel:「停止」按钮调用它即可终止整场会话。
+	sessCtx, cancel := context.WithTimeout(context.Background(), time.Duration(task.Total-task.Done+10)*time.Minute)
+	farmSessions.m[alias] = &farmSessionHandle{cancel: cancel, ctrl: ctrl}
+	farmSessions.Unlock()
 
 	today := time.Now().Format("2006-01-02")
 	// 先标记归属日期,防止调度器同日重复触发;手动执行也计入当日。
-	_ = store.SaveReadingRunState(s.db, alias, today, "阅读中…")
-	s.logf("info", "farm", alias, "阅读会话已启动,目标 %d 分钟(心跳 %d 次)", cfg.Minutes, cfg.Minutes*2)
+	_ = store.SaveReadingRunState(s.db, alias, today, "阅读中…", &store.RunProgress{BookID: task.BookID, Done: task.Done, Total: task.Total})
+	s.logf("info", "farm", alias, "阅读会话已启动,目标 %.1f 分钟(心跳 %d 次)%s",
+		float64(task.Total)*0.5, task.Total-task.Done, resumeNote(task.Done))
 
 	go func() {
 		defer func() {
-			farmRunning.Lock()
-			delete(farmRunning.set, alias)
-			farmRunning.Unlock()
+			farmSessions.Lock()
+			delete(farmSessions.m, alias)
+			farmSessions.Unlock()
+			cancel()
 		}()
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Minutes+10)*time.Minute)
-		defer cancel()
-
-		result, next, err := s.client.FarmSession(ctx, creds, cfg.BookIDs, cfg.Minutes, func(done, total int, msg string) {
-			_ = store.SaveReadingRunState(s.db, alias, today, fmt.Sprintf("阅读中 %d/%d 分钟", done/2, total/2))
-			if done%10 == 0 {
-				s.logf("info", "farm", alias, "阅读进度 %d/%d 分钟", done/2, total/2)
+		result, next, err := s.client.FarmSession(sessCtx, creds, task, func(done, total int, msg string) {
+			// 断点每次心跳都落库;日志按分钟记(每 2 次心跳一条),与记账粒度一致。
+			_ = store.SaveReadingRunState(s.db, alias, today, fmt.Sprintf("阅读中 %d/%d 分钟", done/2, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total})
+			if done%2 == 0 {
+				s.logf("info", "farm", alias, "阅读中 %d/%d 分钟", done/2, total/2)
 			}
-		})
+		}, ctrl)
 		if next != nil {
 			// 会话中途轮换了移动端凭据,落库,否则会丢会话。
 			updated := &store.Credential{
@@ -145,20 +177,85 @@ func (s *Server) startFarm(alias string, cfg *store.ReadingConfig, creds *weread
 				s.logf("info", "farm", alias, "会话中凭据已轮换并落库")
 			}
 		}
-		minutesText := fmt.Sprintf("%.1f 分钟", float64(result.Heartbeats)*0.5)
-		status := fmt.Sprintf("完成:阅读 %s(记 %d/%d 次心跳)", minutesText, result.Heartbeats, cfg.Minutes*2)
+		minutesText := fmt.Sprintf("%.1f 分钟", float64(result.Done)*0.5)
+		status := fmt.Sprintf("完成:阅读 %s(记 %d/%d 次心跳)", minutesText, result.Done, task.Total)
 		level := "info"
-		if err != nil {
+		switch {
+		case ctrl.Stopped():
+			status = fmt.Sprintf("已停止(已记 %s)", minutesText)
+			level = "warn"
+		case err != nil:
 			status = "失败:" + err.Error()
 			level = "error"
-		} else if result.Err != "" {
+		case result.Err != "":
 			status = fmt.Sprintf("中断(已记 %s):%s", minutesText, result.Err)
 			level = "warn"
 		}
-		_ = store.SaveReadingRunState(s.db, alias, today, status)
+		_ = store.SaveReadingRunState(s.db, alias, today, status, nil)
 		s.logf(level, "farm", alias, "%s", status)
 	}()
 	return true
+}
+
+// ResumeInterrupted 在服务启动时续跑当日未完成的阅读会话(误停/中断/崩溃恢复)。
+func (s *Server) ResumeInterrupted() {
+	cfgs, err := store.ListEnabledReadingConfigs(s.db)
+	if err != nil {
+		return
+	}
+	for _, cfg := range cfgs {
+		bookID, done, total, ok := cfg.ResumeTask()
+		if !ok {
+			continue
+		}
+		c, err := store.Load(s.db, cfg.Alias)
+		if err != nil {
+			continue
+		}
+		s.logf("info", "farm", cfg.Alias, "续跑上次未完成的阅读会话(已完成 %.1f/%.1f 分钟)", float64(done)*0.5, float64(total)*0.5)
+		s.startFarm(cfg.Alias, weread.FarmTask{BookID: bookID, Done: done, Total: total}, toWeread(c))
+	}
+}
+
+// handleReadingPause 暂停/继续进行中的阅读会话。
+// 已暂停时调用即继续;暂停不影响当日执行标记,继续后刷完剩余时长。
+func (s *Server) handleReadingPause(w http.ResponseWriter, r *http.Request) {
+	alias := r.PathValue("alias")
+	farmSessions.Lock()
+	h, ok := farmSessions.m[alias]
+	farmSessions.Unlock()
+	if !ok {
+		writeErr(w, http.StatusConflict, errors.New("没有进行中的阅读会话"))
+		return
+	}
+	today := time.Now().Format("2006-01-02")
+	var paused bool
+	if h.ctrl.IsPaused() {
+		h.ctrl.Resume()
+		_ = store.SaveReadingRunState(s.db, alias, today, "阅读中…", nil)
+		paused = false
+	} else {
+		h.ctrl.Pause()
+		_ = store.SaveReadingRunState(s.db, alias, today, "已暂停(点「继续阅读」恢复)", nil)
+		paused = true
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"running": true, "paused": paused})
+}
+
+// handleReadingStop 终止进行中的阅读会话。已上报的时长服务端已记账,不会回滚;
+// 当日调度视为已完成,明天到点再跑。
+func (s *Server) handleReadingStop(w http.ResponseWriter, r *http.Request) {
+	alias := r.PathValue("alias")
+	farmSessions.Lock()
+	h, ok := farmSessions.m[alias]
+	farmSessions.Unlock()
+	if !ok {
+		writeErr(w, http.StatusConflict, errors.New("没有进行中的阅读会话"))
+		return
+	}
+	h.ctrl.Stop()
+	h.cancel()
+	writeJSON(w, http.StatusOK, map[string]bool{"stopped": true})
 }
 
 // StartFarmScheduler 启动每日调度循环:每 30 秒扫描一次启用了自动阅读的账号,
@@ -199,9 +296,19 @@ func (s *Server) tickFarm(ctx context.Context) {
 			s.logf("error", "farm", cfg.Alias, "凭据加载失败: %v", err)
 			continue
 		}
-		s.logf("info", "farm", cfg.Alias, "调度器触发每日阅读(计划 %s,目标 %d 分钟)", cfg.RunAt, cfg.Minutes)
-		if !s.startFarm(cfg.Alias, cfg, toWeread(c)) {
+		task := weread.NewFarmTask(cfg.BookIDs, cfg.Minutes)
+		s.logf("info", "farm", cfg.Alias, "调度器触发每日阅读(计划 %s,目标 %.1f 分钟)", cfg.RunAt, float64(task.Total)*0.5)
+		if !s.startFarm(cfg.Alias, task, toWeread(c)) {
 			continue
 		}
 	}
 }
+
+// resumeNote 续跑时在启动日志里标注断点。
+func resumeNote(done int) string {
+	if done > 0 {
+		return fmt.Sprintf("(续跑,已完成 %.1f 分钟)", float64(done)*0.5)
+	}
+	return ""
+}
+

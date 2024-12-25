@@ -51,6 +51,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/accounts/{alias}/reading", s.handleReadingConfig)
 	mux.HandleFunc("POST /api/accounts/{alias}/reading", s.handleReadingConfig)
 	mux.HandleFunc("POST /api/accounts/{alias}/reading/run", s.handleReadingRun)
+	mux.HandleFunc("POST /api/accounts/{alias}/reading/pause", s.handleReadingPause)
+	mux.HandleFunc("POST /api/accounts/{alias}/reading/stop", s.handleReadingStop)
 	mux.HandleFunc("GET /api/logs", s.handleLogs)
 	mux.HandleFunc("DELETE /api/logs", s.handleLogs)
 	mux.HandleFunc("GET /api/accounts/{alias}/token", s.handleAccountToken)
