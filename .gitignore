@@ -8,3 +8,5 @@
 /wxread
 wxread-bin
 *.exe
+
+.direnv/
