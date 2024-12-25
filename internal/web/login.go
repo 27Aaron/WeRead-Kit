@@ -138,6 +138,9 @@ func (m *loginManager) finish(id string, creds *weread.Credentials, err error) {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 		sess.status, sess.errMsg = status, msg
+		if status == "error" {
+			store.AddLog(m.db, "error", "auth", sess.alias, "扫码登录失败: "+msg)
+		}
 	}
 
 	switch {
@@ -172,6 +175,7 @@ func (m *loginManager) finish(id string, creds *weread.Credentials, err error) {
 			}
 		}
 		// Credentials are already durable. Profile failures must not undo login.
+		store.AddLog(m.db, "info", "auth", alias, "扫码登录成功,凭据已更新")
 		go m.warmDetails(record)
 		m.mu.Lock()
 		sess.alias = alias

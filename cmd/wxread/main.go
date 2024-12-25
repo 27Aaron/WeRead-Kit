@@ -38,6 +38,8 @@ func main() {
 		code = cmdRefresh(ctx, os.Args[2:])
 	case "shelf":
 		code = cmdShelf(ctx, os.Args[2:])
+	case "farm-run":
+		code = cmdFarmRun(ctx, os.Args[2:])
 	case "info":
 		code = cmdInfo(ctx, os.Args[2:])
 	case "keepalive":
@@ -65,6 +67,7 @@ func usage() {
   wxread refresh   [--alias 别名]                  立刻用 refreshToken 换新凭据
   wxread shelf     [--alias 别名]                  列出书架中的书籍
   wxread info      [--alias 别名]                  查看用户信息与会员卡
+  wxread farm-run    [--alias 别名] [--minutes N]   立即执行一次阅读会话(默认读 30 分钟)
   wxread keepalive [--alias 别名] [--every 24h]    周期刷新,长期不用的账号也不会失效
   wxread serve     [--addr 127.0.0.1:8080]        启动 Web UI(扫码添加账号、备注、续期)
   wxread show      [--alias 别名]                  查看账号信息(不含令牌)
@@ -368,6 +371,53 @@ func cmdInfo(ctx context.Context, args []string) int {
 	return 0
 }
 
+// cmdFarmRun 立即执行一次阅读会话,给不开 serve 常驻、想用 cron 的用户。
+// 配置(选书/时长)读取已保存的阅读配置;--minutes 可临时覆盖。
+func cmdFarmRun(ctx context.Context, args []string) int {
+	fs := flag.NewFlagSet("farm-run", flag.ExitOnError)
+	alias, dbPath := commonFlags(fs)
+	minutes := fs.Int("minutes", 0, "覆盖配置的阅读时长(分钟)")
+	_ = fs.Parse(args)
+
+	db := mustOpenDB(*dbPath)
+	defer db.Close()
+	c := loadOrExit(db, *alias)
+	cfg, err := store.GetReadingConfig(db, *alias)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "读取阅读配置失败: %v\n", err)
+		return 1
+	}
+	if len(cfg.BookIDs) == 0 {
+		fmt.Fprintln(os.Stderr, "尚未配置阅读书籍:先在 Web UI 里选书保存,或说明见 README")
+		return 1
+	}
+	target := cfg.Minutes
+	if *minutes > 0 {
+		target = *minutes
+	}
+
+	client := weread.NewClient()
+	fmt.Printf("开始阅读:《书架所选》目标 %d 分钟(每 30 秒记 0.5 分钟)……\n", target)
+	result, next, err := client.FarmSession(ctx, toWeread(c), cfg.BookIDs, target, func(done, total int, msg string) {
+		fmt.Printf("  进度 %d/%d:%s\n", done, total, msg)
+	})
+	if next != nil {
+		_ = store.Save(db, toStore(*alias, next))
+	}
+	if result != nil {
+		fmt.Printf("阅读了 %.1f 分钟(记 %d/%d 次心跳)\n", float64(result.Heartbeats)*0.5, result.Heartbeats, target*2)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "阅读会话失败: %v\n", err)
+		return 1
+	}
+	if result.Err != "" {
+		fmt.Fprintf(os.Stderr, "阅读会话中断: %s\n", result.Err)
+		return 1
+	}
+	return 0
+}
+
 func cmdKeepalive(ctx context.Context, args []string) int {
 	fs := flag.NewFlagSet("keepalive", flag.ExitOnError)
 	alias, dbPath := commonFlags(fs)
@@ -420,7 +470,10 @@ func cmdServe(ctx context.Context, args []string) int {
 	db := mustOpenDB(*dbPath)
 	defer db.Close()
 
-	srv := &http.Server{Addr: *addr, Handler: web.New(db).Handler()}
+	webServer := web.New(db)
+	webServer.StartFarmScheduler(ctx)
+	store.AddLog(db, "info", "serve", "", "Web 服务已启动,监听 "+*addr)
+	srv := &http.Server{Addr: *addr, Handler: webServer.Handler()}
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

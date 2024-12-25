@@ -1,6 +1,7 @@
 package web
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -26,14 +27,18 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != http.MethodPost && c.Profile != "" && c.Card != "" && c.Shelf != "" {
-		writeJSON(w, http.StatusOK, map[string]any{
+		resp := map[string]any{
 			"alias":     alias,
 			"remark":    c.Remark,
 			"user":      json.RawMessage(c.Profile),
 			"card":      json.RawMessage(c.Card),
 			"books":     json.RawMessage(c.Shelf),
 			"cached_at": c.DetailsCachedAt,
-		})
+		}
+		if cfg, rerr := store.GetReadingConfig(s.db, alias); rerr == nil {
+			resp["reading"] = cfg
+		}
+		writeJSON(w, http.StatusOK, resp)
 		return
 	}
 
@@ -82,5 +87,14 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 		"books":     d.Shelf,
 		"errors":    d.Errs,
 		"cached_at": time.Now().Unix(),
+		"reading":   mustReadingConfig(s.db, alias),
 	})
+}
+
+func mustReadingConfig(db *sql.DB, alias string) *store.ReadingConfig {
+	cfg, err := store.GetReadingConfig(db, alias)
+	if err != nil {
+		return store.DefaultReadingConfig(alias)
+	}
+	return cfg
 }
