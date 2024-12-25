@@ -287,7 +287,7 @@ async function showDetails(account) {
   }
 }
 
-const detailSectionNames = { shelf: "书架", user: "用户信息", balance: "账户余额", card: "会员卡", session: "网页会话", profile: "资料缓存" };
+const detailSectionNames = { shelf: "书架", user: "用户信息", card: "会员卡", session: "网页会话", profile: "资料缓存" };
 
 function renderDetails(d) {
   const root = $("#detail-content");
@@ -304,7 +304,6 @@ function renderDetails(d) {
   const user = nested(d.user, "user");
   if (user && (user.name || user.nickname)) $("#detail-title").textContent = user.name || user.nickname;
   if (user) root.append(detailSection("用户信息", userCard(user)));
-  if (d.balance) root.append(detailSection("账户余额", kvBlock(d.balance)));
   if (d.card) root.append(detailSection("会员卡", kvBlock(d.card)));
 
   const books = Array.isArray(d.books) ? d.books : [];

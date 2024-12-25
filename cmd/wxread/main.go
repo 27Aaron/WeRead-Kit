@@ -64,7 +64,7 @@ func usage() {
   wxread token     [--alias 别名] [--max-age 24h]  输出可用的 accessToken,过期自动刷新
   wxread refresh   [--alias 别名]                  立刻用 refreshToken 换新凭据
   wxread shelf     [--alias 别名]                  列出书架中的书籍
-  wxread info      [--alias 别名]                  查看用户信息、账户余额与会员卡
+  wxread info      [--alias 别名]                  查看用户信息与会员卡
   wxread keepalive [--alias 别名] [--every 24h]    周期刷新,长期不用的账号也不会失效
   wxread serve     [--addr 127.0.0.1:8080]        启动 Web UI(扫码添加账号、备注、续期)
   wxread show      [--alias 别名]                  查看账号信息(不含令牌)
@@ -320,11 +320,10 @@ func cmdInfo(ctx context.Context, args []string) int {
 	var sections []section
 	fetch := map[string]func() (json.RawMessage, error){
 		"用户信息": func() (json.RawMessage, error) { return client.WebUserInfo(ctx, cookie, c.Vid) },
-		"账户余额": func() (json.RawMessage, error) { return client.WebBalance(ctx, cookie) },
 		"会员卡":  func() (json.RawMessage, error) { return client.WebMemberCard(ctx, cookie) },
 	}
 	failed := 0
-	for _, name := range []string{"用户信息", "账户余额", "会员卡"} {
+	for _, name := range []string{"用户信息", "会员卡"} {
 		raw, err := fetch[name]()
 		if errors.Is(err, weread.ErrSessionExpired) {
 			// 网页会话半路过期:重新桥接再试一次这一节。

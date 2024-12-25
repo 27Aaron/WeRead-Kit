@@ -170,10 +170,10 @@ func (m *loginManager) finish(id string, creds *weread.Credentials, err error) {
 				return
 			}
 		}
-        // Credentials are already durable. Profile failures must not undo login.
-        _ = syncProfile(context.Background(), m.db, m.client, record)
-        m.mu.Lock()
-        sess.alias = alias
+		// Credentials are already durable. Profile failures must not undo login.
+		_ = syncProfile(context.Background(), m.db, m.client, record)
+		m.mu.Lock()
+		sess.alias = alias
 		sess.status = "success"
 		sess.creds = creds
 		m.mu.Unlock()

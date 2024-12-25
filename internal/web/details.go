@@ -11,8 +11,8 @@ import (
 	"wxread/internal/weread"
 )
 
-// handleAccountDetails 聚合一个账号的用户信息、余额、会员卡和书架。
-// 四路独立采集,单路失败不影响其它路;会话过期时自动续期并整体重试一次。
+// handleAccountDetails 聚合一个账号的用户信息、会员卡和书架。
+// 三路独立采集,单路失败不影响其它路;会话过期时自动续期并整体重试一次。
 func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 	alias := r.PathValue("alias")
 	c, err := store.Load(s.db, alias)
@@ -88,14 +88,13 @@ func (s *Server) collectDetails(ctx context.Context, creds *weread.Credentials) 
 		errs["shelf"] = err.Error()
 	}
 
-	// 用户/余额/会员卡:网页版接口,先桥接网页会话。
+	// 用户/会员卡:网页版接口,先桥接网页会话。
 	cookie, err := s.client.WebCookie(ctx, creds)
 	switch {
 	case err == nil:
 		for name, fetch := range map[string]func() (json.RawMessage, error){
-			"user":    func() (json.RawMessage, error) { return s.client.WebUserInfo(ctx, cookie, creds.Vid) },
-			"balance": func() (json.RawMessage, error) { return s.client.WebBalance(ctx, cookie) },
-			"card":    func() (json.RawMessage, error) { return s.client.WebMemberCard(ctx, cookie) },
+			"user": func() (json.RawMessage, error) { return s.client.WebUserInfo(ctx, cookie, creds.Vid) },
+			"card": func() (json.RawMessage, error) { return s.client.WebMemberCard(ctx, cookie) },
 		} {
 			data, err := fetch()
 			switch {

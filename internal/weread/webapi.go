@@ -1,5 +1,5 @@
 // 网页版接口桥接:用移动端凭据(vid/accessToken/refreshToken)换取网页会话 Cookie,
-// 再以 Cookie 调用仅网页版提供的接口(用户信息、余额、会员卡)。
+// 再以 Cookie 调用仅网页版提供的接口(用户信息、会员卡)。
 package weread
 
 import (
@@ -85,11 +85,6 @@ func (c *Client) WebUserInfo(ctx context.Context, cookie, vid string) (json.RawM
 	return c.webGet(ctx, "/web/user", q, cookie)
 }
 
-// WebBalance 查询账户余额(网页版接口)。
-func (c *Client) WebBalance(ctx context.Context, cookie string) (json.RawMessage, error) {
-	return c.webPost(ctx, "/web/pay/balance", map[string]any{"pf": "ios"}, cookie)
-}
-
 // WebMemberCard 查询会员卡信息(网页版接口)。
 func (c *Client) WebMemberCard(ctx context.Context, cookie string) (json.RawMessage, error) {
 	q := url.Values{}
@@ -103,14 +98,6 @@ func (c *Client) webGet(ctx context.Context, path string, query url.Values, cook
 		u += "?" + query.Encode()
 	}
 	return c.webCall(ctx, http.MethodGet, u, nil, cookie)
-}
-
-func (c *Client) webPost(ctx context.Context, path string, payload any, cookie string) (json.RawMessage, error) {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-	return c.webCall(ctx, http.MethodPost, webBaseURL+path, body, cookie)
 }
 
 func (c *Client) webCall(ctx context.Context, method, u string, body []byte, cookie string) (json.RawMessage, error) {
