@@ -48,6 +48,14 @@ func Open(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("初始化表结构失败: %w", err)
 	}
+	if _, err := db.Exec(readingSchema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("初始化阅读配置表失败: %w", err)
+	}
+	if _, err := db.Exec(logsSchema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("初始化日志表失败: %w", err)
+	}
 	// 早期版本的库没有 remark 列,补上(表名列名是包内常量,无注入面)。
 	if err := ensureColumn(db, "weread_account", "remark", "TEXT NOT NULL DEFAULT ''"); err != nil {
 		db.Close()
