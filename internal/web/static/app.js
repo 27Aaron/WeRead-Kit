@@ -304,7 +304,7 @@ function renderDetails(d) {
   const user = nested(d.user, "user");
   if (user && (user.name || user.nickname)) $("#detail-title").textContent = user.name || user.nickname;
   if (user) root.append(detailSection("用户信息", userCard(user)));
-  if (d.card) root.append(detailSection("会员卡", kvBlock(d.card)));
+  if (d.card) root.append(detailSection("会员卡", memberCardBlock(d.card)));
 
   const books = Array.isArray(d.books) ? d.books : [];
   root.append(detailSection(`书架(${books.length} 本)`, shelfGrid(books)));
@@ -328,28 +328,17 @@ function nested(obj, ...keys) {
   return obj;
 }
 
-function kvEntries(o, skip = new Set()) {
-  const NOISE = new Set(["errCode", "errMsg", "synckey", "succ"]);
-  return Object.entries(o || {})
-    .filter(([k]) => !NOISE.has(k) && !skip.has(k))
-    .map(([k, v]) => {
-      let val = v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
-      if (val.length > 90) val = val.slice(0, 90) + "…";
-      return [k, val];
-    });
-}
-
 function kvListEl(entries) {
   const wrap = document.createElement("div");
   wrap.className = "kv-list";
-  for (const [k, v] of entries) {
+  for (const [k, v, cls] of entries) {
     const row = document.createElement("div");
     row.className = "kv-row";
     const key = document.createElement("span");
     key.className = "kv-key";
     key.textContent = k;
     const val = document.createElement("span");
-    val.className = "kv-val";
+    val.className = "kv-val" + (cls ? " " + cls : "");
     val.textContent = v;
     row.append(key, val);
     wrap.append(row);
@@ -357,15 +346,25 @@ function kvListEl(entries) {
   return wrap;
 }
 
-function kvBlock(o) {
-  if (!o || typeof o !== "object") {
-    const p = document.createElement("p");
-    p.className = "kv-raw";
-    p.textContent = o === undefined || o === null ? "(空)" : JSON.stringify(o);
-    return p;
-  }
-  const entries = kvEntries(o);
-  return kvListEl(entries.length ? entries : [["原始返回", JSON.stringify(o).slice(0, 200)]]);
+// 只展示年月日:会员卡的起止都卡在 23:59:59,日期足够,时刻是噪音。
+function fmtDay(unix) {
+  if (!unix) return "—";
+  return new Date(unix * 1000).toLocaleDateString("zh-CN");
+}
+
+function fmtRemain(seconds) {
+  if (!seconds || seconds <= 0) return "—";
+  const days = Math.floor(seconds / 86400);
+  return days >= 1 ? `约 ${days} 天` : "不足 1 天";
+}
+
+function memberCardBlock(c) {
+  return kvListEl([
+    ["起始日期", fmtDay(c.startTime)],
+    ["到期时间", fmtDay(c.expiredTime)],
+    ["当前状态", c.expired ? "已过期" : "有效中", c.expired ? "off" : "on"],
+    ["剩余时长", c.expired ? "—" : fmtRemain(c.remainTime)],
+  ]);
 }
 
 function userCard(u) {
@@ -380,13 +379,18 @@ function userCard(u) {
     img.alt = "头像";
     head.append(img);
   }
+  const info = document.createElement("div");
+  info.className = "user-info";
   const name = document.createElement("div");
   name.className = "user-name";
-  name.textContent = u.name || u.nickname || u.vid || u.userVid || "微信读书用户";
-  head.append(name);
+  name.textContent = (u.name || u.nickname || "微信读书用户").trim();
+  info.append(name);
+  const vid = document.createElement("div");
+  vid.className = "user-vid";
+  vid.textContent = `用户 ID:${u.userVid || u.vid || "—"}`;
+  info.append(vid);
+  head.append(info);
   wrap.append(head);
-  const kv = kvEntries(u, new Set(["name", "nickname", "avatar"]));
-  if (kv.length) wrap.append(kvListEl(kv));
   return wrap;
 }
 
