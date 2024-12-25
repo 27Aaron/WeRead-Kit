@@ -1,0 +1,10 @@
+# 凭据数据库与 SQLite 伴生文件
+/data/
+*.db
+*.db-wal
+*.db-shm
+
+# 构建产物
+/wxread
+wxread-bin
+*.exe
