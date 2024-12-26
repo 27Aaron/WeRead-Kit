@@ -252,7 +252,10 @@ async function pollLogin() {
 
 function setStatus(status, errMsg) {
   const el = $("#login-status");
-  el.textContent = errMsg ? `${statusText[status] || status}:${errMsg}` : statusText[status] || status;
+  const label = statusText[status] || status;
+  // 错误详情与状态文案相同(如"拒绝授权")时只展示一次,避免重复。
+  const duplicate = !errMsg || errMsg === label || label.includes(errMsg) || errMsg.includes(label);
+  el.textContent = duplicate ? label : `${label}:${errMsg}`;
   el.className = "status" + (status === "success" ? " ok" : ["expired", "declined", "error", "canceled"].includes(status) ? " err" : "");
 }
 
