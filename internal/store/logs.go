@@ -8,7 +8,7 @@ import (
 
 // 日志滚动保留:超过 60 天的淘汰,同时保留 2 万条硬上限兜底。
 const (
-	LogRetentionDays = 60
+	LogRetentionDays = 30
 	LogMaxRows       = 20000
 )
 
