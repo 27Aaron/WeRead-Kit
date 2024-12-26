@@ -174,7 +174,7 @@ func (m *loginManager) finish(id string, creds *weread.Credentials, err error) {
 				return
 			}
 		}
-		// Credentials are already durable. Profile failures must not undo login.
+		// 凭据此前已持久化,资料拉取失败不影响登录结果。
 		store.AddLog(m.db, "info", "auth", alias, "扫码登录成功,凭据已更新")
 		go m.warmDetails(record)
 		m.mu.Lock()

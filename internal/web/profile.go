@@ -61,7 +61,7 @@ func syncProfile(ctx context.Context, db *sql.DB, client *weread.Client, c *stor
 	return saveProfile(db, c, raw)
 }
 
-// Existing accounts are filled separately; listing accounts never waits for WeRead.
+// 既有账号的资料由独立流程补充,账号列表加载不等待微信读书接口。
 func (s *Server) handleSyncProfile(w http.ResponseWriter, r *http.Request) {
 	c, err := store.Load(s.db, r.PathValue("alias"))
 	if errors.Is(err, store.ErrNotFound) {

@@ -1,6 +1,6 @@
 // 网页版阅读上报协议:POST /web/book/read。
-// 签名算法(sg/s)与 appId 生成规则逆向自微信读书网页前端 JS,
-// 与社区实现(wereadapi/findmover-wxread)逐字对齐,勿改动常量。
+// 签名算法(sg/s)与 appId 生成规则逆向自微信读书网页前端,已与社区参考实现逐字对齐;
+// 常量与算法须与前端保持一致,不可改动。
 package weread
 
 import (

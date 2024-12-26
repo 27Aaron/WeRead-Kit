@@ -157,7 +157,7 @@ func rawString(raw json.RawMessage) string {
 func randIntn(n int) int {
 	v, err := rand.Int(rand.Reader, big.NewInt(int64(n)))
 	if err != nil {
-		// crypto/rand 失败意味着操作系统熵源不可用,没有继续的意义。
+		// 熵源不可用属致命错误,直接终止。
 		panic("weread: crypto/rand unavailable: " + err.Error())
 	}
 	return int(v.Int64())

@@ -2,8 +2,7 @@ package weread
 
 import "testing"
 
-// 期望值来自参考实现的 Python 原始代码(wereadapi tests/weread_api_test.py)直接计算,
-// 本测试保证 Go 移植与 Python 逐字节一致——签名错一个字符服务端就会拒绝上报。
+// 期望值由参考实现(Python)直接计算得出,用于校验 Go 移植与原始算法的一致性。
 const webUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
 func TestCalcHashMatchesReference(t *testing.T) {
