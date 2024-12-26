@@ -18,6 +18,7 @@ type LogEntry struct {
 	Level   string    `json:"level"`
 	Source  string    `json:"source"`
 	Alias   string    `json:"alias"`
+	Name    string    `json:"name"` // 账号昵称,关联账号表得到,供界面展示
 	Message string    `json:"message"`
 	Time    time.Time `json:"-"`
 }
@@ -63,7 +64,10 @@ func ListLogs(db *sql.DB, alias, level string, limit int) ([]*LogEntry, error) {
 	if limit <= 0 || limit > LogMaxRows {
 		limit = 200
 	}
-	query := `SELECT id, ts, level, source, alias, message FROM weread_log WHERE 1=1`
+	query := `SELECT l.id, l.ts, l.level, l.source, l.alias, COALESCE(a.name, '') AS name, l.message
+		FROM weread_log l
+		LEFT JOIN weread_account a ON a.alias = l.alias
+		WHERE 1=1`
 	var args []any
 	if alias != "" {
 		query += ` AND alias = ?`
@@ -84,7 +88,7 @@ func ListLogs(db *sql.DB, alias, level string, limit int) ([]*LogEntry, error) {
 	out := []*LogEntry{}
 	for rows.Next() {
 		e := &LogEntry{}
-		if err := rows.Scan(&e.ID, &e.TS, &e.Level, &e.Source, &e.Alias, &e.Message); err != nil {
+		if err := rows.Scan(&e.ID, &e.TS, &e.Level, &e.Source, &e.Alias, &e.Name, &e.Message); err != nil {
 			return nil, err
 		}
 		e.Time = time.Unix(e.TS, 0)

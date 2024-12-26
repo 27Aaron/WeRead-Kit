@@ -735,7 +735,8 @@ function renderLogs(logs, silent) {
     source.textContent = e.source || "-";
     const alias = document.createElement("span");
     alias.className = "log-alias";
-    alias.textContent = e.alias || "-";
+    alias.textContent = e.name || e.alias || "-";
+    alias.title = `别名 ${e.alias}`;
     const msg = document.createElement("span");
     msg.className = "log-msg";
     msg.textContent = e.message;
