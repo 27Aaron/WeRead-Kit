@@ -3,6 +3,7 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -275,6 +276,10 @@ func UpdateProfile(db *sql.DB, alias, vid, name, avatar, userVid string) error {
 // SaveDetailsCache 持久化详情聚合数据(用户信息/会员卡/书架的原始 JSON)。
 // 与凭据轮换写入互不覆盖:本函数只碰缓存列,Save 只碰凭据列。
 func SaveDetailsCache(db *sql.DB, alias string, profile, card, shelf []byte) error {
+	// Only cache fields rendered by the UI. This keeps volatile API metadata,
+	// signatures and payment/recommendation payloads out of the local DB.
+	profile = compactJSON(profile, []string{"userVid", "name", "avatar"})
+	card = compactJSON(card, []string{"startTime", "expiredTime", "expired", "remainTime"})
 	res, err := db.Exec(`
 		UPDATE weread_account
 		SET profile = ?, card = ?, shelf = ?, details_cached_at = ?
@@ -287,4 +292,22 @@ func SaveDetailsCache(db *sql.DB, alias string, profile, card, shelf []byte) err
 		return ErrNotFound
 	}
 	return nil
+}
+
+func compactJSON(raw []byte, fields []string) []byte {
+	var src map[string]any
+	if json.Unmarshal(raw, &src) != nil {
+		return raw
+	}
+	dst := make(map[string]any, len(fields))
+	for _, field := range fields {
+		if value, ok := src[field]; ok {
+			dst[field] = value
+		}
+	}
+	out, err := json.Marshal(dst)
+	if err != nil {
+		return raw
+	}
+	return out
 }
