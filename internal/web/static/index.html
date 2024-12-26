@@ -14,6 +14,7 @@
     <a class="nav-item active" href="/" id="nav-accounts" aria-current="page"><span aria-hidden="true">▤</span> 我的账号 <span class="nav-arrow" aria-hidden="true">›</span></a>
     <a class="nav-item" href="#challenge" id="nav-challenge"><span aria-hidden="true">⚑</span> 挑战赛 <span class="nav-arrow" aria-hidden="true">›</span></a>
     <a class="nav-item" href="#logs" id="nav-logs"><span aria-hidden="true">☰</span> 日志 <span class="nav-arrow" aria-hidden="true">›</span></a>
+    <a class="nav-item" href="#settings" id="nav-settings"><span aria-hidden="true">⚙</span> 设置 <span class="nav-arrow" aria-hidden="true">›</span></a>
     <div class="sidebar-bottom"><span class="local-icon" aria-hidden="true">⌘</span><div>本地工作空间<small>你的账号，存于你的设备</small></div></div>
   </aside>
   <div class="workspace">
@@ -84,6 +85,14 @@
           <div class="logs-header"><span>时间</span><span>级别</span><span>来源</span><span>账号</span><span>内容</span></div>
           <div id="logs-list" class="logs-list"><p class="empty">暂无日志</p></div>
           <div class="panel-footer"><span>日志保留 60 天</span><span id="logs-updated">—</span></div>
+        </div>
+      </section>
+      <section id="settings-view" class="hidden">
+        <div class="section-heading"><div class="section-title"><h2>设置</h2></div></div>
+        <div class="account-panel">
+          <div class="panel-toolbar"><span>推送渠道</span><span id="push-summary">—</span></div>
+          <div id="push-list" class="push-list"></div>
+          <div class="panel-footer"><span>阅读会话结束时,向所有开启的渠道推送结果</span><span>参数仅保存在本机数据库</span></div>
         </div>
       </section>
       <footer class="page-footer"><span>wxread</span><span>与好书相伴，让阅读成为日常。</span></footer>

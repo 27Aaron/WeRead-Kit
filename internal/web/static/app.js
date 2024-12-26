@@ -452,12 +452,13 @@ function setView(view) {
   $("#accounts-view").classList.toggle("hidden", view !== "accounts");
   $("#challenge-view").classList.toggle("hidden", view !== "challenge");
   $("#logs-view").classList.toggle("hidden", view !== "logs");
-  for (const [id, name] of [["nav-accounts", "accounts"], ["nav-challenge", "challenge"], ["nav-logs", "logs"]]) {
+  $("#settings-view").classList.toggle("hidden", view !== "settings");
+  for (const [id, name] of [["nav-accounts", "accounts"], ["nav-challenge", "challenge"], ["nav-logs", "logs"], ["nav-settings", "settings"]]) {
     $(`#${id}`).classList.toggle("active", view === name);
     if (view === name) $(`#${id}`).setAttribute("aria-current", "page");
     else $(`#${id}`).removeAttribute("aria-current");
   }
-  $("#crumb").textContent = { accounts: "我的账号", challenge: "挑战赛", logs: "日志" }[view] || "我的账号";
+  $("#crumb").textContent = { accounts: "我的账号", challenge: "挑战赛", logs: "日志", settings: "设置" }[view] || "我的账号";
 }
 
 async function openChallenge() {
@@ -747,7 +748,160 @@ function renderLogs(logs, silent) {
   list.scrollTop = 0; // 最新在最上
 }
 
-/* ---------- 事件绑定 ---------- */
+/* ---------- 设置 · 推送渠道 ---------- */
+
+// 四类渠道固定平铺,每类一张卡片:名称 + 开关 + 参数(带默认值)+ 保存/测试。
+const pushTypes = {
+  bark: {
+    label: "Bark", desc: "iOS 通知,免费、可自建服务端",
+    fields: [["device_key", "Device Key", true], ["server", "服务端地址", false, "https://api.day.app"]],
+  },
+  telegram: {
+    label: "Telegram", desc: "无条数限制,网络需可访问 Telegram",
+    fields: [["bot_token", "Bot Token", true], ["chat_id", "Chat ID", true]],
+  },
+  serverchan: {
+    label: "Server酱", desc: "消息直达微信,免费版每天限 5 条",
+    fields: [["send_key", "SendKey", true]],
+  },
+  pushplus: {
+    label: "pushplus", desc: "微信公众号推送,需关注公众号",
+    fields: [["token", "Token", true]],
+  },
+};
+
+async function openSettings() {
+  setView("settings");
+  await loadPushChannels();
+}
+
+async function loadPushChannels() {
+  const channels = await api("/api/settings/push");
+  const byType = {};
+  for (const c of channels) byType[c.type] = c;
+
+  let enabledCount = 0;
+  const list = $("#push-list");
+  list.textContent = "";
+
+  for (const [type, meta] of Object.entries(pushTypes)) {
+    const ch = byType[type] || { type, enabled: false, params: {} };
+    if (ch.enabled) enabledCount++;
+    const savedParams = ch.params || {};
+
+    const card = document.createElement("div");
+    card.className = "push-card" + (ch.enabled ? " on" : "");
+
+    // 头部:渠道名 + 说明 + 开关
+    const head = document.createElement("div");
+    head.className = "push-card-head";
+    const nameWrap = document.createElement("div");
+    const name = document.createElement("span");
+    name.className = "push-card-name";
+    name.textContent = meta.label;
+    const desc = document.createElement("div");
+    desc.className = "push-card-desc";
+    desc.textContent = meta.desc;
+    nameWrap.append(name, desc);
+    const sw = document.createElement("label");
+    sw.className = "switch";
+    const swInput = document.createElement("input");
+    swInput.type = "checkbox";
+    swInput.checked = !!ch.enabled;
+    const slider = document.createElement("span");
+    slider.className = "slider";
+    sw.append(swInput, slider);
+    head.append(nameWrap, sw);
+    card.append(head);
+
+    // 参数输入(带默认值)
+    const fields = document.createElement("div");
+    fields.className = "push-fields";
+    const inputs = {};
+    for (const [key, label, required, def] of meta.fields) {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = savedParams[key] !== undefined ? savedParams[key] : (def || "");
+      input.placeholder = required ? `${label}(必填)` : label;
+      input.dataset.key = key;
+      input.className = "push-param-input";
+      if (required) input.required = true;
+      inputs[key] = input;
+      fields.append(input);
+    }
+    card.append(fields);
+
+    const collect = () => {
+      const params = {};
+      for (const key in inputs) params[key] = inputs[key].value.trim();
+      return params;
+    };
+
+    // 开关切换即保存;启用时校验必填
+    swInput.addEventListener("change", async () => {
+      const params = collect();
+      if (swInput.checked) {
+        for (const [key, label, required] of meta.fields) {
+          if (required && !params[key]) {
+            swInput.checked = false;
+            toast(`开启前请先填写 ${label}`);
+            return;
+          }
+        }
+      }
+      try {
+        await api("/api/settings/push", {
+          method: "POST",
+          body: JSON.stringify({ type, enabled: swInput.checked, params }),
+        });
+        card.classList.toggle("on", swInput.checked);
+        toast(swInput.checked ? "已开启" : "已关闭");
+        loadPushChannels();
+      } catch (err) {
+        swInput.checked = !swInput.checked;
+        toast(`操作失败:${err.message}`);
+      }
+    });
+
+    // 保存参数按钮
+    const ops = document.createElement("div");
+    ops.className = "push-card-ops";
+    const saveBtn = button("保存参数", "btn small", async () => {
+      saveBtn.disabled = true;
+      const params = collect();
+      try {
+        await api("/api/settings/push", {
+          method: "POST",
+          body: JSON.stringify({ type, enabled: swInput.checked, params }),
+        });
+        toast("参数已保存");
+      } catch (err) {
+        toast(`保存失败:${err.message}`);
+      }
+      saveBtn.disabled = false;
+    });
+    const testBtn = button("发送测试", "btn small", async () => {
+      const params = collect();
+      testBtn.disabled = true;
+      try {
+        await api(`/api/settings/push/${type}/test`, {
+          method: "POST",
+          body: JSON.stringify({ params }),
+        });
+        toast("测试消息已发送,请查收");
+      } catch (err) {
+        toast(`测试失败:${err.message}`);
+      }
+      testBtn.disabled = false;
+    });
+    ops.append(saveBtn, " ", testBtn);
+    card.append(ops);
+    list.append(card);
+  }
+  $("#push-summary").textContent = `${enabledCount}/${Object.keys(pushTypes).length} 个已开启`;
+}
+
+/* ---------- 事件绑定 ---------- *//* ---------- 事件绑定 ---------- */
 
 function openLogin() {
   resetLoginUI();
@@ -772,6 +926,8 @@ $("#nav-logs").addEventListener("click", (e) => { e.preventDefault(); openLogs()
 $("#challenge-account").addEventListener("change", (e) => { challengeAlias = e.target.value; loadChallenge(); });
 $("#challenge-save").addEventListener("click", saveChallenge);
 $("#challenge-run").addEventListener("click", runChallengeNow);
+$("#nav-settings").addEventListener("click", (e) => { e.preventDefault(); openSettings(); });
+
 $("#challenge-pause").addEventListener("click", toggleChallengePause);
 $("#challenge-stop").addEventListener("click", stopChallenge);
 $("#log-alias").addEventListener("change", () => loadLogs());
