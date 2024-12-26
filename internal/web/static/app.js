@@ -2,6 +2,29 @@
 
 const $ = (sel) => document.querySelector(sel);
 
+const lucidePaths = window.LUCIDE_ICONS || {};
+function lucideIcon(name, className = "icon") { const span = document.createElement("span"); span.className = className; span.setAttribute("aria-hidden", "true"); span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${lucidePaths[name] || ""}</svg>`; return span; }
+function iconForButton(text) {
+  return {"刷新":"refresh-cw","更新列表":"refresh-cw","添加账号":"plus","生成登录二维码":"plus","删除":"trash","立即开始":"play","暂停":"pause","停止":"square","继续阅读":"play","保存":"save","保存设置":"save","发送测试消息":"send"}[text] || null;
+}
+
+const themeToggle = () => {
+  const root = document.documentElement;
+  const next = root.dataset.theme === "dark" ? "light" : "dark";
+  root.dataset.theme = next;
+  localStorage.setItem("wxread-theme", next);
+  updateThemeButton();
+};
+function updateThemeButton() {
+  const button = $("#theme-toggle");
+  if (!button) return;
+  const dark = document.documentElement.dataset.theme === "dark";
+  button.replaceChildren(lucideIcon(dark ? "sun" : "moon"), Object.assign(document.createElement("span"), { className: "theme-label", textContent: dark ? "浅色" : "深色" }));
+  button.setAttribute("aria-label", dark ? "切换到浅色模式" : "切换到深色模式");
+}
+
+
+
 const statusText = {
   pending: "等待扫码…",
   scanned: "已扫码,请在微信中确认登录",
@@ -124,7 +147,7 @@ function renderAccounts() {
     const credential = document.createElement("span");
     credential.className = "credential" + (a.has_access_token ? "" : " missing");
     credential.textContent = a.has_access_token ? "✓ 已保存" : "— 待刷新";
-    credential.title = "表示本地是否保存凭据，不代表实时登录状态";
+    credential.title = "表示凭据状态，不代表实时登录状态";
     tdCredential.append(credential);
 
     const tdOps = document.createElement("td");
@@ -148,7 +171,7 @@ function renderAccounts() {
 
     const delBtn = button("删除", "btn small danger", async () => {
       const displayName = a.name || a.user_vid || a.vid;
-      if (!confirm(`确定删除账号「${displayName}」?仅删除本地凭据,不影响微信读书账号。`)) return;
+      if (!confirm(`确定删除账号「${displayName}」?仅删除当前账号，不影响微信读书账号。`)) return;
       try {
         await api(`/api/accounts/${encodeURIComponent(a.alias)}`, { method: "DELETE" });
         toast(`已删除 ${displayName}`);
@@ -168,6 +191,8 @@ function button(text, cls, onClick) {
   const b = document.createElement("button");
   b.textContent = text;
   b.className = cls;
+  const icon = iconForButton(text);
+  if (icon) { b.textContent = ""; b.append(lucideIcon(icon), document.createTextNode(text)); }
   b.addEventListener("click", onClick);
   return b;
 }
@@ -438,7 +463,7 @@ function shelfGrid(books) {
   return wrap;
 }
 
-/* ---------- 挑战赛 · 自动阅读 ---------- */
+/* ---------- 自动阅读 ---------- */
 
 let challengeAlias = null;
 let challengeBooks = [];
@@ -458,7 +483,7 @@ function setView(view) {
     if (view === name) $(`#${id}`).setAttribute("aria-current", "page");
     else $(`#${id}`).removeAttribute("aria-current");
   }
-  $("#crumb").textContent = { accounts: "我的账号", challenge: "挑战赛", logs: "日志", settings: "设置" }[view] || "我的账号";
+  $("#crumb").textContent = { accounts: "账号管理", challenge: "自动阅读", logs: "运行日志", settings: "通知设置" }[view] || "账号管理";
 }
 
 async function openChallenge() {
@@ -468,7 +493,7 @@ async function openChallenge() {
   sel.textContent = "";
   if (!accounts.length) {
     challengeAlias = null;
-    $("#challenge-books").innerHTML = '<p class="empty">还没有账号,先到「我的账号」扫码添加。</p>';
+    $("#challenge-books").innerHTML = '<p class="empty">还没有账号，请先到「账号管理」扫码添加。</p>';
     $("#challenge-banner").classList.add("hidden");
     $("#challenge-laststatus").textContent = "尚未执行过";
     return;
@@ -517,7 +542,7 @@ function renderChallenge(d) {
   if (incomplete) {
     const done = (cfg.run_done * 0.5).toFixed(1);
     const total = (cfg.run_total * 0.5).toFixed(1);
-    $("#challenge-laststatus").textContent = `上次会话未完成(已记 ${done}/${total} 分钟),点「立即刷一次」接着跑`;
+    $("#challenge-laststatus").textContent = `上次会话未完成(已记 ${done}/${total} 分钟),点「立即开始」继续`;
   } else {
     $("#challenge-laststatus").textContent = cfg.last_status
       ? `上次执行(${cfg.last_run_date || "—"}):${cfg.last_status}`
@@ -636,9 +661,9 @@ async function saveChallenge() {
       }),
     });
     challengeBannerFromInputs();
-    toast($("#challenge-enabled").checked ? "已开启,到点自动阅读" : "配置已保存(未开启)");
+    toast($("#challenge-enabled").checked ? "已开启，将按时自动阅读" : "设置已保存");
   } catch (err) {
-    toast(`保存失败:${err.message}`);
+    toast(`保存设置失败:${err.message}`);
   }
   saveBtn.disabled = false;
 }
@@ -863,10 +888,10 @@ async function loadPushChannels() {
       }
     });
 
-    // 保存参数按钮
+    // 保存设置按钮
     const ops = document.createElement("div");
     ops.className = "push-card-ops";
-    const saveBtn = button("保存参数", "btn small", async () => {
+    const saveBtn = button("保存设置", "btn small", async () => {
       saveBtn.disabled = true;
       const params = collect();
       try {
@@ -876,11 +901,11 @@ async function loadPushChannels() {
         });
         toast("参数已保存");
       } catch (err) {
-        toast(`保存失败:${err.message}`);
+        toast(`保存设置失败:${err.message}`);
       }
       saveBtn.disabled = false;
     });
-    const testBtn = button("发送测试", "btn small", async () => {
+    const testBtn = button("发送测试消息", "btn small", async () => {
       const params = collect();
       testBtn.disabled = true;
       try {
@@ -901,7 +926,62 @@ async function loadPushChannels() {
   $("#push-summary").textContent = `${enabledCount}/${Object.keys(pushTypes).length} 个已开启`;
 }
 
-/* ---------- 事件绑定 ---------- *//* ---------- 事件绑定 ---------- */
+/* ---------- Material select controls ---------- */
+const customSelects = [];
+function enhanceSelect(select) {
+  if (!select || select.dataset.enhanced) return;
+  select.dataset.enhanced = "1";
+  const root = document.createElement("div"); root.className = "m3-select";
+  select.parentNode.insertBefore(root, select); root.append(select);
+  select.classList.add("m3-native-select");
+  const trigger = document.createElement("button"); trigger.type = "button"; trigger.className = "m3-select-trigger"; trigger.setAttribute("aria-haspopup", "listbox");
+  const label = document.createElement("span"); const arrow = document.createElement("span"); arrow.className = "m3-select-arrow"; trigger.append(label, arrow); root.append(trigger);
+  const menu = document.createElement("div"); menu.className = "m3-select-menu"; menu.setAttribute("role", "listbox"); root.append(menu);
+  const rebuild = () => {
+    const selected = select.options[select.selectedIndex]; label.textContent = selected ? selected.textContent : "请选择";
+    menu.textContent = "";
+    for (const option of select.options) {
+      const item = document.createElement("button"); item.type = "button"; item.className = "m3-select-option" + (option.selected ? " selected" : ""); item.textContent = option.textContent; item.setAttribute("role", "option"); item.setAttribute("aria-selected", option.selected ? "true" : "false");
+      item.addEventListener("click", () => { select.value = option.value; select.dispatchEvent(new Event("change", { bubbles: true })); close(); rebuild(); }); menu.append(item);
+    }
+  };
+  const close = () => { root.classList.remove("open"); trigger.setAttribute("aria-expanded", "false"); };
+  trigger.addEventListener("click", () => { const open = root.classList.toggle("open"); trigger.setAttribute("aria-expanded", open ? "true" : "false"); if (open) rebuild(); });
+  select.addEventListener("change", rebuild);
+  new MutationObserver(rebuild).observe(select, { childList: true, subtree: true });
+  customSelects.push({ root, close }); rebuild();
+}
+for (const id of ["challenge-account", "log-alias", "log-level"]) enhanceSelect($("#" + id));
+document.addEventListener("click", (event) => { for (const item of customSelects) if (!item.root.contains(event.target)) item.close(); });
+function enhanceTimeInput(input) {
+  if (!input || input.dataset.enhanced) return;
+  input.dataset.enhanced = "1";
+  const root = document.createElement("div"); root.className = "m3-time-select";
+  input.parentNode.insertBefore(root, input); root.append(input); input.classList.add("m3-native-time");
+  const trigger = document.createElement("button"); trigger.type = "button"; trigger.className = "m3-time-trigger"; trigger.setAttribute("aria-haspopup", "listbox"); root.append(trigger);
+  const menu = document.createElement("div"); menu.className = "m3-time-menu"; menu.setAttribute("role", "listbox"); root.append(menu);
+  const update = () => { trigger.textContent = input.value || "选择时间"; menu.textContent = ""; for(let h=0;h<24;h++) for(let m=0;m<60;m+=30){ const value = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`; const item=document.createElement("button"); item.type="button"; item.className="m3-time-option"+(input.value===value?" selected":""); item.textContent=value; item.addEventListener("click",()=>{input.value=value;input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));root.classList.remove("open");update();});menu.append(item); } };
+  trigger.addEventListener("click",()=>{root.classList.toggle("open");update();}); input.addEventListener("change",update); update();
+  customSelects.push({root,close:()=>root.classList.remove("open")});
+}
+enhanceTimeInput($("#challenge-runat-input"));
+
+/* ---------- 事件绑定 ---------- */
+
+$("#theme-toggle").addEventListener("click", themeToggle);
+document.querySelectorAll(".nav-icon").forEach((el) => {
+  const name = el.classList.contains("nav-icon-account") ? "users-round" : el.classList.contains("nav-icon-challenge") ? "book-open" : el.classList.contains("nav-icon-logs") ? "scroll-text" : "settings-2";
+  el.replaceWith(lucideIcon(name, "nav-icon lucide-nav-icon"));
+});
+const legacyIcons = { "↻": "refresh", "⌕": "search", "＋": "plus", "×": "x", "☾": "moon" };
+document.querySelectorAll("span[aria-hidden=\"true\"]").forEach((el) => { const name = legacyIcons[el.textContent.trim()]; if (name) el.replaceWith(lucideIcon(name)); });
+updateThemeButton();
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
+  if (!localStorage.getItem("wxread-theme")) {
+    document.documentElement.dataset.theme = event.matches ? "dark" : "light";
+    updateThemeButton();
+  }
+})
 
 function openLogin() {
   resetLoginUI();
