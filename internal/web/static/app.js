@@ -508,9 +508,18 @@ function renderChallenge(d) {
   $("#challenge-enabled").checked = !!cfg.enabled;
   $("#challenge-runat-input").value = cfg.run_at || "03:00";
   $("#challenge-minutes-input").value = cfg.minutes || 30;
-  $("#challenge-laststatus").textContent = cfg.last_status
-    ? `上次执行(${cfg.last_run_date || "—"}):${cfg.last_status}`
-    : "尚未执行过";
+  // 断点续跑提示:当日(或上次)会话没刷完,引导一键继续
+  const incomplete = !cfg.running && cfg.run_total > 0 && cfg.run_done < cfg.run_total;
+  if (incomplete) {
+    const done = (cfg.run_done * 0.5).toFixed(1);
+    const total = (cfg.run_total * 0.5).toFixed(1);
+    $("#challenge-laststatus").textContent = `上次会话未完成(已记 ${done}/${total} 分钟),点「立即刷一次」接着跑`;
+  } else {
+    $("#challenge-laststatus").textContent = cfg.last_status
+      ? `上次执行(${cfg.last_run_date || "—"}):${cfg.last_status}`
+      : "尚未执行过";
+  }
+  updateChallengeButtons(!!cfg.running, !!cfg.paused);
 
   const grid = $("#challenge-books");
   grid.textContent = "";
@@ -564,6 +573,50 @@ function challengeBannerFromInputs() {
   $("#challenge-minutes").textContent = `${$("#challenge-minutes-input").value || 30} 分钟`;
 }
 
+function updateChallengeButtons(running, paused) {
+  $("#challenge-run").disabled = running;
+  const pauseBtn = $("#challenge-pause");
+  const stopBtn = $("#challenge-stop");
+  pauseBtn.classList.toggle("hidden", !running);
+  stopBtn.classList.toggle("hidden", !running);
+  pauseBtn.textContent = paused ? "继续阅读" : "暂停";
+  pauseBtn.disabled = false;
+}
+
+// 暂停/继续:暂停只停心跳上报,进度保留;继续后刷完剩余时长。
+async function toggleChallengePause() {
+  if (!challengeAlias) return;
+  const btn = $("#challenge-pause");
+  btn.disabled = true;
+  const action = btn.textContent === "暂停" ? "pause" : "resume";
+  try {
+    const data = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/pause`, {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    });
+    updateChallengeButtons(true, data.paused);
+    $("#challenge-laststatus").textContent = data.paused ? "已暂停(剩余时长保留,点「继续阅读」恢复)" : "阅读中…";
+  } catch (err) {
+    toast(`操作失败:${err.message}`);
+  }
+  btn.disabled = false;
+}
+
+// 停止:终止当前会话;已上报的时长服务端已记账不会回滚,当日调度视为已完成。
+async function stopChallenge() {
+  if (!challengeAlias) return;
+  if (!confirm("确定停止本次阅读会话?已上报的时长会保留,当日不再重跑。")) return;
+  const btn = $("#challenge-stop");
+  btn.disabled = true;
+  try {
+    await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/stop`, { method: "POST" });
+    $("#challenge-laststatus").textContent = "正在停止…";
+  } catch (err) {
+    toast(`停止失败:${err.message}`);
+    btn.disabled = false;
+  }
+}
+
 async function saveChallenge() {
   if (!challengeAlias) return;
   const saveBtn = $("#challenge-save");
@@ -605,8 +658,10 @@ async function runChallengeNow() {
     polls++;
     try {
       const cfg = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`);
-      if (cfg.last_status && !cfg.last_status.startsWith("阅读中")) {
-        $("#challenge-laststatus").textContent = `上次执行(${cfg.last_run_date || "—"}):${cfg.last_status}`;
+      updateChallengeButtons(!!cfg.running, !!cfg.paused);
+      // 会话是否结束以 running 为准:暂停中会话仍在,轮询不能停。
+      if (!cfg.running) {
+        $("#challenge-laststatus").textContent = cfg.last_status || "已结束";
         clearInterval(challengeRunTimer);
         runBtn.disabled = false;
         return;
@@ -713,6 +768,8 @@ $("#nav-logs").addEventListener("click", (e) => { e.preventDefault(); openLogs()
 $("#challenge-account").addEventListener("change", (e) => { challengeAlias = e.target.value; loadChallenge(); });
 $("#challenge-save").addEventListener("click", saveChallenge);
 $("#challenge-run").addEventListener("click", runChallengeNow);
+$("#challenge-pause").addEventListener("click", toggleChallengePause);
+$("#challenge-stop").addEventListener("click", stopChallenge);
 $("#log-alias").addEventListener("change", () => loadLogs());
 $("#log-level").addEventListener("change", () => loadLogs());
 $("#logs-reload").addEventListener("click", () => loadLogs());
