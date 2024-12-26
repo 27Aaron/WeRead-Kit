@@ -56,6 +56,10 @@ func Open(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("初始化日志表失败: %w", err)
 	}
+	if _, err := db.Exec(pushSchema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("初始化推送渠道表失败: %w", err)
+	}
 	// 阅读配置表加断点续跑列(旧库迁移)。
 	for _, column := range []struct{ name, def string }{
 		{"run_book_id", "TEXT NOT NULL DEFAULT ''"},

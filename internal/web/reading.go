@@ -193,6 +193,17 @@ func (s *Server) startFarm(alias string, task weread.FarmTask, creds *weread.Cre
 		}
 		_ = store.SaveReadingRunState(s.db, alias, today, status, nil)
 		s.logf(level, "farm", alias, "%s", status)
+		// 完成与失败时推送通知;用户主动停止的会话不打扰。
+		switch {
+		case ctrl.Stopped():
+		case err != nil:
+			s.notifyFarmResult(alias, "error", "阅读会话失败", status)
+		case result.Err != "":
+			s.notifyFarmResult(alias, "warn", "阅读中断", status)
+		default:
+			s.notifyFarmResult(alias, "info", "今日阅读完成",
+				fmt.Sprintf("%s\n已阅读 %s", s.readingBookTitle(alias, task.BookID), minutesText))
+		}
 	}()
 	return true
 }
