@@ -6,8 +6,11 @@ import (
 	"time"
 )
 
-// LogRetention 是日志表的滚动保留条数,超出即淘汰最旧的。
-const LogRetention = 1000
+// 日志滚动保留:超过 60 天的淘汰,同时保留 2 万条硬上限兜底。
+const (
+	LogRetentionDays = 60
+	LogMaxRows       = 20000
+)
 
 type LogEntry struct {
 	ID      int64     `json:"id"`
@@ -48,15 +51,16 @@ func AddLog(db *sql.DB, level, source, alias, message string) {
 	if err != nil {
 		return
 	}
-	// 每写若干条才做一次淘汰检查,避免频繁全表扫;用 id 对 32 取整近似。
+	// 每写若干条才做一次淘汰检查,避免频繁清理;用 id 对 32 取整近似。
 	if id, err := res.LastInsertId(); err == nil && id%32 == 0 {
-		db.Exec(`DELETE FROM weread_log WHERE id NOT IN (SELECT id FROM weread_log ORDER BY id DESC LIMIT ?)`, LogRetention)
+		db.Exec(`DELETE FROM weread_log WHERE ts < ?`, time.Now().AddDate(0, 0, -LogRetentionDays).Unix())
+		db.Exec(`DELETE FROM weread_log WHERE id NOT IN (SELECT id FROM weread_log ORDER BY id DESC LIMIT ?)`, LogMaxRows)
 	}
 }
 
 // ListLogs 按条件查询日志,最新在前。
 func ListLogs(db *sql.DB, alias, level string, limit int) ([]*LogEntry, error) {
-	if limit <= 0 || limit > LogRetention {
+	if limit <= 0 || limit > LogMaxRows {
 		limit = 200
 	}
 	query := `SELECT id, ts, level, source, alias, message FROM weread_log WHERE 1=1`
