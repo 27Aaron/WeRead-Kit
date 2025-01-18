@@ -1,5 +1,4 @@
-// Package web 提供内嵌的 Web UI:账号列表、浏览器内扫码登录、备注管理。
-// 静态资源通过 go:embed 打进二进制,无外部文件依赖。
+// Package web 提供账号管理与阅读任务 API。
 package web
 
 import (
@@ -35,10 +34,7 @@ func New(db *sql.DB) *Server {
 
 func (s *Server) Handler() http.Handler {
 	sub, err := fs.Sub(staticFiles, "static")
-	if err != nil {
-		// embed 路径是编译期常量,只可能因代码写错走到这里。
-		panic("web: embedded static missing: " + err.Error())
-	}
+	if err != nil { panic("web: embedded static missing: " + err.Error()) }
 	mux := http.NewServeMux()
 	mux.Handle("GET /", http.FileServerFS(sub))
 	mux.HandleFunc("GET /api/accounts", s.handleListAccounts)
@@ -245,7 +241,7 @@ func (s *Server) handleStartLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	// 等二维码就绪再返回:前端拿到 qr_url 时 PNG 必定存在,
 	// 票据阶段的即时失败也在这里直接报给用户。
-	if err := s.logins.waitQR(id, 8*time.Second); err != nil {
+	if err := s.logins.waitQR(r.Context(), id, 8*time.Second); err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}

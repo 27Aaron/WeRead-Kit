@@ -3,112 +3,194 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#f5f7fa" />
-  <script>document.documentElement.dataset.theme=localStorage.getItem("wxread-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");</script>
-  <title>wxread · 我的阅读账号</title>
+  <meta name="theme-color" content="#f6f4ef" />
+  <title>wxread · 阅读助手</title>
+  <script>
+    // 启动前先确定主题,避免亮暗闪烁;优先取用户手动选择,其次跟随系统。
+    document.documentElement.dataset.theme =
+      localStorage.getItem("wxread-theme") ||
+      (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  </script>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="/" aria-label="wxread 首页"><span class="brand-mark" aria-hidden="true">w</span><span>wxread<span class="brand-caption">微信读书账号管理</span></span></a>
-    <div class="nav-label">工作空间</div>
-    <a class="nav-item active" href="/" id="nav-accounts" aria-current="page"><span class="nav-icon nav-icon-account" aria-hidden="true"></span> 账号管理 <span class="nav-arrow" aria-hidden="true">›</span></a>
-    <a class="nav-item" href="#challenge" id="nav-challenge"><span class="nav-icon nav-icon-challenge" aria-hidden="true"></span> 自动阅读 <span class="nav-arrow" aria-hidden="true">›</span></a>
-    <a class="nav-item" href="#logs" id="nav-logs"><span class="nav-icon nav-icon-logs" aria-hidden="true"></span> 运行日志 <span class="nav-arrow" aria-hidden="true">›</span></a>
-    <a class="nav-item" href="#settings" id="nav-settings"><span class="nav-icon nav-icon-settings" aria-hidden="true"></span> 通知设置 <span class="nav-arrow" aria-hidden="true">›</span></a>
+    <a class="brand" href="/" id="brand-link">
+      <span class="brand-mark" aria-hidden="true">读</span>
+      <span class="brand-text">wxread<small>微信读书助手</small></span>
+    </a>
+    <nav class="nav">
+      <a class="nav-item active" href="#accounts" data-view="accounts">
+        <span class="nav-icon" data-icon="users-round"></span>我的账号
+      </a>
+      <a class="nav-item" href="#challenge" data-view="challenge">
+        <span class="nav-icon" data-icon="book-open"></span>自动阅读
+      </a>
+      <a class="nav-item" href="#logs" data-view="logs">
+        <span class="nav-icon" data-icon="scroll-text"></span>运行日志
+      </a>
+      <a class="nav-item" href="#settings" data-view="settings">
+        <span class="nav-icon" data-icon="settings-2"></span>推送设置
+      </a>
+    </nav>
+    <div class="sidebar-foot">
+      <button id="theme-toggle" class="theme-toggle" title="切换深浅主题">
+        <span class="nav-icon" data-icon="moon"></span><span id="theme-label">深色</span>
+      </button>
+    </div>
   </aside>
+
   <div class="workspace">
-    <header class="topbar"><span>工作空间 <span class="breadcrumb-slash">/</span> <strong id="crumb">账号管理</strong></span><div class="topbar-actions"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="切换主题"><span aria-hidden="true">☾</span><span class="theme-label">深色</span></button></div></header>
     <main>
-      <div id="accounts-view">
-      <section class="intro">
-        <div class="intro-copy"><h1>管理你的阅读账号。</h1><p>集中管理账号、阅读任务和通知。<br>需要时扫码添加，其他操作都在这里完成。</p><button id="add-btn" class="btn primary"><span aria-hidden="true">＋</span> 添加账号</button></div>
-        <div class="reading-art" aria-hidden="true"><div class="art-orbit"></div><div class="book book-back"><span>阅读的日常</span></div><div class="book book-front"><div class="cover-top">wxread library</div><div class="cover-title">打开书，<br>遇见世界。</div><div class="cover-window"><i></i><i></i><i></i></div><div class="cover-bottom">A little reading, every day.</div></div><div class="book-shadow"></div></div>
-      </section>
-      <section class="accounts-section" aria-labelledby="accounts-heading">
-        <div class="section-heading"><div class="section-title"><h2 id="accounts-heading">账号管理</h2><span id="account-count" class="count">—</span></div><button id="reload-btn" class="btn subtle"><span aria-hidden="true">↻</span> 更新列表</button></div>
-        <div class="account-panel">
-          <div class="panel-toolbar"><span>已连接账号</span><label class="search"><span aria-hidden="true">⌕</span><input id="account-search" type="search" placeholder="搜索昵称或用户 ID" aria-label="搜索昵称或用户 ID" /></label></div>
-          <table id="account-table"><thead><tr><th>账号信息</th><th>凭据</th><th>上次刷新</th><th class="ops">操作</th></tr></thead><tbody id="rows"></tbody></table>
-          <div id="empty" class="empty hidden"><div class="empty-book" aria-hidden="true">▤</div><h3>从连接第一个账号开始</h3><p>用微信扫一扫，即可把阅读账号添加到这里。</p><button id="empty-add" class="btn">添加账号 <span aria-hidden="true">＋</span></button></div>
-          <div id="list-message" class="list-message" role="status">正在加载账号…</div>
-          <div class="panel-footer"><span id="list-summary">正在读取账号</span><span>资料会自动同步</span></div>
-        </div>
-      </section>
-      </div>
-      <section id="challenge-view" class="hidden">
-        <div class="section-heading"><div class="section-title"><h2>自动阅读</h2><span class="count">每日任务</span></div>
-          <label class="challenge-account-label">账号 <select id="challenge-account" class="account-select"></select></label>
-        </div>
-        <div id="challenge-banner" class="challenge-banner off">
-          <span class="challenge-state" id="challenge-state">未开启</span>
-          <span class="challenge-banner-meta">开始时间 <strong id="challenge-runat">—</strong></span>
-          <span class="challenge-banner-meta">每天时长 <strong id="challenge-minutes">—</strong></span>
-          <span class="challenge-banner-note">由服务进程按计划自动执行</span>
-        </div>
-        <div class="account-panel">
-          <div class="challenge-config">
-            <label class="challenge-toggle"><input type="checkbox" id="challenge-enabled" /> 每天自动阅读</label>
-            <label class="challenge-field">开始时间 <input type="time" id="challenge-runat-input" value="03:00" /></label>
-            <label class="challenge-field">每天时长 <input type="number" id="challenge-minutes-input" min="1" max="480" value="30" /> 分钟</label>
+      <!-- 我的账号 -->
+      <section id="view-accounts" class="view">
+        <div class="page-head">
+          <div class="page-head-copy">
+            <h1 class="page-title">我的账号</h1>
           </div>
-          <div class="challenge-books-hint">选择要阅读的书籍，可多选；每天会随机选择一本。</div>
-          <div id="challenge-books" class="challenge-books"><p class="empty">正在加载书架…</p></div>
-          <div class="challenge-footer">
-            <span id="challenge-laststatus" class="challenge-laststatus">尚未执行过</span>
-            <span class="challenge-footer-ops">
-              <button id="challenge-run" class="btn">立即开始</button>
-              <button id="challenge-pause" class="btn hidden">暂停</button>
-              <button id="challenge-stop" class="btn hidden">停止</button>
-              <button id="challenge-save" class="btn primary">保存</button>
+          <div class="page-actions">
+            <button id="reload-btn" class="btn"><span class="nav-icon" data-icon="refresh-cw"></span>刷新</button>
+            <button id="add-btn" class="btn primary"><span class="nav-icon" data-icon="plus"></span>扫码添加</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-bar">
+            <span class="panel-title">全部账号 <b id="account-count">0</b></span>
+            <label class="search">
+              <span class="nav-icon" data-icon="search"></span>
+              <input id="account-search" type="search" placeholder="搜索昵称 / 备注 / ID" />
+            </label>
+          </div>
+          <div id="account-list" class="account-list"></div>
+          <div id="empty" class="empty hidden">
+            <span class="nav-icon" data-icon="book-open"></span>
+            <h3>从连接第一个账号开始</h3>
+            <p>用微信扫一扫,即可把阅读账号添加到这里。</p>
+            <button id="empty-add" class="btn primary"><span class="nav-icon" data-icon="plus"></span>扫码添加账号</button>
+          </div>
+          <div id="list-message" class="list-message hidden" role="status"></div>
+          <div class="panel-foot">
+            <span id="list-summary">正在读取本地账号…</span>
+            <span>点击昵称可直接修改备注</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 自动阅读 -->
+      <section id="view-challenge" class="view hidden">
+        <div class="page-head">
+          <div class="page-head-copy">
+            <h1 class="page-title">自动阅读</h1>
+          </div>
+          <label class="field">账号
+            <select id="challenge-account" class="select"></select>
+          </label>
+        </div>
+        <div id="challenge-banner" class="banner off">
+          <span class="banner-state" id="challenge-state">未开启</span>
+          <span class="banner-item">开始时间 <b id="challenge-runat">—</b></span>
+          <span class="banner-item">每天时长 <b id="challenge-minutes">—</b></span>
+        </div>
+        <div class="panel">
+          <div class="config-row">
+            <label class="switch-label">
+              <span class="switch"><input type="checkbox" id="challenge-enabled" /><i></i></span>
+              每天自动阅读
+            </label>
+            <label class="field-inline">开始时间
+              <input type="time" id="challenge-runat-input" value="03:00" />
+            </label>
+            <label class="field-inline">每天时长
+              <input type="number" id="challenge-minutes-input" min="1" max="480" value="30" /> 分钟
+            </label>
+          </div>
+          <div class="books-head">选择书籍 <small>可多选;选多本时每天随机刷其中一本</small></div>
+          <div id="challenge-books" class="book-grid"></div>
+          <div class="panel-foot ops-between">
+            <span id="challenge-laststatus" class="dim">尚未执行过</span>
+            <span class="ops">
+              <button id="challenge-run" class="btn"><span class="nav-icon" data-icon="play"></span>立即刷一次</button>
+              <button id="challenge-pause" class="btn hidden"><span class="nav-icon" data-icon="pause"></span>暂停</button>
+              <button id="challenge-stop" class="btn danger hidden"><span class="nav-icon" data-icon="square"></span>停止</button>
+              <button id="challenge-save" class="btn primary"><span class="nav-icon" data-icon="save"></span>保存配置</button>
             </span>
           </div>
         </div>
       </section>
-      <section id="logs-view" class="hidden">
-        <div class="section-heading"><div class="section-title"><h2>运行日志</h2><span id="log-count" class="count">—</span></div>
+
+      <!-- 运行日志 -->
+      <section id="view-logs" class="view hidden">
+        <div class="page-head">
+          <div class="page-head-copy">
+            <h1 class="page-title">运行日志</h1>
+          </div>
           <div class="logs-toolbar">
-            <select id="log-alias" class="account-select"><option value="">已连接账号</option></select>
-            <select id="log-level" class="account-select">
+            <select id="log-alias" class="select"><option value="">全部账号</option></select>
+            <select id="log-level" class="select">
               <option value="">全部级别</option>
               <option value="info">info</option>
               <option value="warn">warn</option>
               <option value="error">error</option>
             </select>
-            <button id="logs-reload" class="btn subtle"><span aria-hidden="true">↻</span> 刷新</button>
-            <button id="logs-clear" class="btn subtle">清空日志</button>
+            <button id="logs-reload" class="btn"><span class="nav-icon" data-icon="refresh-cw"></span>刷新</button>
+            <button id="logs-clear" class="btn danger"><span class="nav-icon" data-icon="trash"></span>清空</button>
           </div>
         </div>
-        <div class="account-panel">
-          <div class="logs-header"><span>时间</span><span>级别</span><span>来源</span><span>账号</span><span>内容</span></div>
-          <div id="logs-list" class="logs-list"><p class="empty">暂无运行日志</p></div>
-          <div class="panel-footer"><span>保留最近 30 天</span><span id="logs-updated">—</span></div>
+        <div class="panel">
+          <div class="logs-header">
+            <span>时间</span><span>级别</span><span>来源</span><span>账号</span><span>内容</span>
+          </div>
+          <div id="logs-list" class="logs-list"><p class="empty">暂无日志</p></div>
+          <div class="panel-foot">
+            <span>自动刷新:每 10 秒</span>
+            <span id="logs-updated">—</span>
+          </div>
         </div>
       </section>
-      <section id="settings-view" class="hidden">
-        <div class="section-heading"><div class="section-title"><h2>通知设置</h2></div></div>
-        <div class="account-panel">
-          <div class="panel-toolbar"><span>通知渠道</span><span id="push-summary">—</span></div>
-          <div id="push-list" class="push-list"></div>
+
+      <!-- 推送设置 -->
+      <section id="view-settings" class="view hidden">
+        <div class="page-head">
+          <div class="page-head-copy">
+            <h1 class="page-title">推送设置</h1>
+          </div>
         </div>
+        <div id="push-list" class="push-list"></div>
       </section>
     </main>
   </div>
-  <dialog id="login-dialog" aria-labelledby="login-title" aria-describedby="login-description">
-    <div class="dialog-body"><button id="login-close" class="close-button" aria-label="关闭">×</button><div class="dialog-mark" aria-hidden="true">＋</div><h2 id="login-title">连接你的阅读账号</h2><p id="login-description" class="dialog-description">使用微信扫码，自动获取头像、昵称与用户 ID。</p>
-      <div id="qr-area" class="qr-area hidden"><img id="qr-img" width="220" height="220" alt="微信扫码登录微信读书" /><p id="login-status" class="status" role="status"></p><p class="qr-tip">打开微信扫一扫，并在手机上确认登录</p></div>
-      <div class="dialog-ops"><button id="login-start" class="btn primary">生成登录二维码</button></div><p class="dialog-note">同一账号再次扫码，将更新已有账号的凭据。</p>
+
+  <!-- 扫码登录 -->
+  <dialog id="login-dialog" class="dialog" aria-labelledby="login-title">
+    <div class="dialog-body">
+      <button id="login-close" class="dialog-close" aria-label="关闭">×</button>
+      <h2 id="login-title">扫码添加账号</h2>
+      <p class="dialog-desc">使用微信扫码,自动获取昵称与头像。</p>
+      <div id="qr-area" class="qr-area hidden">
+        <img id="qr-img" width="220" height="220" alt="微信扫码登录微信读书" />
+        <p id="login-status" class="status" role="status"></p>
+        <p class="dialog-note">打开微信扫一扫,并在手机上确认登录</p>
+      </div>
+      <div class="dialog-ops">
+        <button id="login-start" class="btn primary block"><span class="nav-icon" data-icon="refresh-cw"></span>生成登录二维码</button>
+      </div>
+      <p class="dialog-note">同一账号再次扫码,将更新已有账号的凭据。</p>
     </div>
   </dialog>
-  <dialog id="detail-dialog" aria-labelledby="detail-title">
-    <div class="dialog-body detail-body"><button id="detail-close" class="close-button" aria-label="关闭">×</button>
+
+  <!-- 账号详情 -->
+  <dialog id="detail-dialog" class="dialog dialog-wide" aria-labelledby="detail-title">
+    <div class="dialog-body">
+      <button id="detail-close" class="dialog-close" aria-label="关闭">×</button>
       <h2 id="detail-title">账号详情</h2>
       <div id="detail-content" class="detail-content"><p class="empty">正在加载…</p></div>
-      <div class="dialog-ops"><button id="detail-reload" class="btn">刷新数据</button></div>
+      <div class="dialog-ops">
+        <button id="detail-reload" class="btn"><span class="nav-icon" data-icon="refresh-cw"></span>刷新数据</button>
+      </div>
     </div>
   </dialog>
+
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <script src="/lucide.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

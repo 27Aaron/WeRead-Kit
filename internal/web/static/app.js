@@ -1,54 +1,104 @@
-/* wxread Web UI 前端逻辑:账号列表、扫码登录、备注编辑。无框架,原生 fetch。 */
+/* wxread Web UI:账号管理、扫码登录、自动阅读、日志与推送设置。
+   无框架,原生 fetch;图标来自 lucide.js 提供的 SVG 路径数据。 */
+
+const ICONS = {"search": "<path d=\"m21 21-4.34-4.34\" /> <circle cx=\"11\" cy=\"11\" r=\"8\" />", "chevron-down": "<path d=\"m6 9 6 6 6-6\" />", "x": "<path d=\"M18 6 6 18\" /> <path d=\"m6 6 12 12\" />", "refresh-cw": "<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\" /> <path d=\"M21 3v5h-5\" /> <path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\" /> <path d=\"M8 16H3v5\" />", "book-open": "<path d=\"M12 5v16\" /> <path d=\"M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z\" />", "circle-check": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"m16 9-5.5 5.5L8 12\" />", "settings-2": "<path d=\"M14 17H5\" /> <path d=\"M19 7h-9\" /> <circle cx=\"17\" cy=\"17\" r=\"3\" /> <circle cx=\"7\" cy=\"7\" r=\"3\" />", "plus": "<path d=\"M5 12h14\" /> <path d=\"M12 5v14\" />", "check": "<path d=\"M20 6 9 17l-5-5\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "square": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" />", "play": "<path d=\"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z\" />", "send": "<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\" /> <path d=\"m21.854 2.147-10.94 10.939\" />", "trash": "<path d=\"M10 11v6\" /> <path d=\"M14 11v6\" /> <path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\" /> <path d=\"M3 6h18\" /> <path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\" />", "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\" /> <path d=\"M12 2v2\" /> <path d=\"M12 20v2\" /> <path d=\"m4.93 4.93 1.41 1.41\" /> <path d=\"m17.66 17.66 1.41 1.41\" /> <path d=\"M2 12h2\" /> <path d=\"M20 12h2\" /> <path d=\"m6.34 17.66-1.41 1.41\" /> <path d=\"m19.07 4.93-1.41 1.41\" />", "scroll-text": "<path d=\"M15 12h-5\" /> <path d=\"M15 8h-5\" /> <path d=\"M19 17V5a2 2 0 0 0-2-2H4\" /> <path d=\"M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3\" />", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 6v6l4 2\" />", "users-round": "<path d=\"M18 21a8 8 0 0 0-16 0\" /> <circle cx=\"10\" cy=\"8\" r=\"5\" /> <path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\" />", "pause": "<rect x=\"14\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\" /> <rect x=\"5\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\" />", "monitor": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\" /> <line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\" /> <line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\" />", "minus": "<path d=\"M5 12h14\" />", "moon": "<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />"};
 
 const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
 
-const lucidePaths = window.LUCIDE_ICONS || {};
-function lucideIcon(name, className = "icon") { const span = document.createElement("span"); span.className = className; span.setAttribute("aria-hidden", "true"); span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${lucidePaths[name] || ""}</svg>`; return span; }
-function iconForButton(text) {
-  return {"刷新":"refresh-cw","更新列表":"refresh-cw","添加账号":"plus","生成登录二维码":"plus","删除":"trash","立即开始":"play","暂停":"pause","停止":"square","继续阅读":"play","保存":"save","保存设置":"save","发送测试消息":"send"}[text] || null;
+/* ---------- 通用工具 ---------- */
+
+function iconSvg(name) {
+  const paths = ICONS[name];
+  if (!paths) return "";
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 }
 
-const themeToggle = () => {
-  const root = document.documentElement;
-  const next = root.dataset.theme === "dark" ? "light" : "dark";
-  root.dataset.theme = next;
-  localStorage.setItem("wxread-theme", next);
-  updateThemeButton();
-};
-function updateThemeButton() {
-  const button = $("#theme-toggle");
-  if (!button) return;
-  const dark = document.documentElement.dataset.theme === "dark";
-  button.replaceChildren(lucideIcon(dark ? "sun" : "moon"), Object.assign(document.createElement("span"), { className: "theme-label", textContent: dark ? "浅色" : "深色" }));
-  button.setAttribute("aria-label", dark ? "切换到浅色模式" : "切换到深色模式");
+// 把静态 HTML 里 data-icon 占位替换为 SVG 图标。
+function renderIcons(root = document) {
+  root.querySelectorAll("[data-icon]").forEach((el) => {
+    el.innerHTML = iconSvg(el.dataset.icon);
+  });
 }
 
-
-
-const statusText = {
-  pending: "等待扫码…",
-  scanned: "已扫码,请在微信中确认登录",
-  success: "登录成功!",
-  expired: "二维码已过期,请重新生成",
-  declined: "你在微信中拒绝了授权",
-  canceled: "登录已取消",
-  error: "登录失败",
-};
+function iconEl(name) {
+  const span = document.createElement("span");
+  span.className = "nav-icon";
+  span.innerHTML = iconSvg(name);
+  return span;
+}
 
 async function api(path, opts = {}) {
-  const resp = await fetch(path, {
-    headers: { "content-type": "application/json" },
-    ...opts,
-  });
+  const resp = await fetch(path, { headers: { "content-type": "application/json" }, ...opts });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
   return data;
 }
 
 function fmtTime(unix) {
-  if (!unix || unix < 0) return "尚未刷新";
+  if (!unix) return "—";
   return new Date(unix * 1000).toLocaleString("zh-CN", { hour12: false });
 }
+function fmtDay(unix) {
+  if (!unix) return "—";
+  return new Date(unix * 1000).toLocaleDateString("zh-CN");
+}
+function fmtRemain(seconds) {
+  if (!seconds || seconds <= 0) return "—";
+  const days = Math.floor(seconds / 86400);
+  return days >= 1 ? `约 ${days} 天` : "不足 1 天";
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* ---------- 视图切换 ---------- */
+
+let currentView = "accounts";
+
+function setView(view) {
+  currentView = view;
+  for (const name of ["accounts", "challenge", "logs", "settings"]) {
+    $("#view-" + name).classList.toggle("hidden", view !== name);
+  }
+  $$(".nav-item").forEach((el) => {
+    const active = el.dataset.view === view;
+    el.classList.toggle("active", active);
+    if (active) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  });
+}
+
+$$(".nav-item").forEach((el) => {
+  el.addEventListener("click", (e) => {
+    e.preventDefault();
+    const view = el.dataset.view;
+    setView(view);
+    if (view === "challenge") openChallenge();
+    if (view === "logs") openLogs();
+    if (view === "settings") loadPushChannels();
+  });
+});
+
+/* ---------- 主题切换 ---------- */
+
+$("#theme-toggle").addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme === "dark";
+  const next = dark ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem("wxread-theme", next);
+  syncThemeUI();
+});
+
+function syncThemeUI() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  $("#theme-label").textContent = dark ? "浅色" : "深色";
+  $("#theme-toggle [data-icon]").dataset.icon = dark ? "sun" : "moon";
+  renderIcons($("#theme-toggle"));
+}
+syncThemeUI();
+
+/* ---------- Toast ---------- */
 
 let toastTimer = null;
 function toast(msg) {
@@ -63,127 +113,138 @@ function toast(msg) {
 
 let allAccounts = [];
 let listRequest = 0;
-const profileAttempts = new Set();
+
 async function loadAccounts() {
   const request = ++listRequest;
   $("#reload-btn").disabled = true;
   try {
-    const accounts = await api("/api/accounts");
+    allAccounts = await api("/api/accounts");
     if (request !== listRequest) return;
-    allAccounts = accounts;
-    $("#account-count").textContent = accounts.length;
     renderAccounts();
-    for (const account of accounts) {
-      if (!account.profile_updated_at && !profileAttempts.has(account.alias)) {
-        profileAttempts.add(account.alias);
-        api(`/api/accounts/${encodeURIComponent(account.alias)}/profile`, { method: "POST" })
-          .then(updated => {
-            if (request !== listRequest) return;
-            const index = allAccounts.findIndex(a => a.alias === updated.alias);
-            if (index >= 0) { allAccounts[index] = updated; renderAccounts(); }
-          })
-          .catch(() => { /* Keep the cached ID visible; details or re-login can retry. */ });
-      }
-    }
   } catch (err) {
     if (request !== listRequest) return;
-    $("#list-message").textContent = `无法加载账号：${err.message}。请点击「更新列表」重试。`;
+    $("#list-message").textContent = `无法加载账号:${err.message}`;
     $("#list-message").classList.remove("hidden");
-    $("#empty").classList.add("hidden");
     $("#list-summary").textContent = "加载失败";
   } finally {
     if (request === listRequest) $("#reload-btn").disabled = false;
   }
 }
 
+function displayName(a) {
+  return a.remark || a.name || a.alias;
+}
+
 function renderAccounts() {
   const query = $("#account-search").value.trim().toLocaleLowerCase();
-  const accounts = allAccounts.filter(a => `${a.name || ""} ${a.user_vid || a.vid} ${a.alias}`.toLocaleLowerCase().includes(query));
-  $("#list-message").classList.toggle("hidden", !query || accounts.length > 0);
-  $("#list-message").textContent = "没有找到匹配的账号，试试其他昵称或用户 ID。";
-  $("#list-summary").textContent = query ? `找到 ${accounts.length} 个账号，共 ${allAccounts.length} 个` : `共 ${allAccounts.length} 个账号`;
-  $("#account-table").classList.toggle("hidden", accounts.length === 0);
-  const tbody = $("#rows");
-  tbody.textContent = "";
-  $("#empty").classList.toggle("hidden", allAccounts.length > 0 || !!query);
+  const accounts = allAccounts.filter((a) =>
+    `${a.remark || ""} ${a.name || ""} ${a.alias}`.toLocaleLowerCase().includes(query)
+  );
+  $("#account-count").textContent = accounts.length;
+  $("#list-summary").textContent = query
+    ? `找到 ${accounts.length} 个账号,共 ${allAccounts.length} 个`
+    : `共 ${allAccounts.length} 个账号`;
+  $("#empty").classList.toggle("hidden", allAccounts.length > 0);
+  $("#list-message").classList.toggle("hidden", accounts.length > 0);
+  if (!accounts.length && query) {
+    $("#list-message").textContent = "没有匹配的账号,换个关键词试试。";
+    $("#list-message").classList.remove("hidden");
+  }
 
+  const list = $("#account-list");
+  list.textContent = "";
   for (const a of accounts) {
-    const tr = document.createElement("tr");
+    const row = document.createElement("div");
+    row.className = "account-row";
 
-    const tdName = document.createElement("td");
-    const nameWrap = document.createElement("div");
-    nameWrap.className = "name-cell";
-    const name = document.createElement("span");
-    name.className = "account-name";
-    name.textContent = a.name || "微信读书用户";
-    name.title = name.textContent;
-    const userID = document.createElement("span");
-    userID.className = "alias-ref";
-    userID.textContent = `用户 ID ${a.user_vid || a.vid}`;
-    const avatar = document.createElement("span");
+    // 头像:优先微信头像,否则取显示名首字
+    const avatar = document.createElement("div");
     avatar.className = "avatar";
-    avatar.setAttribute("aria-hidden", "true");
-    const initial = Array.from(a.name || "读")[0];
-    avatar.textContent = initial;
-    if (a.avatar && /^https?:\/\//i.test(a.avatar)) {
-      const image = document.createElement("img");
-      image.alt = "";
-      image.loading = "lazy";
-      image.referrerPolicy = "no-referrer";
-      image.src = a.avatar;
-      image.addEventListener("error", () => { avatar.textContent = initial; }, { once: true });
-      avatar.replaceChildren(image);
+    if (a.avatar) {
+      const img = document.createElement("img");
+      img.src = a.avatar;
+      img.alt = "";
+      img.loading = "lazy";
+      avatar.append(img);
+    } else {
+      avatar.textContent = Array.from(displayName(a))[0] || "读";
     }
-    const details = document.createElement("div");
-    details.className = "account-details";
-    details.append(name, userID);
-    nameWrap.append(avatar, details);
-    tdName.append(nameWrap);
 
-    const tdTime = document.createElement("td");
-    tdTime.className = "time-cell";
-    tdTime.textContent = fmtTime(a.rotated_at);
-    const tdCredential = document.createElement("td");
-    const credential = document.createElement("span");
-    credential.className = "credential" + (a.has_access_token ? "" : " missing");
-    credential.textContent = a.has_access_token ? "✓ 已保存" : "— 待刷新";
-    credential.title = "表示凭据状态，不代表实时登录状态";
-    tdCredential.append(credential);
+    // 信息列:可编辑昵称/备注 + 别名与 ID
+    const info = document.createElement("div");
+    info.className = "account-info";
+    const name = document.createElement("input");
+    name.className = "account-name";
+    name.value = a.remark || a.name || a.alias;
+    name.placeholder = "点击设置备注";
+    name.maxLength = 100;
+    name.title = "点击修改备注";
+    name.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") name.blur();
+      if (e.key === "Escape") {
+        name.value = a.remark || a.name || a.alias;
+        name.blur();
+      }
+    });
+    name.addEventListener("change", async () => {
+      try {
+        await api(`/api/accounts/${encodeURIComponent(a.alias)}/remark`, {
+          method: "PUT",
+          body: JSON.stringify({ remark: name.value.trim() }),
+        });
+        a.remark = name.value.trim();
+        toast("备注已保存");
+      } catch (err) {
+        name.value = a.remark || "";
+        toast(`保存失败:${err.message}`);
+      }
+    });
+    const sub = document.createElement("div");
+    sub.className = "account-sub";
+    sub.textContent = `别名 ${a.alias} · vid ${a.vid}`;
+    info.append(name, sub);
+    row.append(avatar, info);
 
-    const tdOps = document.createElement("td");
-    tdOps.className = "ops";
+    // 凭据状态 + 上次刷新时间
+    const cred = document.createElement("div");
+    cred.className = "account-meta";
+    const badge = document.createElement("span");
+    badge.className = "badge " + (a.has_access_token ? "ok" : "missing");
+    badge.textContent = a.has_access_token ? "凭据有效" : "待刷新";
+    badge.title = "表示本地是否保存凭据,不代表实时登录状态";
+    cred.append(badge, document.createElement("br"), `刷新于 ${fmtTime(a.rotated_at)}`);
 
-    const detailBtn = button("详情", "btn small", () => showDetails(a));
-
-    const refreshBtn = button("刷新", "btn small", async () => {
+    // 操作:详情 / 刷新 / 删除
+    const ops = document.createElement("div");
+    ops.className = "ops";
+    const detailBtn = button("详情", "btn", () => showDetails(a));
+    const refreshBtn = button("刷新", "btn", async () => {
       refreshBtn.disabled = true;
-      refreshBtn.textContent = "刷新中…";
       try {
         await api(`/api/accounts/${encodeURIComponent(a.alias)}/refresh`, { method: "POST" });
-        toast(`已刷新 ${a.name || a.user_vid || a.vid}`);
+        toast(`已刷新 ${displayName(a)}`);
         await loadAccounts();
       } catch (err) {
         toast(`刷新失败:${err.message}`);
         refreshBtn.disabled = false;
-        refreshBtn.textContent = "刷新";
       }
     });
-
-    const delBtn = button("删除", "btn small danger", async () => {
-      const displayName = a.name || a.user_vid || a.vid;
-      if (!confirm(`确定删除账号「${displayName}」?仅删除当前账号，不影响微信读书账号。`)) return;
+    const delBtn = button("删除", "btn danger", async () => {
+      if (!confirm(`确定删除账号「${displayName(a)}」?仅删除本地凭据,不影响微信读书账号。`)) return;
       try {
         await api(`/api/accounts/${encodeURIComponent(a.alias)}`, { method: "DELETE" });
-        toast(`已删除 ${displayName}`);
+        toast("已删除");
         await loadAccounts();
       } catch (err) {
         toast(`删除失败:${err.message}`);
       }
     });
+    ops.append(detailBtn, refreshBtn, delBtn);
 
-    tdOps.append(detailBtn, " ", refreshBtn, " ", delBtn);
-    tr.append(tdName, tdCredential, tdTime, tdOps);
-    tbody.append(tr);
+    row.append(cred, ops);
+    // 让操作区最右侧:info 占满剩余宽度
+    info.style.flex = "1";
+    list.append(row);
   }
 }
 
@@ -191,115 +252,126 @@ function button(text, cls, onClick) {
   const b = document.createElement("button");
   b.textContent = text;
   b.className = cls;
-  const icon = iconForButton(text);
-  if (icon) { b.textContent = ""; b.append(lucideIcon(icon), document.createTextNode(text)); }
   b.addEventListener("click", onClick);
   return b;
 }
 
+$("#account-search").addEventListener("input", renderAccounts);
+$("#reload-btn").addEventListener("click", loadAccounts);
+
 /* ---------- 扫码登录 ---------- */
 
 let loginId = null;
-let pollTimer = null;
+let loginPollTimer = null;
 let loginGeneration = 0;
-let successTimer = null;
 
-function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
+function stopLoginPolling() {
+  if (loginPollTimer) {
+    clearInterval(loginPollTimer);
+    loginPollTimer = null;
   }
 }
 
+const loginStatusText = {
+  pending: "等待扫码…",
+  scanned: "已扫码,请在微信中确认",
+  success: "登录成功!",
+  expired: "二维码已过期,请重新生成",
+  declined: "你在微信中拒绝了授权",
+  canceled: "登录已取消",
+  error: "登录失败",
+};
+
+function setLoginStatus(status, errMsg) {
+  const el = $("#login-status");
+  const label = loginStatusText[status] || status;
+  // 错误详情与状态文案相同时只展示一次,避免重复。
+  const duplicated = !errMsg || errMsg === label || label.includes(errMsg) || errMsg.includes(label);
+  el.textContent = duplicated ? label : `${label}:${errMsg}`;
+  el.className = "status" + (status === "success" ? " ok" : ["expired", "declined", "error", "canceled"].includes(status) ? " err" : "");
+}
+
 function resetLoginUI() {
-  stopPolling();
-  loginGeneration++;
-  clearTimeout(successTimer);
+  stopLoginPolling();
   loginId = null;
   $("#qr-area").classList.add("hidden");
   $("#login-status").textContent = "";
   $("#login-status").className = "status";
   $("#login-start").disabled = false;
-  $("#login-start").textContent = "生成登录二维码";
 }
 
 async function startLogin() {
   const generation = ++loginGeneration;
-  stopPolling();
+  stopLoginPolling();
   $("#login-start").disabled = true;
-  $("#login-start").textContent = "正在生成…";
+  $("#login-start").textContent = "正在生成二维码…";
   try {
-    const data = await api("/api/login", {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
+    const data = await api("/api/login", { method: "POST" });
     if (generation !== loginGeneration) return;
     loginId = data.id;
-    $("#login-start").textContent = "等待扫码确认";
     $("#qr-area").classList.remove("hidden");
     $("#qr-img").src = `${data.qr_url}?t=${Date.now()}`;
-    setStatus("pending");
-    pollTimer = setInterval(pollLogin, 1500);
+    setLoginStatus("pending");
+    loginPollTimer = setInterval(() => pollLogin(generation), 1500);
   } catch (err) {
     if (generation !== loginGeneration) return;
-    $("#login-start").textContent = "重新生成二维码";
     toast(`发起登录失败:${err.message}`);
     $("#login-start").disabled = false;
+    $("#login-start").textContent = "重新生成二维码";
   }
 }
 
-async function pollLogin() {
+async function pollLogin(generation) {
   if (!loginId) return;
-  const generation = loginGeneration;
   let data;
   try {
     data = await api(`/api/login/${loginId}`);
   } catch {
-    return; // 网络抖动,下一轮再试
+    return; // 单次轮询失败忽略,下一轮再试
   }
   if (generation !== loginGeneration) return;
-  setStatus(data.status, data.error);
+  setLoginStatus(data.status, data.error);
 
   if (data.status === "success") {
-    stopPolling();
-    const name = data.account.name || data.account.vid;
-    toast(`账号「${name}」登录成功`);
-    successTimer = setTimeout(() => {
+    stopLoginPolling();
+    toast(`账号「${data.account.name || data.account.alias}」登录成功`);
+    setTimeout(() => {
       $("#login-dialog").close();
       loadAccounts();
     }, 900);
   } else if (["expired", "declined", "canceled", "error"].includes(data.status)) {
-    stopPolling();
+    stopLoginPolling();
+    $("#login-start").disabled = false;
     $("#login-start").textContent = "重新生成二维码";
-    $("#login-start").disabled = false; // 允许重新生成二维码
   }
 }
 
-function setStatus(status, errMsg) {
-  const el = $("#login-status");
-  const label = statusText[status] || status;
-  // 错误详情与状态文案相同(如"拒绝授权")时只展示一次,避免重复。
-  const duplicate = !errMsg || errMsg === label || label.includes(errMsg) || errMsg.includes(label);
-  el.textContent = duplicate ? label : `${label}:${errMsg}`;
-  el.className = "status" + (status === "success" ? " ok" : ["expired", "declined", "error", "canceled"].includes(status) ? " err" : "");
+function openLogin() {
+  resetLoginUI();
+  $("#login-dialog").showModal();
+  startLogin(); // 打开弹窗即自动生成二维码
 }
+
+$("#add-btn").addEventListener("click", openLogin);
+$("#empty-add").addEventListener("click", openLogin);
+$("#login-start").addEventListener("click", startLogin);
+$("#login-close").addEventListener("click", () => $("#login-dialog").close());
+$("#login-dialog").addEventListener("close", () => {
+  resetLoginUI();
+  loadAccounts();
+});
 
 /* ---------- 账号详情 ---------- */
 
 let detailAccount = null;
 let detailRequest = 0;
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
 async function showDetails(account, force = false) {
   if (!account) return;
   const generation = ++detailRequest;
   detailAccount = account;
-  const name = account.name || "账号详情";
-  $("#detail-title").textContent = name;
-  $("#detail-content").innerHTML = `<p class="empty">${force ? "正在从微信读书更新数据…" : `正在加载 ${escapeHtml(name)} 的书架与账号信息…`}</p>`;
+  $("#detail-title").textContent = displayName(account);
+  $("#detail-content").innerHTML = `<p class="empty">${force ? "正在从微信读书更新…" : "正在加载…"}</p>`;
   if (!$("#detail-dialog").open) $("#detail-dialog").showModal();
   $("#detail-reload").disabled = true;
   try {
@@ -308,7 +380,6 @@ async function showDetails(account, force = false) {
     });
     if (generation !== detailRequest) return;
     renderDetails(data);
-    loadAccounts();
   } catch (err) {
     if (generation !== detailRequest) return;
     $("#detail-content").innerHTML = `<p class="empty">加载失败:${escapeHtml(err.message)}</p>`;
@@ -323,14 +394,6 @@ function renderDetails(d) {
   const root = $("#detail-content");
   root.textContent = "";
 
-  if (d.cached_at) {
-    const updated = document.createElement("p");
-    updated.className = "kv-raw";
-    updated.style.padding = "8px 18px 0";
-    updated.textContent = `数据更新于 ${fmtTime(d.cached_at)}(点「刷新数据」强制回源)`;
-    root.append(updated);
-  }
-
   const failed = Object.entries(d.errors || {});
   if (failed.length) {
     const warn = document.createElement("p");
@@ -340,14 +403,12 @@ function renderDetails(d) {
   }
 
   const user = nested(d.user, "user");
-  if (user && (user.name || user.nickname)) $("#detail-title").textContent = user.name || user.nickname;
   if (user) root.append(detailSection("用户信息", userCard(user)));
   if (d.card) root.append(detailSection("会员卡", memberCardBlock(d.card)));
 
   const books = Array.isArray(d.books) ? d.books : [];
-  root.append(detailSection(`书架(${books.length} 本)`, shelfGrid(books)));
+  root.append(detailSection(`书架(${books.length} 本)`, shelfGrid(books, d.reading)));
 }
-
 
 function detailSection(title, el) {
   const sec = document.createElement("section");
@@ -358,7 +419,7 @@ function detailSection(title, el) {
   return sec;
 }
 
-// nested: 微信读书接口的返回有的把对象包在子字段里,有的直接平铺,这里做兼容。
+// 微信读书接口返回有的把对象包在子字段里,有的直接平铺,这里做兼容。
 function nested(obj, ...keys) {
   if (!obj || typeof obj !== "object") return null;
   for (const k of keys) {
@@ -385,18 +446,29 @@ function kvListEl(entries) {
   return wrap;
 }
 
-// 只展示年月日:会员卡的起止都卡在 23:59:59,日期足够,时刻是噪音。
-function fmtDay(unix) {
-  if (!unix) return "—";
-  return new Date(unix * 1000).toLocaleDateString("zh-CN");
+function userCard(u) {
+  const wrap = document.createElement("div");
+  wrap.className = "user-head";
+  if (u.avatar) {
+    const img = document.createElement("img");
+    img.className = "user-avatar";
+    img.src = u.avatar;
+    img.alt = "头像";
+    wrap.append(img);
+  }
+  const info = document.createElement("div");
+  const name = document.createElement("div");
+  name.className = "user-name";
+  name.textContent = (u.name || u.nickname || "微信读书用户").trim();
+  const vid = document.createElement("div");
+  vid.className = "user-vid";
+  vid.textContent = `用户 ID:${u.userVid || u.vid || "—"}`;
+  info.append(name, vid);
+  wrap.append(info);
+  return wrap;
 }
 
-function fmtRemain(seconds) {
-  if (!seconds || seconds <= 0) return "—";
-  const days = Math.floor(seconds / 86400);
-  return days >= 1 ? `约 ${days} 天` : "不足 1 天";
-}
-
+// 会员卡只展示对用户有意义的四项,其余接口字段一律不展示。
 function memberCardBlock(c) {
   return kvListEl([
     ["起始日期", fmtDay(c.startTime)],
@@ -404,33 +476,6 @@ function memberCardBlock(c) {
     ["当前状态", c.expired ? "已过期" : "有效中", c.expired ? "off" : "on"],
     ["剩余时长", c.expired ? "—" : fmtRemain(c.remainTime)],
   ]);
-}
-
-function userCard(u) {
-  const wrap = document.createElement("div");
-  wrap.className = "user-card";
-  const head = document.createElement("div");
-  head.className = "user-head";
-  if (u.avatar) {
-    const img = document.createElement("img");
-    img.className = "user-avatar";
-    img.src = u.avatar;
-    img.alt = "头像";
-    head.append(img);
-  }
-  const info = document.createElement("div");
-  info.className = "user-info";
-  const name = document.createElement("div");
-  name.className = "user-name";
-  name.textContent = (u.name || u.nickname || "微信读书用户").trim();
-  info.append(name);
-  const vid = document.createElement("div");
-  vid.className = "user-vid";
-  vid.textContent = `用户 ID:${u.userVid || u.vid || "—"}`;
-  info.append(vid);
-  head.append(info);
-  wrap.append(head);
-  return wrap;
 }
 
 function shelfGrid(books) {
@@ -463,6 +508,9 @@ function shelfGrid(books) {
   return wrap;
 }
 
+$("#detail-close").addEventListener("click", () => $("#detail-dialog").close());
+$("#detail-reload").addEventListener("click", () => showDetails(detailAccount, true));
+
 /* ---------- 自动阅读 ---------- */
 
 let challengeAlias = null;
@@ -470,41 +518,24 @@ let challengeBooks = [];
 const challengePicked = new Set();
 let challengeRunTimer = null;
 
-let currentView = "accounts";
-
-function setView(view) {
-  currentView = view;
-  $("#accounts-view").classList.toggle("hidden", view !== "accounts");
-  $("#challenge-view").classList.toggle("hidden", view !== "challenge");
-  $("#logs-view").classList.toggle("hidden", view !== "logs");
-  $("#settings-view").classList.toggle("hidden", view !== "settings");
-  for (const [id, name] of [["nav-accounts", "accounts"], ["nav-challenge", "challenge"], ["nav-logs", "logs"], ["nav-settings", "settings"]]) {
-    $(`#${id}`).classList.toggle("active", view === name);
-    if (view === name) $(`#${id}`).setAttribute("aria-current", "page");
-    else $(`#${id}`).removeAttribute("aria-current");
-  }
-  $("#crumb").textContent = { accounts: "账号管理", challenge: "自动阅读", logs: "运行日志", settings: "通知设置" }[view] || "账号管理";
-}
-
 async function openChallenge() {
   setView("challenge");
-  const accounts = allAccounts.length ? allAccounts : await api("/api/accounts");
+  const accounts = allAccounts.length ? allAccounts : await api("/api/accounts").catch(() => []);
   const sel = $("#challenge-account");
   sel.textContent = "";
   if (!accounts.length) {
     challengeAlias = null;
-    $("#challenge-books").innerHTML = '<p class="empty">还没有账号，请先到「账号管理」扫码添加。</p>';
+    $("#challenge-books").innerHTML = '<p class="empty">还没有账号,先到「我的账号」扫码添加。</p>';
     $("#challenge-banner").classList.add("hidden");
     $("#challenge-laststatus").textContent = "尚未执行过";
     return;
   }
   $("#challenge-banner").classList.remove("hidden");
-  const stillThere = accounts.some((a) => a.alias === challengeAlias);
-  if (!stillThere) challengeAlias = accounts[0].alias;
+  if (!accounts.some((a) => a.alias === challengeAlias)) challengeAlias = accounts[0].alias;
   for (const a of accounts) {
     const opt = document.createElement("option");
     opt.value = a.alias;
-    opt.textContent = a.name || a.remark || a.alias;
+    opt.textContent = displayName(a);
     sel.append(opt);
   }
   sel.value = challengeAlias;
@@ -515,7 +546,7 @@ async function loadChallenge() {
   if (!challengeAlias) return;
   $("#challenge-books").innerHTML = '<p class="empty">正在加载书架…</p>';
   try {
-    // GET details 走本地缓存,瞬时返回;书架取自缓存封面墙。
+    // GET details 走本地缓存,瞬时返回;书架与阅读配置一次拿全。
     const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/details`);
     renderChallenge(d);
   } catch (err) {
@@ -530,25 +561,17 @@ function renderChallenge(d) {
   for (const id of cfg.book_ids || []) challengePicked.add(id);
 
   $("#challenge-state").textContent = cfg.enabled ? "已开启" : "未开启";
-  $("#challenge-banner").classList.toggle("off", !cfg.enabled);
   $("#challenge-banner").classList.toggle("on", !!cfg.enabled);
+  $("#challenge-banner").classList.toggle("off", !cfg.enabled);
   $("#challenge-runat").textContent = cfg.run_at || "—";
   $("#challenge-minutes").textContent = `${cfg.minutes || 30} 分钟`;
   $("#challenge-enabled").checked = !!cfg.enabled;
   $("#challenge-runat-input").value = cfg.run_at || "03:00";
   $("#challenge-minutes-input").value = cfg.minutes || 30;
-  // 断点续跑提示:当日(或上次)会话没刷完,引导一键继续
-  const incomplete = !cfg.running && cfg.run_total > 0 && cfg.run_done < cfg.run_total;
-  if (incomplete) {
-    const done = (cfg.run_done * 0.5).toFixed(1);
-    const total = (cfg.run_total * 0.5).toFixed(1);
-    $("#challenge-laststatus").textContent = `上次会话未完成(已记 ${done}/${total} 分钟),点「立即开始」继续`;
-  } else {
-    $("#challenge-laststatus").textContent = cfg.last_status
-      ? `上次执行(${cfg.last_run_date || "—"}):${cfg.last_status}`
-      : "尚未执行过";
-  }
   updateChallengeButtons(!!cfg.running, !!cfg.paused);
+  $("#challenge-laststatus").textContent = cfg.last_status
+    ? `上次执行(${cfg.last_run_date || "—"}):${cfg.last_status}`
+    : "尚未执行过";
 
   const grid = $("#challenge-books");
   grid.textContent = "";
@@ -558,7 +581,7 @@ function renderChallenge(d) {
   }
   for (const b of challengeBooks) {
     const card = document.createElement("div");
-    card.className = "challenge-book" + (challengePicked.has(b.bookId) ? " selected" : "");
+    card.className = "book-card" + (challengePicked.has(b.bookId) ? " selected" : "");
     card.title = b.title || b.bookId || "";
     if (b.cover) {
       const img = document.createElement("img");
@@ -567,19 +590,15 @@ function renderChallenge(d) {
       img.alt = "";
       card.append(img);
     } else {
-      const placeholder = document.createElement("div");
-      placeholder.className = "challenge-book-placeholder";
-      placeholder.textContent = "▤";
-      card.append(placeholder);
+      const ph = document.createElement("div");
+      ph.className = "book-card-placeholder";
+      ph.textContent = "▤";
+      card.append(ph);
     }
     const check = document.createElement("span");
-    check.className = "challenge-check";
+    check.className = "check";
     check.textContent = "✓";
     card.append(check);
-    const title = document.createElement("div");
-    title.className = "challenge-book-title";
-    title.textContent = b.title || b.bookId;
-    card.append(title);
     card.addEventListener("click", () => {
       if (challengePicked.has(b.bookId)) {
         challengePicked.delete(b.bookId);
@@ -593,15 +612,6 @@ function renderChallenge(d) {
   }
 }
 
-function challengeBannerFromInputs() {
-  const enabled = $("#challenge-enabled").checked;
-  $("#challenge-state").textContent = enabled ? "已开启" : "未开启";
-  $("#challenge-banner").classList.toggle("off", !enabled);
-  $("#challenge-banner").classList.toggle("on", enabled);
-  $("#challenge-runat").textContent = $("#challenge-runat-input").value || "—";
-  $("#challenge-minutes").textContent = `${$("#challenge-minutes-input").value || 30} 分钟`;
-}
-
 function updateChallengeButtons(running, paused) {
   $("#challenge-run").disabled = running;
   const pauseBtn = $("#challenge-pause");
@@ -612,7 +622,72 @@ function updateChallengeButtons(running, paused) {
   pauseBtn.disabled = false;
 }
 
-// 暂停/继续:暂停只停心跳上报,进度保留;继续后刷完剩余时长。
+$("#challenge-account").addEventListener("change", (e) => {
+  challengeAlias = e.target.value;
+  loadChallenge();
+});
+
+$("#challenge-save").addEventListener("click", async () => {
+  if (!challengeAlias) return;
+  const btn = $("#challenge-save");
+  btn.disabled = true;
+  try {
+    await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`, {
+      method: "POST",
+      body: JSON.stringify({
+        enabled: $("#challenge-enabled").checked,
+        book_ids: Array.from(challengePicked),
+        minutes: Number($("#challenge-minutes-input").value) || 30,
+        run_at: $("#challenge-runat-input").value || "03:00",
+      }),
+    });
+    $("#challenge-state").textContent = $("#challenge-enabled").checked ? "已开启" : "未开启";
+    $("#challenge-banner").classList.toggle("on", $("#challenge-enabled").checked);
+    $("#challenge-banner").classList.toggle("off", !$("#challenge-enabled").checked);
+    $("#challenge-runat").textContent = $("#challenge-runat-input").value || "03:00";
+    $("#challenge-minutes").textContent = `${$("#challenge-minutes-input").value || 30} 分钟`;
+    toast($("#challenge-enabled").checked ? "已保存,到点自动阅读" : "配置已保存(未开启)");
+  } catch (err) {
+    toast(`保存失败:${err.message}`);
+  }
+  btn.disabled = false;
+});
+
+async function runChallengeNow() {
+  if (!challengeAlias) return;
+  const btn = $("#challenge-run");
+  btn.disabled = true;
+  try {
+    const data = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/run`, { method: "POST" });
+    toast(data.resumed ? "继续上次未完成的阅读" : "阅读会话已启动,每 30 秒记 0.5 分钟");
+  } catch (err) {
+    toast(`启动失败:${err.message}`);
+    btn.disabled = false;
+    return;
+  }
+  let polls = 0;
+  if (challengeRunTimer) clearInterval(challengeRunTimer);
+  challengeRunTimer = setInterval(async () => {
+    polls++;
+    try {
+      const cfg = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`);
+      updateChallengeButtons(!!cfg.running, !!cfg.paused);
+      // 会话是否结束以 running 为准:暂停中会话仍在,轮询不能停。
+      if (!cfg.running) {
+        $("#challenge-laststatus").textContent = cfg.last_status || "已结束";
+        clearInterval(challengeRunTimer);
+        btn.disabled = false;
+        return;
+      }
+      $("#challenge-laststatus").textContent = cfg.last_status || "阅读中…";
+    } catch { /* 单次轮询失败忽略 */ }
+    if (polls > 360) {
+      clearInterval(challengeRunTimer);
+      btn.disabled = false;
+    }
+  }, 5000);
+}
+
 async function toggleChallengePause() {
   if (!challengeAlias) return;
   const btn = $("#challenge-pause");
@@ -624,14 +699,15 @@ async function toggleChallengePause() {
       body: JSON.stringify({ action }),
     });
     updateChallengeButtons(true, data.paused);
-    $("#challenge-laststatus").textContent = data.paused ? "已暂停(剩余时长保留,点「继续阅读」恢复)" : "阅读中…";
+    $("#challenge-laststatus").textContent = data.paused
+      ? "已暂停(剩余时长保留,点「继续阅读」恢复)"
+      : "阅读中…";
   } catch (err) {
     toast(`操作失败:${err.message}`);
   }
   btn.disabled = false;
 }
 
-// 停止:终止当前会话;已上报的时长服务端已记账不会回滚,当日调度视为已完成。
 async function stopChallenge() {
   if (!challengeAlias) return;
   if (!confirm("确定停止本次阅读会话?已上报的时长会保留,当日不再重跑。")) return;
@@ -646,62 +722,10 @@ async function stopChallenge() {
   }
 }
 
-async function saveChallenge() {
-  if (!challengeAlias) return;
-  const saveBtn = $("#challenge-save");
-  saveBtn.disabled = true;
-  try {
-    await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`, {
-      method: "POST",
-      body: JSON.stringify({
-        enabled: $("#challenge-enabled").checked,
-        book_ids: Array.from(challengePicked),
-        minutes: Number($("#challenge-minutes-input").value) || 30,
-        run_at: $("#challenge-runat-input").value || "03:00",
-      }),
-    });
-    challengeBannerFromInputs();
-    toast($("#challenge-enabled").checked ? "已开启，将按时自动阅读" : "设置已保存");
-  } catch (err) {
-    toast(`保存设置失败:${err.message}`);
-  }
-  saveBtn.disabled = false;
-}
+$("#challenge-pause").addEventListener("click", toggleChallengePause);
+$("#challenge-stop").addEventListener("click", stopChallenge);
 
-async function runChallengeNow() {
-  if (!challengeAlias) return;
-  const runBtn = $("#challenge-run");
-  runBtn.disabled = true;
-  try {
-    await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/run`, { method: "POST" });
-    toast("阅读会话已启动,每 30 秒记 0.5 分钟");
-    $("#challenge-laststatus").textContent = "阅读中…";
-  } catch (err) {
-    toast(`启动失败:${err.message}`);
-    runBtn.disabled = false;
-    return;
-  }
-  let polls = 0;
-  if (challengeRunTimer) clearInterval(challengeRunTimer);
-  challengeRunTimer = setInterval(async () => {
-    polls++;
-    try {
-      const cfg = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`);
-      updateChallengeButtons(!!cfg.running, !!cfg.paused);
-      // 会话是否结束以 running 为准:暂停中会话仍在,轮询不能停。
-      if (!cfg.running) {
-        $("#challenge-laststatus").textContent = cfg.last_status || "已结束";
-        clearInterval(challengeRunTimer);
-        runBtn.disabled = false;
-        return;
-      }
-      $("#challenge-laststatus").textContent = cfg.last_status || "阅读中…";
-    } catch { /* 单次轮询失败忽略 */ }
-    if (polls > 360) { clearInterval(challengeRunTimer); runBtn.disabled = false; }
-  }, 5000);
-}
-
-/* ---------- 日志 ---------- */
+/* ---------- 运行日志 ---------- */
 
 let logsTimer = null;
 
@@ -710,10 +734,10 @@ async function openLogs() {
   const sel = $("#log-alias");
   const current = sel.value;
   sel.textContent = "";
-  const defaultOpt = document.createElement("option");
-  defaultOpt.value = "";
-  defaultOpt.textContent = "全部账号";
-  sel.append(defaultOpt);
+  const all = document.createElement("option");
+  all.value = "";
+  all.textContent = "全部账号";
+  sel.append(all);
   const accounts = allAccounts.length ? allAccounts : await api("/api/accounts").catch(() => []);
   for (const a of accounts) {
     const opt = document.createElement("option");
@@ -732,50 +756,57 @@ async function loadLogs(silent = false) {
   if ($("#log-level").value) params.set("level", $("#log-level").value);
   try {
     const logs = await api(`/api/logs?${params}`);
-    $("#log-count").textContent = logs.length;
+    $("#logs-list").textContent = "";
+    if (!logs.length) {
+      $("#logs-list").innerHTML = '<p class="empty">暂无日志</p>';
+    } else {
+      for (const e of logs) {
+        const row = document.createElement("div");
+        row.className = `log-row log-${e.level}`;
+        const time = document.createElement("span");
+        time.className = "log-time";
+        time.textContent = fmtTime(e.ts);
+        const level = document.createElement("span");
+        level.className = "log-level";
+        level.textContent = e.level;
+        const source = document.createElement("span");
+        source.className = "log-source";
+        source.textContent = e.source || "-";
+        const account = document.createElement("span");
+        account.className = "log-alias";
+        account.textContent = e.name || e.alias || "-";
+        account.title = e.alias;
+        const msg = document.createElement("span");
+        msg.className = "log-msg";
+        msg.textContent = e.message;
+        msg.title = e.message;
+        row.append(time, level, source, account, msg);
+        $("#logs-list").append(row);
+      }
+      $("#logs-list").scrollTop = 0;
+    }
     $("#logs-updated").textContent = `更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
-    renderLogs(logs, silent);
   } catch (err) {
     if (!silent) toast(`加载日志失败:${err.message}`);
   }
 }
 
-function renderLogs(logs, silent) {
-  const list = $("#logs-list");
-  list.textContent = "";
-  if (!logs.length) {
-    list.innerHTML = '<p class="empty">暂无日志</p>';
-    return;
+$("#logs-reload").addEventListener("click", () => loadLogs());
+$("#log-alias").addEventListener("change", () => loadLogs());
+$("#log-level").addEventListener("change", () => loadLogs());
+$("#logs-clear").addEventListener("click", async () => {
+  if (!confirm("确定清空全部日志?")) return;
+  try {
+    await api("/api/logs", { method: "DELETE" });
+    toast("日志已清空");
+    loadLogs();
+  } catch (err) {
+    toast(`清空失败:${err.message}`);
   }
-  for (const e of logs) {
-    const row = document.createElement("div");
-    row.className = `log-row log-${e.level}`;
-    const time = document.createElement("span");
-    time.className = "log-time";
-    time.textContent = fmtTime(e.ts);
-    const level = document.createElement("span");
-    level.className = "log-level";
-    level.textContent = e.level;
-    const source = document.createElement("span");
-    source.className = "log-source";
-    source.textContent = e.source || "-";
-    const alias = document.createElement("span");
-    alias.className = "log-alias";
-    alias.textContent = e.name || e.alias || "-";
-    alias.title = `别名 ${e.alias}`;
-    const msg = document.createElement("span");
-    msg.className = "log-msg";
-    msg.textContent = e.message;
-    msg.title = e.message;
-    row.append(time, level, source, alias, msg);
-    list.append(row);
-  }
-  list.scrollTop = 0; // 最新在最上
-}
+});
 
-/* ---------- 设置 · 推送渠道 ---------- */
+/* ---------- 推送设置 ---------- */
 
-// 四类渠道固定平铺,每类一张卡片:名称 + 开关 + 参数(带默认值)+ 保存/测试。
 const pushTypes = {
   bark: {
     label: "Bark", desc: "iOS 通知,免费、可自建服务端",
@@ -795,11 +826,6 @@ const pushTypes = {
   },
 };
 
-async function openSettings() {
-  setView("settings");
-  await loadPushChannels();
-}
-
 async function loadPushChannels() {
   const channels = await api("/api/settings/push");
   const byType = {};
@@ -812,216 +838,90 @@ async function loadPushChannels() {
   for (const [type, meta] of Object.entries(pushTypes)) {
     const ch = byType[type] || { type, enabled: false, params: {} };
     if (ch.enabled) enabledCount++;
-    const savedParams = ch.params || {};
+    const saved = ch.params || {};
 
     const card = document.createElement("div");
-    card.className = "push-card" + (ch.enabled ? " on" : "");
+    card.className = "push-card";
 
-    // 头部:渠道名 + 说明 + 开关
     const head = document.createElement("div");
     head.className = "push-card-head";
-    const nameWrap = document.createElement("div");
-    const name = document.createElement("span");
+    const info = document.createElement("div");
+    const name = document.createElement("div");
     name.className = "push-card-name";
     name.textContent = meta.label;
     const desc = document.createElement("div");
     desc.className = "push-card-desc";
     desc.textContent = meta.desc;
-    nameWrap.append(name, desc);
+    info.append(name, desc);
+
+    // 开关:切换即保存
     const sw = document.createElement("label");
     sw.className = "switch";
     const swInput = document.createElement("input");
     swInput.type = "checkbox";
     swInput.checked = !!ch.enabled;
-    const slider = document.createElement("span");
-    slider.className = "slider";
+    const slider = document.createElement("i");
     sw.append(swInput, slider);
-    head.append(nameWrap, sw);
+    swInput.addEventListener("change", () => saveChannel(type, swInput.checked, collectParams(card), swInput));
+    head.append(info, sw);
     card.append(head);
 
-    // 参数输入(带默认值)
     const fields = document.createElement("div");
     fields.className = "push-fields";
     const inputs = {};
     for (const [key, label, required, def] of meta.fields) {
       const input = document.createElement("input");
       input.type = "text";
-      input.value = savedParams[key] !== undefined ? savedParams[key] : (def || "");
+      input.value = saved[key] !== undefined ? saved[key] : (def || "");
       input.placeholder = required ? `${label}(必填)` : label;
       input.dataset.key = key;
-      input.className = "push-param-input";
       if (required) input.required = true;
       inputs[key] = input;
       fields.append(input);
     }
     card.append(fields);
 
-    const collect = () => {
-      const params = {};
-      for (const key in inputs) params[key] = inputs[key].value.trim();
-      return params;
-    };
-
-    // 开关切换即保存;启用时校验必填
-    swInput.addEventListener("change", async () => {
-      const params = collect();
-      if (swInput.checked) {
-        for (const [key, label, required] of meta.fields) {
-          if (required && !params[key]) {
-            swInput.checked = false;
-            toast(`开启前请先填写 ${label}`);
-            return;
-          }
-        }
-      }
-      try {
-        await api("/api/settings/push", {
-          method: "POST",
-          body: JSON.stringify({ type, enabled: swInput.checked, params }),
-        });
-        card.classList.toggle("on", swInput.checked);
-        toast(swInput.checked ? "已开启" : "已关闭");
-        loadPushChannels();
-      } catch (err) {
-        swInput.checked = !swInput.checked;
-        toast(`操作失败:${err.message}`);
-      }
-    });
-
-    // 保存设置按钮
     const ops = document.createElement("div");
     ops.className = "push-card-ops";
-    const saveBtn = button("保存设置", "btn small", async () => {
-      saveBtn.disabled = true;
-      const params = collect();
-      try {
-        await api("/api/settings/push", {
-          method: "POST",
-          body: JSON.stringify({ type, enabled: swInput.checked, params }),
-        });
-        toast("参数已保存");
-      } catch (err) {
-        toast(`保存设置失败:${err.message}`);
-      }
-      saveBtn.disabled = false;
-    });
-    const testBtn = button("发送测试消息", "btn small", async () => {
-      const params = collect();
+    const saveBtn = button("保存参数", "btn", () => saveChannel(type, swInput.checked, collectParams(fields)));
+    const testBtn = button("发送测试", "btn", async () => {
+      const params = collectParams(fields);
       testBtn.disabled = true;
       try {
-        await api(`/api/settings/push/${type}/test`, {
-          method: "POST",
-          body: JSON.stringify({ params }),
-        });
+        await api(`/api/settings/push/${type}/test`, { method: "POST", body: JSON.stringify({ params }) });
         toast("测试消息已发送,请查收");
       } catch (err) {
         toast(`测试失败:${err.message}`);
       }
       testBtn.disabled = false;
     });
-    ops.append(saveBtn, " ", testBtn);
+    ops.append(saveBtn, testBtn);
     card.append(ops);
+
+    function collectParams(scope) {
+      const out = {};
+      scope.querySelectorAll(".push-param-input").forEach((i) => { out[i.dataset.key] = i.value.trim(); });
+      return out;
+    }
+
     list.append(card);
   }
   $("#push-summary").textContent = `${enabledCount}/${Object.keys(pushTypes).length} 个已开启`;
 }
 
-/* ---------- Material select controls ---------- */
-const customSelects = [];
-function enhanceSelect(select) {
-  if (!select || select.dataset.enhanced) return;
-  select.dataset.enhanced = "1";
-  const root = document.createElement("div"); root.className = "m3-select";
-  select.parentNode.insertBefore(root, select); root.append(select);
-  select.classList.add("m3-native-select");
-  const trigger = document.createElement("button"); trigger.type = "button"; trigger.className = "m3-select-trigger"; trigger.setAttribute("aria-haspopup", "listbox");
-  const label = document.createElement("span"); const arrow = document.createElement("span"); arrow.className = "m3-select-arrow"; trigger.append(label, arrow); root.append(trigger);
-  const menu = document.createElement("div"); menu.className = "m3-select-menu"; menu.setAttribute("role", "listbox"); root.append(menu);
-  const rebuild = () => {
-    const selected = select.options[select.selectedIndex]; label.textContent = selected ? selected.textContent : "请选择";
-    menu.textContent = "";
-    for (const option of select.options) {
-      const item = document.createElement("button"); item.type = "button"; item.className = "m3-select-option" + (option.selected ? " selected" : ""); item.textContent = option.textContent; item.setAttribute("role", "option"); item.setAttribute("aria-selected", option.selected ? "true" : "false");
-      item.addEventListener("click", () => { select.value = option.value; select.dispatchEvent(new Event("change", { bubbles: true })); close(); rebuild(); }); menu.append(item);
-    }
-  };
-  const close = () => { root.classList.remove("open"); trigger.setAttribute("aria-expanded", "false"); };
-  trigger.addEventListener("click", () => { const open = root.classList.toggle("open"); trigger.setAttribute("aria-expanded", open ? "true" : "false"); if (open) rebuild(); });
-  select.addEventListener("change", rebuild);
-  new MutationObserver(rebuild).observe(select, { childList: true, subtree: true });
-  customSelects.push({ root, close }); rebuild();
-}
-for (const id of ["challenge-account", "log-alias", "log-level"]) enhanceSelect($("#" + id));
-document.addEventListener("click", (event) => { for (const item of customSelects) if (!item.root.contains(event.target)) item.close(); });
-function enhanceTimeInput(input) {
-  if (!input || input.dataset.enhanced) return;
-  input.dataset.enhanced = "1";
-  const root = document.createElement("div"); root.className = "m3-time-select";
-  input.parentNode.insertBefore(root, input); root.append(input); input.classList.add("m3-native-time");
-  const trigger = document.createElement("button"); trigger.type = "button"; trigger.className = "m3-time-trigger"; trigger.setAttribute("aria-haspopup", "listbox"); root.append(trigger);
-  const menu = document.createElement("div"); menu.className = "m3-time-menu"; menu.setAttribute("role", "listbox"); root.append(menu);
-  const update = () => { trigger.textContent = input.value || "选择时间"; menu.textContent = ""; for(let h=0;h<24;h++) for(let m=0;m<60;m+=30){ const value = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`; const item=document.createElement("button"); item.type="button"; item.className="m3-time-option"+(input.value===value?" selected":""); item.textContent=value; item.addEventListener("click",()=>{input.value=value;input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));root.classList.remove("open");update();});menu.append(item); } };
-  trigger.addEventListener("click",()=>{root.classList.toggle("open");update();}); input.addEventListener("change",update); update();
-  customSelects.push({root,close:()=>root.classList.remove("open")});
-}
-enhanceTimeInput($("#challenge-runat-input"));
-
-/* ---------- 事件绑定 ---------- */
-
-$("#theme-toggle").addEventListener("click", themeToggle);
-document.querySelectorAll(".nav-icon").forEach((el) => {
-  const name = el.classList.contains("nav-icon-account") ? "users-round" : el.classList.contains("nav-icon-challenge") ? "book-open" : el.classList.contains("nav-icon-logs") ? "scroll-text" : "settings-2";
-  el.replaceWith(lucideIcon(name, "nav-icon lucide-nav-icon"));
-});
-const legacyIcons = { "↻": "refresh", "⌕": "search", "＋": "plus", "×": "x", "☾": "moon" };
-document.querySelectorAll("span[aria-hidden=\"true\"]").forEach((el) => { const name = legacyIcons[el.textContent.trim()]; if (name) el.replaceWith(lucideIcon(name)); });
-updateThemeButton();
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
-  if (!localStorage.getItem("wxread-theme")) {
-    document.documentElement.dataset.theme = event.matches ? "dark" : "light";
-    updateThemeButton();
-  }
-})
-
-function openLogin() {
-  resetLoginUI();
-  $("#login-dialog").showModal();
-  startLogin();
-}
-$("#add-btn").addEventListener("click", openLogin);
-$("#empty-add").addEventListener("click", openLogin);
-$("#reload-btn").addEventListener("click", loadAccounts);
-$("#account-search").addEventListener("input", renderAccounts);
-$("#login-start").addEventListener("click", startLogin);
-$("#login-close").addEventListener("click", () => $("#login-dialog").close());
-$("#login-dialog").addEventListener("close", () => {
-  resetLoginUI();
-  loadAccounts();
-});
-$("#detail-close").addEventListener("click", () => $("#detail-dialog").close());
-$("#detail-reload").addEventListener("click", () => showDetails(detailAccount, true));
-$("#nav-accounts").addEventListener("click", (e) => { e.preventDefault(); setView("accounts"); });
-$("#nav-challenge").addEventListener("click", (e) => { e.preventDefault(); openChallenge(); });
-$("#nav-logs").addEventListener("click", (e) => { e.preventDefault(); openLogs(); });
-$("#challenge-account").addEventListener("change", (e) => { challengeAlias = e.target.value; loadChallenge(); });
-$("#challenge-save").addEventListener("click", saveChallenge);
-$("#challenge-run").addEventListener("click", runChallengeNow);
-$("#nav-settings").addEventListener("click", (e) => { e.preventDefault(); openSettings(); });
-
-$("#challenge-pause").addEventListener("click", toggleChallengePause);
-$("#challenge-stop").addEventListener("click", stopChallenge);
-$("#log-alias").addEventListener("change", () => loadLogs());
-$("#log-level").addEventListener("change", () => loadLogs());
-$("#logs-reload").addEventListener("click", () => loadLogs());
-$("#logs-clear").addEventListener("click", async () => {
-  if (!confirm("确定清空全部日志?")) return;
+async function saveChannel(type, enabled, params) {
   try {
-    await api("/api/logs", { method: "DELETE" });
-    toast("日志已清空");
-    loadLogs();
+    await api("/api/settings/push", {
+      method: "POST",
+      body: JSON.stringify({ type, enabled, params }),
+    });
+    toast(enabled ? "已开启" : "配置已保存(未开启)");
   } catch (err) {
-    toast(`清空失败:${err.message}`);
+    toast(`保存失败:${err.message}`);
   }
-});
+}
 
+/* ---------- 启动 ---------- */
+
+renderIcons();
 loadAccounts();
