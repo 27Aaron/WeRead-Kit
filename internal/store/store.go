@@ -42,7 +42,11 @@ func Open(path string) (*sql.DB, error) {
 	dsn := "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("打开数据库失败: %w", err)
+	}
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("连接数据库失败: %w", err)
 	}
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()

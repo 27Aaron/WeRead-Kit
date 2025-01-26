@@ -84,7 +84,7 @@ func (m *loginManager) get(id string) (loginSession, bool) {
 
 // waitQR 阻塞等待二维码链接就绪(票据与 qrconnect 有几百毫秒网络往返),
 // 或直到会话进入终态/超时。就绪后调用方再拿到的 qr_url 必定可加载。
-func (m *loginManager) waitQR(id string, timeout time.Duration) error {
+func (m *loginManager) waitQR(ctx context.Context, id string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
 		sess, ok := m.get(id)
@@ -103,7 +103,13 @@ func (m *loginManager) waitQR(id string, timeout time.Duration) error {
 		if time.Now().After(deadline) {
 			return errors.New("二维码生成超时")
 		}
-		time.Sleep(50 * time.Millisecond)
+		timer := time.NewTimer(50 * time.Millisecond)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		}
 	}
 }
 
