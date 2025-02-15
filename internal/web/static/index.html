@@ -50,7 +50,7 @@
           </div>
           <div class="page-actions">
             <button id="reload-btn" class="btn"><span class="nav-icon" data-icon="refresh-cw"></span>刷新</button>
-            <button id="add-btn" class="btn primary"><span class="nav-icon" data-icon="plus"></span>扫码添加</button>
+            <button id="add-btn" class="btn primary"><span class="nav-icon" data-icon="user"></span>添加账户</button>
           </div>
         </div>
         <div class="panel">
@@ -66,7 +66,7 @@
             <span class="nav-icon" data-icon="book-open"></span>
             <h3>从连接第一个账号开始</h3>
             <p>用微信扫一扫,即可把阅读账号添加到这里。</p>
-            <button id="empty-add" class="btn primary"><span class="nav-icon" data-icon="plus"></span>扫码添加账号</button>
+            <button id="empty-add" class="btn primary"><span class="nav-icon" data-icon="user"></span>添加账户</button>
           </div>
           <div id="list-message" class="list-message hidden" role="status"></div>
           <div class="panel-foot">
@@ -164,17 +164,15 @@
   <dialog id="login-dialog" class="dialog" aria-labelledby="login-title">
     <div class="dialog-body">
       <button id="login-close" class="dialog-close" aria-label="关闭">×</button>
-      <h2 id="login-title">扫码添加账号</h2>
-      <p class="dialog-desc">使用微信扫码,自动获取昵称与头像。</p>
+      <h2 id="login-title">添加账户</h2>
       <div id="qr-area" class="qr-area hidden">
         <img id="qr-img" width="220" height="220" alt="微信扫码登录微信读书" />
         <p id="login-status" class="status" role="status"></p>
         <p class="dialog-note">打开微信扫一扫,并在手机上确认登录</p>
       </div>
       <div class="dialog-ops">
-        <button id="login-start" class="btn primary block"><span class="nav-icon" data-icon="refresh-cw"></span>生成登录二维码</button>
+        <button id="login-start" class="btn primary block"><span class="nav-icon" data-icon="refresh-cw"></span><span id="login-start-text">生成登录二维码</span></button>
       </div>
-      <p class="dialog-note">同一账号再次扫码,将更新已有账号的凭据。</p>
     </div>
   </dialog>
 
