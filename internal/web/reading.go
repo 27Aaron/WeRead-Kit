@@ -22,8 +22,8 @@ type readingConfigBody struct {
 }
 
 func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
-	alias := r.PathValue("alias")
-	if _, err := store.Load(s.db, alias); errors.Is(err, store.ErrNotFound) {
+	vid := r.PathValue("vid")
+	if _, err := store.Load(s.db, vid); errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, err)
 		return
 	} else if err != nil {
@@ -50,7 +50,7 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := store.SaveReadingConfig(s.db, &store.ReadingConfig{
-			Alias:   alias,
+			Vid:   vid,
 			Enabled: body.Enabled,
 			BookIDs: body.BookIDs,
 			Minutes: body.Minutes,
@@ -61,14 +61,14 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cfg, err := store.GetReadingConfig(s.db, alias)
+	cfg, err := store.GetReadingConfig(s.db, vid)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	running, paused := farmState(alias)
+	running, paused := farmState(vid)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"alias": cfg.Alias, "enabled": cfg.Enabled, "book_ids": cfg.BookIDs,
+		"vid": cfg.Vid, "enabled": cfg.Enabled, "book_ids": cfg.BookIDs,
 		"minutes": cfg.Minutes, "run_at": cfg.RunAt,
 		"last_run_date": cfg.LastRunDate, "last_run_at": cfg.LastRunAt, "last_status": cfg.LastStatus,
 		"run_book_id": cfg.RunBookID, "run_done": cfg.RunDone, "run_total": cfg.RunTotal,
@@ -78,8 +78,8 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 
 // handleReadingRun 立即执行一次阅读会话(异步),执行状态写库,前端轮询配置接口可见。
 func (s *Server) handleReadingRun(w http.ResponseWriter, r *http.Request) {
-	alias := r.PathValue("alias")
-	c, err := store.Load(s.db, alias)
+	vid := r.PathValue("vid")
+	c, err := store.Load(s.db, vid)
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, err)
 		return
@@ -88,7 +88,7 @@ func (s *Server) handleReadingRun(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	cfg, err := store.GetReadingConfig(s.db, alias)
+	cfg, err := store.GetReadingConfig(s.db, vid)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
@@ -104,7 +104,7 @@ func (s *Server) handleReadingRun(w http.ResponseWriter, r *http.Request) {
 	} else {
 		task = weread.NewFarmTask(cfg.BookIDs, cfg.Minutes)
 	}
-	if !s.startFarm(alias, task, toWeread(c)) {
+	if !s.startFarm(vid, task, toWeread(c)) {
 		writeErr(w, http.StatusConflict, errors.New("该账号已有阅读会话在进行中"))
 		return
 	}
@@ -122,59 +122,61 @@ type farmSessionHandle struct {
 	ctrl   *weread.FarmControl
 }
 
-func farmState(alias string) (running, paused bool) {
+func farmState(vid string) (running, paused bool) {
 	farmSessions.Lock()
 	defer farmSessions.Unlock()
-	h, ok := farmSessions.m[alias]
+	h, ok := farmSessions.m[vid]
 	if !ok {
 		return false, false
 	}
 	return true, h.ctrl.IsPaused()
 }
 
-func (s *Server) startFarm(alias string, task weread.FarmTask, creds *weread.Credentials) bool {
+func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Credentials) bool {
 	farmSessions.Lock()
-	if _, running := farmSessions.m[alias]; running {
+	if _, running := farmSessions.m[vid]; running {
 		farmSessions.Unlock()
 		return false
 	}
 	ctrl := weread.NewFarmControl()
 	// 会话 ctx 与句柄共享同一个 cancel:「停止」按钮调用它即可终止整场会话。
 	sessCtx, cancel := context.WithTimeout(context.Background(), time.Duration(task.Total-task.Done+10)*time.Minute)
-	farmSessions.m[alias] = &farmSessionHandle{cancel: cancel, ctrl: ctrl}
+	farmSessions.m[vid] = &farmSessionHandle{cancel: cancel, ctrl: ctrl}
 	farmSessions.Unlock()
 
 	today := time.Now().Format("2006-01-02")
 	// 先标记归属日期,防止调度器同日重复触发;手动执行也计入当日。
-	_ = store.SaveReadingRunState(s.db, alias, today, "阅读中…", &store.RunProgress{BookID: task.BookID, Done: task.Done, Total: task.Total})
-	s.logf("info", "farm", alias, "阅读会话已启动,目标 %.1f 分钟(心跳 %d 次)%s",
+	_ = store.SaveReadingRunState(s.db, vid, today, "阅读中…", &store.RunProgress{BookID: task.BookID, Done: task.Done, Total: task.Total})
+	s.logf("info", "farm", vid, "阅读会话已启动,目标 %.1f 分钟(心跳 %d 次)%s",
 		float64(task.Total)*0.5, task.Total-task.Done, resumeNote(task.Done))
 
 	go func() {
 		defer func() {
 			farmSessions.Lock()
-			delete(farmSessions.m, alias)
+			delete(farmSessions.m, vid)
 			farmSessions.Unlock()
 			cancel()
 		}()
 
 		result, next, err := s.client.FarmSession(sessCtx, creds, task, func(done, total int, msg string) {
 			// 断点每次心跳都落库;日志按分钟记(每 2 次心跳一条),与记账粒度一致。
-			_ = store.SaveReadingRunState(s.db, alias, today, fmt.Sprintf("阅读中 %d/%d 分钟", done/2, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total})
+			_ = store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("阅读中 %d/%d 分钟", done/2, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total})
 			if done%2 == 0 {
-				s.logf("info", "farm", alias, "阅读中 %d/%d 分钟", done/2, total/2)
+				s.logf("info", "farm", vid, "阅读中 %d/%d 分钟", done/2, total/2)
 			}
 		}, ctrl)
 		if next != nil {
 			// 会话中途轮换了移动端凭据,落库,否则会丢会话。
 			updated := &store.Credential{
-				Alias: alias, Vid: next.Vid, RefreshToken: next.RefreshToken,
-				DeviceID: next.DeviceID, AccessToken: next.AccessToken,
+				Vid:          next.Vid,
+				RefreshToken: next.RefreshToken,
+				DeviceID:     next.DeviceID,
+				AccessToken:  next.AccessToken,
 			}
 			if err := store.Save(s.db, updated); err != nil {
-				s.logf("error", "farm", alias, "续期凭据落库失败: %v", err)
+				s.logf("error", "farm", vid, "续期凭据落库失败: %v", err)
 			} else {
-				s.logf("info", "farm", alias, "会话中凭据已轮换并落库")
+				s.logf("info", "farm", vid, "会话中凭据已轮换并落库")
 			}
 		}
 		minutesText := fmt.Sprintf("%.1f 分钟", float64(result.Done)*0.5)
@@ -191,18 +193,18 @@ func (s *Server) startFarm(alias string, task weread.FarmTask, creds *weread.Cre
 			status = fmt.Sprintf("中断(已记 %s):%s", minutesText, result.Err)
 			level = "warn"
 		}
-		_ = store.SaveReadingRunState(s.db, alias, today, status, nil)
-		s.logf(level, "farm", alias, "%s", status)
+		_ = store.SaveReadingRunState(s.db, vid, today, status, nil)
+		s.logf(level, "farm", vid, "%s", status)
 		// 完成与失败时推送通知;用户主动停止的会话不打扰。
 		switch {
 		case ctrl.Stopped():
 		case err != nil:
-			s.notifyFarmResult(alias, "error", "阅读会话失败", status)
+			s.notifyFarmResult(vid, "error", "阅读会话失败", status)
 		case result.Err != "":
-			s.notifyFarmResult(alias, "warn", "阅读中断", status)
+			s.notifyFarmResult(vid, "warn", "阅读中断", status)
 		default:
-			s.notifyFarmResult(alias, "info", "今日阅读完成",
-				fmt.Sprintf("%s\n已阅读 %s", s.readingBookTitle(alias, task.BookID), minutesText))
+			s.notifyFarmResult(vid, "info", "今日阅读完成",
+				fmt.Sprintf("%s\n已阅读 %s", s.readingBookTitle(vid, task.BookID), minutesText))
 		}
 	}()
 	return true
@@ -219,21 +221,21 @@ func (s *Server) ResumeInterrupted() {
 		if !ok {
 			continue
 		}
-		c, err := store.Load(s.db, cfg.Alias)
+		c, err := store.Load(s.db, cfg.Vid)
 		if err != nil {
 			continue
 		}
-		s.logf("info", "farm", cfg.Alias, "续跑上次未完成的阅读会话(已完成 %.1f/%.1f 分钟)", float64(done)*0.5, float64(total)*0.5)
-		s.startFarm(cfg.Alias, weread.FarmTask{BookID: bookID, Done: done, Total: total}, toWeread(c))
+		s.logf("info", "farm", cfg.Vid, "续跑上次未完成的阅读会话(已完成 %.1f/%.1f 分钟)", float64(done)*0.5, float64(total)*0.5)
+		s.startFarm(cfg.Vid, weread.FarmTask{BookID: bookID, Done: done, Total: total}, toWeread(c))
 	}
 }
 
 // handleReadingPause 暂停/继续进行中的阅读会话。
 // 已暂停时调用即继续;暂停不影响当日执行标记,继续后刷完剩余时长。
 func (s *Server) handleReadingPause(w http.ResponseWriter, r *http.Request) {
-	alias := r.PathValue("alias")
+	vid := r.PathValue("vid")
 	farmSessions.Lock()
-	h, ok := farmSessions.m[alias]
+	h, ok := farmSessions.m[vid]
 	farmSessions.Unlock()
 	if !ok {
 		writeErr(w, http.StatusConflict, errors.New("没有进行中的阅读会话"))
@@ -243,11 +245,11 @@ func (s *Server) handleReadingPause(w http.ResponseWriter, r *http.Request) {
 	var paused bool
 	if h.ctrl.IsPaused() {
 		h.ctrl.Resume()
-		_ = store.SaveReadingRunState(s.db, alias, today, "阅读中…", nil)
+		_ = store.SaveReadingRunState(s.db, vid, today, "阅读中…", nil)
 		paused = false
 	} else {
 		h.ctrl.Pause()
-		_ = store.SaveReadingRunState(s.db, alias, today, "已暂停(点「继续阅读」恢复)", nil)
+		_ = store.SaveReadingRunState(s.db, vid, today, "已暂停(点「继续阅读」恢复)", nil)
 		paused = true
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"running": true, "paused": paused})
@@ -256,9 +258,9 @@ func (s *Server) handleReadingPause(w http.ResponseWriter, r *http.Request) {
 // handleReadingStop 终止进行中的阅读会话。已上报的时长服务端已记账,不会回滚;
 // 当日调度视为已完成,明天到点再跑。
 func (s *Server) handleReadingStop(w http.ResponseWriter, r *http.Request) {
-	alias := r.PathValue("alias")
+	vid := r.PathValue("vid")
 	farmSessions.Lock()
-	h, ok := farmSessions.m[alias]
+	h, ok := farmSessions.m[vid]
 	farmSessions.Unlock()
 	if !ok {
 		writeErr(w, http.StatusConflict, errors.New("没有进行中的阅读会话"))
@@ -302,14 +304,14 @@ func (s *Server) tickFarm(ctx context.Context) {
 		if nowHM < cfg.RunAt {
 			continue
 		}
-		c, err := store.Load(s.db, cfg.Alias)
+		c, err := store.Load(s.db, cfg.Vid)
 		if err != nil {
-			s.logf("error", "farm", cfg.Alias, "凭据加载失败: %v", err)
+			s.logf("error", "farm", cfg.Vid, "凭据加载失败: %v", err)
 			continue
 		}
 		task := weread.NewFarmTask(cfg.BookIDs, cfg.Minutes)
-		s.logf("info", "farm", cfg.Alias, "调度器触发每日阅读(计划 %s,目标 %.1f 分钟)", cfg.RunAt, float64(task.Total)*0.5)
-		if !s.startFarm(cfg.Alias, task, toWeread(c)) {
+		s.logf("info", "farm", cfg.Vid, "调度器触发每日阅读(计划 %s,目标 %.1f 分钟)", cfg.RunAt, float64(task.Total)*0.5)
+		if !s.startFarm(cfg.Vid, task, toWeread(c)) {
 			continue
 		}
 	}

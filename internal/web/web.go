@@ -8,7 +8,6 @@ import (
 	"errors"
 	"io/fs"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/skip2/go-qrcode"
@@ -34,27 +33,29 @@ func New(db *sql.DB) *Server {
 
 func (s *Server) Handler() http.Handler {
 	sub, err := fs.Sub(staticFiles, "static")
-	if err != nil { panic("web: embedded static missing: " + err.Error()) }
+	if err != nil {
+		panic("web: embedded static missing: " + err.Error())
+	}
 	mux := http.NewServeMux()
 	mux.Handle("GET /", http.FileServerFS(sub))
 	mux.HandleFunc("GET /api/accounts", s.handleListAccounts)
-	mux.HandleFunc("DELETE /api/accounts/{alias}", s.handleDeleteAccount)
-	mux.HandleFunc("PUT /api/accounts/{alias}/remark", s.handleUpdateRemark)
-	mux.HandleFunc("POST /api/accounts/{alias}/refresh", s.handleRefreshAccount)
-	mux.HandleFunc("POST /api/accounts/{alias}/profile", s.handleSyncProfile)
-	mux.HandleFunc("GET /api/accounts/{alias}/details", s.handleAccountDetails)
-	mux.HandleFunc("POST /api/accounts/{alias}/details", s.handleAccountDetails)
-	mux.HandleFunc("GET /api/accounts/{alias}/reading", s.handleReadingConfig)
-	mux.HandleFunc("POST /api/accounts/{alias}/reading", s.handleReadingConfig)
-	mux.HandleFunc("POST /api/accounts/{alias}/reading/run", s.handleReadingRun)
-	mux.HandleFunc("POST /api/accounts/{alias}/reading/pause", s.handleReadingPause)
-	mux.HandleFunc("POST /api/accounts/{alias}/reading/stop", s.handleReadingStop)
+	mux.HandleFunc("DELETE /api/accounts/{vid}", s.handleDeleteAccount)
+	mux.HandleFunc("PUT /api/accounts/{vid}/remark", s.handleUpdateRemark)
+	mux.HandleFunc("POST /api/accounts/{vid}/refresh", s.handleRefreshAccount)
+	mux.HandleFunc("POST /api/accounts/{vid}/profile", s.handleSyncProfile)
+	mux.HandleFunc("GET /api/accounts/{vid}/details", s.handleAccountDetails)
+	mux.HandleFunc("POST /api/accounts/{vid}/details", s.handleAccountDetails)
+	mux.HandleFunc("GET /api/accounts/{vid}/reading", s.handleReadingConfig)
+	mux.HandleFunc("POST /api/accounts/{vid}/reading", s.handleReadingConfig)
+	mux.HandleFunc("POST /api/accounts/{vid}/reading/run", s.handleReadingRun)
+	mux.HandleFunc("POST /api/accounts/{vid}/reading/pause", s.handleReadingPause)
+	mux.HandleFunc("POST /api/accounts/{vid}/reading/stop", s.handleReadingStop)
 	mux.HandleFunc("GET /api/logs", s.handleLogs)
 	mux.HandleFunc("DELETE /api/logs", s.handleLogs)
 	mux.HandleFunc("GET /api/settings/push", s.handlePushChannels)
 	mux.HandleFunc("POST /api/settings/push", s.handlePushChannels)
 	mux.HandleFunc("POST /api/settings/push/{type}/test", s.handlePushTest)
-	mux.HandleFunc("GET /api/accounts/{alias}/token", s.handleAccountToken)
+	mux.HandleFunc("GET /api/accounts/{vid}/token", s.handleAccountToken)
 	mux.HandleFunc("POST /api/login", s.handleStartLogin)
 	mux.HandleFunc("GET /api/login/{id}", s.handleLoginStatus)
 	mux.HandleFunc("GET /api/login/{id}/qr.png", s.handleLoginQR)
@@ -76,7 +77,6 @@ type accountView struct {
 	Avatar           string `json:"avatar"`
 	UserVid          string `json:"user_vid"`
 	ProfileUpdatedAt int64  `json:"profile_updated_at"`
-	Alias            string `json:"alias"`
 	Remark           string `json:"remark"`
 	Vid              string `json:"vid"`
 	DeviceID         string `json:"device_id"`
@@ -87,14 +87,16 @@ type accountView struct {
 
 func toView(c *store.Credential) accountView {
 	return accountView{
-		Name: c.Name, Avatar: c.Avatar, UserVid: c.UserVid, ProfileUpdatedAt: c.ProfileUpdatedAt,
-		Alias:          c.Alias,
-		Remark:         c.Remark,
-		Vid:            c.Vid,
-		DeviceID:       c.DeviceID,
-		HasAccessToken: c.AccessToken != "",
-		RotatedAt:      c.RotatedAt.Unix(),
-		CreatedAt:      c.CreatedAt.Unix(),
+		Name:             c.Name,
+		Avatar:           c.Avatar,
+		UserVid:          c.UserVid,
+		ProfileUpdatedAt: c.ProfileUpdatedAt,
+		Remark:           c.Remark,
+		Vid:              c.Vid,
+		DeviceID:         c.DeviceID,
+		HasAccessToken:   c.AccessToken != "",
+		RotatedAt:        c.RotatedAt.Unix(),
+		CreatedAt:        c.CreatedAt.Unix(),
 	}
 }
 
@@ -112,7 +114,7 @@ func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
-	err := store.Delete(s.db, r.PathValue("alias"))
+	err := store.Delete(s.db, r.PathValue("vid"))
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, err)
 		return
@@ -132,11 +134,11 @@ func (s *Server) handleUpdateRemark(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, errors.New("请求体不是 JSON"))
 		return
 	}
-	if len([]rune(body.Remark)) > maxRemarkRunes {
+	if len([]rune(body.Remark)) > 100 {
 		writeErr(w, http.StatusBadRequest, errors.New("备注过长(最多 100 字)"))
 		return
 	}
-	err := store.UpdateRemark(s.db, r.PathValue("alias"), body.Remark)
+	err := store.UpdateRemark(s.db, r.PathValue("vid"), body.Remark)
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, err)
 		return
@@ -149,8 +151,8 @@ func (s *Server) handleUpdateRemark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRefreshAccount(w http.ResponseWriter, r *http.Request) {
-	alias := r.PathValue("alias")
-	c, err := store.Load(s.db, alias)
+	vid := r.PathValue("vid")
+	c, err := store.Load(s.db, vid)
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, err)
 		return
@@ -164,11 +166,11 @@ func (s *Server) handleRefreshAccount(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	if err := store.Save(s.db, toStore(alias, refreshed)); err != nil {
+	if err := store.Save(s.db, toStore(vid, refreshed)); err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	updated, err := store.Load(s.db, alias)
+	updated, err := store.Load(s.db, vid)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
@@ -177,8 +179,8 @@ func (s *Server) handleRefreshAccount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAccountToken(w http.ResponseWriter, r *http.Request) {
-	alias := r.PathValue("alias")
-	c, err := store.Load(s.db, alias)
+	vid := r.PathValue("vid")
+	c, err := store.Load(s.db, vid)
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, err)
 		return
@@ -199,11 +201,11 @@ func (s *Server) handleAccountToken(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadGateway, err)
 			return
 		}
-		if err := store.Save(s.db, toStore(alias, refreshed)); err != nil {
+		if err := store.Save(s.db, toStore(vid, refreshed)); err != nil {
 			writeErr(w, http.StatusInternalServerError, err)
 			return
 		}
-		if c, err = store.Load(s.db, alias); err != nil {
+		if c, err = store.Load(s.db, vid); err != nil {
 			writeErr(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -217,24 +219,8 @@ func (s *Server) handleAccountToken(w http.ResponseWriter, r *http.Request) {
 
 // ---- 扫码登录会话 ----
 
-const maxRemarkRunes = 100
-
-type startLoginBody struct {
-	Remark string `json:"remark"`
-}
-
 func (s *Server) handleStartLogin(w http.ResponseWriter, r *http.Request) {
-	var body startLoginBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeErr(w, http.StatusBadRequest, errors.New("请求体不是 JSON"))
-		return
-	}
-	remark := strings.TrimSpace(body.Remark)
-	if len([]rune(remark)) > maxRemarkRunes {
-		writeErr(w, http.StatusBadRequest, errors.New("备注过长(最多 100 字)"))
-		return
-	}
-	id, err := s.logins.start(remark)
+	id, err := s.logins.start()
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
@@ -262,11 +248,7 @@ func (s *Server) handleLoginStatus(w http.ResponseWriter, r *http.Request) {
 		resp["error"] = sess.errMsg
 	}
 	if sess.status == "success" {
-		resp["account"] = map[string]string{
-			"alias":  sess.alias,
-			"vid":    sess.creds.Vid,
-			"remark": sess.remark,
-		}
+		resp["account"] = map[string]string{"vid": sess.creds.Vid}
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -296,9 +278,8 @@ func toWeread(c *store.Credential) *weread.Credentials {
 	}
 }
 
-func toStore(alias string, c *weread.Credentials) *store.Credential {
+func toStore(vid string, c *weread.Credentials) *store.Credential {
 	return &store.Credential{
-		Alias:        alias,
 		Vid:          c.Vid,
 		RefreshToken: c.RefreshToken,
 		DeviceID:     c.DeviceID,

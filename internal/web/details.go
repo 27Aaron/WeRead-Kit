@@ -15,8 +15,8 @@ import (
 // GET 走数据库缓存,毫秒级响应;POST 强制回源微信读书并更新缓存,
 // 前端「刷新数据」按钮走 POST。缓存不存在时 GET 也会回源并落库。
 func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
-	alias := r.PathValue("alias")
-	c, err := store.Load(s.db, alias)
+	vid := r.PathValue("vid")
+	c, err := store.Load(s.db, vid)
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, err)
 		return
@@ -28,14 +28,14 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost && c.Profile != "" && c.Card != "" && c.Shelf != "" {
 		resp := map[string]any{
-			"alias":     alias,
+			"vid":     vid,
 			"remark":    c.Remark,
 			"user":      json.RawMessage(c.Profile),
 			"card":      json.RawMessage(c.Card),
 			"books":     json.RawMessage(c.Shelf),
 			"cached_at": c.DetailsCachedAt,
 		}
-		if cfg, rerr := store.GetReadingConfig(s.db, alias); rerr == nil {
+		if cfg, rerr := store.GetReadingConfig(s.db, vid); rerr == nil {
 			resp["reading"] = cfg
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -49,11 +49,11 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 	}
 	// 采集途中发生过续期,轮换出的新凭据必须落库。
 	if next != nil {
-		if serr := store.Save(s.db, toStore(alias, next)); serr != nil {
+		if serr := store.Save(s.db, toStore(vid, next)); serr != nil {
 			writeErr(w, http.StatusInternalServerError, serr)
 			return
 		}
-		if c, err = store.Load(s.db, alias); err != nil {
+		if c, err = store.Load(s.db, vid); err != nil {
 			writeErr(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -64,7 +64,7 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, merr)
 		return
 	}
-	if cerr := store.SaveDetailsCache(s.db, alias, d.User, d.Card, shelfJSON); cerr != nil {
+	if cerr := store.SaveDetailsCache(s.db, vid, d.User, d.Card, shelfJSON); cerr != nil {
 		// 缓存写失败不影响本次返回,前端下次仍可强制刷新。
 		if d.Errs == nil {
 			d.Errs = map[string]string{}
@@ -80,21 +80,21 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"alias":     alias,
+		"vid":     vid,
 		"remark":    c.Remark,
 		"user":      d.User,
 		"card":      d.Card,
 		"books":     d.Shelf,
 		"errors":    d.Errs,
 		"cached_at": time.Now().Unix(),
-		"reading":   mustReadingConfig(s.db, alias),
+		"reading":   mustReadingConfig(s.db, vid),
 	})
 }
 
-func mustReadingConfig(db *sql.DB, alias string) *store.ReadingConfig {
-	cfg, err := store.GetReadingConfig(db, alias)
+func mustReadingConfig(db *sql.DB, vid string) *store.ReadingConfig {
+	cfg, err := store.GetReadingConfig(db, vid)
 	if err != nil {
-		return store.DefaultReadingConfig(alias)
+		return store.DefaultReadingConfig(vid)
 	}
 	return cfg
 }

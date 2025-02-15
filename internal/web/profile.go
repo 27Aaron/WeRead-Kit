@@ -44,7 +44,7 @@ func saveProfile(db *sql.DB, c *store.Credential, raw json.RawMessage) error {
 	if vid != c.Vid {
 		return fmt.Errorf("用户资料 ID 与账号不一致")
 	}
-	return store.UpdateProfile(db, c.Alias, c.Vid, user.Name, user.Avatar, vid)
+	return store.UpdateProfile(db, vid, user.Name, user.Avatar, vid)
 }
 
 func syncProfile(ctx context.Context, db *sql.DB, client *weread.Client, c *store.Credential) error {
@@ -63,7 +63,7 @@ func syncProfile(ctx context.Context, db *sql.DB, client *weread.Client, c *stor
 
 // 既有账号的资料由独立流程补充,账号列表加载不等待微信读书接口。
 func (s *Server) handleSyncProfile(w http.ResponseWriter, r *http.Request) {
-	c, err := store.Load(s.db, r.PathValue("alias"))
+	c, err := store.Load(s.db, r.PathValue("vid"))
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, err)
 		return
@@ -77,7 +77,7 @@ func (s *Server) handleSyncProfile(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadGateway, err)
 			return
 		}
-		c, err = store.Load(s.db, c.Alias)
+		c, err = store.Load(s.db, c.Vid)
 		if err != nil {
 			writeErr(w, http.StatusInternalServerError, err)
 			return

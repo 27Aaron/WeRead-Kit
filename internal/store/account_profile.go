@@ -7,8 +7,8 @@ import (
 )
 
 // UpdateProfile 仅更新 Web UI 渲染所需的身份字段(昵称/头像/用户 ID)。
-func UpdateProfile(db *sql.DB, alias, vid, name, avatar, userVid string) error {
-	res, err := db.Exec(`UPDATE weread_account SET name = ?, avatar = ?, user_vid = ?, profile_updated_at = ? WHERE alias = ? AND vid = ?`, name, avatar, userVid, time.Now().Unix(), alias, vid)
+func UpdateProfile(db *sql.DB, vid, name, avatar, userVid string) error {
+	res, err := db.Exec(`UPDATE weread_account SET name = ?, avatar = ?, user_vid = ?, profile_updated_at = ? WHERE vid = ?`, name, avatar, userVid, time.Now().Unix(), vid)
 	if err != nil {
 		return err
 	}
@@ -24,10 +24,10 @@ func UpdateProfile(db *sql.DB, alias, vid, name, avatar, userVid string) error {
 
 // SaveDetailsCache 仅持久化界面渲染所需的少量缓存字段,
 // 易变的接口元数据、签名与支付类数据一律丢弃。
-func SaveDetailsCache(db *sql.DB, alias string, profile, card, shelf []byte) error {
+func SaveDetailsCache(db *sql.DB, vid string, profile, card, shelf []byte) error {
 	profile = compactJSON(profile, []string{"userVid", "name", "avatar"})
 	card = compactJSON(card, []string{"startTime", "expiredTime", "expired", "remainTime"})
-	res, err := db.Exec(`UPDATE weread_account SET profile = ?, card = ?, shelf = ?, details_cached_at = ? WHERE alias = ?`, string(profile), string(card), string(shelf), time.Now().Unix(), alias)
+	res, err := db.Exec(`UPDATE weread_account SET profile = ?, card = ?, shelf = ?, details_cached_at = ? WHERE vid = ?`, string(profile), string(card), string(shelf), time.Now().Unix(), vid)
 	if err != nil {
 		return err
 	}

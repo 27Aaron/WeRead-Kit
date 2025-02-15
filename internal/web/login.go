@@ -19,10 +19,8 @@ import (
 const sessionTTL = 15 * time.Minute
 
 // loginSession 表示一次进行中的扫码登录。
-// 扫码前不知道账号身份,alias 在登录成功后按 vid 归并解析得到。
+// 扫码前不知道账号身份,确认后按 creds.Vid 定位账号。
 type loginSession struct {
-	alias      string // 扫码成功后才解析
-	remark     string
 	confirmURL string
 	status     string // pending | scanned | success | expired | declined | canceled | error
 	errMsg     string
@@ -44,14 +42,13 @@ func newLoginManager(db *sql.DB, client *weread.Client) *loginManager {
 	return &loginManager{sessions: map[string]*loginSession{}, db: db, client: client}
 }
 
-func (m *loginManager) start(remark string) (string, error) {
+func (m *loginManager) start() (string, error) {
 	m.gc()
 	id, err := newSessionID()
 	if err != nil {
 		return "", err
 	}
 	sess := &loginSession{
-		remark:    remark,
 		status:    "pending",
 		createdAt: time.Now(),
 	}
@@ -145,46 +142,27 @@ func (m *loginManager) finish(id string, creds *weread.Credentials, err error) {
 		defer m.mu.Unlock()
 		sess.status, sess.errMsg = status, msg
 		if status == "error" {
-			store.AddLog(m.db, "error", "auth", sess.alias, "扫码登录失败: "+msg)
+			store.AddLog(m.db, "error", "auth", "", "扫码登录失败: "+msg)
 		}
 	}
 
 	switch {
 	case err == nil:
-		// 别名归并:同一 vid 复用既有记录(无论它当初是 CLI 还是网页创建的),
-		// 全新账号则直接以 vid 作为别名,重复扫码天然幂等。
-		alias, dbErr := store.FindAliasByVid(m.db, creds.Vid)
-		if dbErr != nil {
-			fail("error", "查询已有账号失败: "+dbErr.Error())
-			return
-		}
-		if alias == "" {
-			alias = creds.Vid
-		}
+		// 账号以 vid 为唯一键:同一账号重复扫码,天然幂等地更新同一条记录。
 		record := &store.Credential{
-			Alias:        alias,
 			Vid:          creds.Vid,
 			RefreshToken: creds.RefreshToken,
 			DeviceID:     creds.DeviceID,
 			AccessToken:  creds.AccessToken,
-			Remark:       sess.remark, // 新账号 INSERT 时直接带上备注
 		}
 		if dbErr := store.Save(m.db, record); dbErr != nil {
 			fail("error", "凭据写入数据库失败: "+dbErr.Error())
 			return
 		}
-		// 老账号走 UPSERT 冲突分支不会更新 remark,这里单独补写。
-		if sess.remark != "" {
-			if dbErr := store.UpdateRemark(m.db, alias, sess.remark); dbErr != nil && !errors.Is(dbErr, store.ErrNotFound) {
-				fail("error", "备注写入数据库失败: "+dbErr.Error())
-				return
-			}
-		}
 		// 凭据此前已持久化,资料拉取失败不影响登录结果。
-		store.AddLog(m.db, "info", "auth", alias, "扫码登录成功,凭据已更新")
+		store.AddLog(m.db, "info", "auth", creds.Vid, "扫码登录成功,凭据已更新")
 		go m.warmDetails(record)
 		m.mu.Lock()
-		sess.alias = alias
 		sess.status = "success"
 		sess.creds = creds
 		m.mu.Unlock()
@@ -210,8 +188,7 @@ func (m *loginManager) warmDetails(record *store.Credential) {
 		return
 	}
 	if next != nil {
-		updated := toStore(record.Alias, next)
-		updated.Remark = record.Remark
+		updated := toStore(record.Vid, next)
 		if err := store.Save(m.db, updated); err != nil {
 			return
 		}
@@ -221,7 +198,7 @@ func (m *loginManager) warmDetails(record *store.Credential) {
 	if err != nil {
 		return
 	}
-	if err := store.SaveDetailsCache(m.db, record.Alias, d.User, d.Card, shelfJSON); err != nil {
+	if err := store.SaveDetailsCache(m.db, record.Vid, d.User, d.Card, shelfJSON); err != nil {
 		return
 	}
 	_ = saveProfile(m.db, record, d.User)

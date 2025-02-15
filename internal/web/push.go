@@ -137,7 +137,7 @@ func (s *Server) handlePushTest(w http.ResponseWriter, r *http.Request) {
 }
 
 // notifyFarmResult 向所有启用的渠道广播阅读会话结果。尽力而为:单渠道失败只记日志。
-func (s *Server) notifyFarmResult(alias, level, title, body string) {
+func (s *Server) notifyFarmResult(vid, level, title, body string) {
 	channels, err := store.ListEnabledPushChannels(s.db)
 	if err != nil || len(channels) == 0 {
 		return
@@ -154,16 +154,16 @@ func (s *Server) notifyFarmResult(alias, level, title, body string) {
 			continue
 		}
 		if err := notify.Send(ctx, ch.Type, params, emblem+title, body); err != nil {
-			s.logf("warn", "push", alias, "%s 渠道推送失败: %v", ch.Type, err)
+			s.logf("warn", "push", vid, "%s 渠道推送失败: %v", ch.Type, err)
 		} else {
-			s.logf("info", "push", alias, "%s 渠道推送成功: %s", ch.Type, title)
+			s.logf("info", "push", vid, "%s 渠道推送成功: %s", ch.Type, title)
 		}
 	}
 }
 
 // readingBookTitle 从书架缓存解析书名,解析不到时退回 bookID。
-func (s *Server) readingBookTitle(alias, bookID string) string {
-	c, err := store.Load(s.db, alias)
+func (s *Server) readingBookTitle(vid, bookID string) string {
+	c, err := store.Load(s.db, vid)
 	if err != nil {
 		return bookID
 	}

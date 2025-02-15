@@ -102,3 +102,10 @@ func ClearLogs(db *sql.DB) error {
 	_, err := db.Exec(`DELETE FROM weread_log`)
 	return err
 }
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
