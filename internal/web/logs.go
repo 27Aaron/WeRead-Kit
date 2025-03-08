@@ -12,17 +12,17 @@ import (
 )
 
 // logf 是 Server 内所有组件写日志的统一入口:同时落库与打 stdout。
-func (s *Server) logf(level, source, alias, format string, args ...any) {
+func (s *Server) logf(level, source, vid, format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
-	store.AddLog(s.db, level, source, alias, message)
-	log.Printf("[%s]%s %s", source, aliasPrefix(alias), message)
+	store.AddLog(s.db, level, source, vid, message)
+	log.Printf("[%s]%s %s", source, aliasPrefix(vid), message)
 }
 
-func aliasPrefix(alias string) string {
-	if alias == "" {
+func aliasPrefix(vid string) string {
+	if vid == "" {
 		return ""
 	}
-	return " " + alias
+	return " " + vid
 }
 
 func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +36,7 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	case http.MethodGet:
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-		logs, err := store.ListLogs(s.db, r.URL.Query().Get("alias"), r.URL.Query().Get("level"), limit)
+		logs, err := store.ListLogs(s.db, r.URL.Query().Get("vid"), r.URL.Query().Get("level"), limit)
 		if err != nil {
 			writeErr(w, http.StatusInternalServerError, err)
 			return
