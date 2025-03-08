@@ -1,8 +1,9 @@
 -- wxread 数据库基线（数据库文件仍位于 data/wxread.db）。
--- 凭据表只保留运行和 Web UI 所需的字段；令牌不会进入日志。
+-- 账号以 vid（微信读书用户 ID）为唯一键；令牌与详情缓存只保留
+-- 运行和 Web UI 所需的字段，令牌不会进入日志。
+
 CREATE TABLE IF NOT EXISTS weread_account (
-  alias TEXT PRIMARY KEY,
-  vid TEXT NOT NULL,
+  vid TEXT PRIMARY KEY,
   refresh_token TEXT NOT NULL,
   device_id TEXT NOT NULL,
   access_token TEXT NOT NULL DEFAULT '',
@@ -10,11 +11,18 @@ CREATE TABLE IF NOT EXISTS weread_account (
   name TEXT NOT NULL DEFAULT '',
   avatar TEXT NOT NULL DEFAULT '',
   user_vid TEXT NOT NULL DEFAULT '',
+  profile TEXT NOT NULL DEFAULT '',
+  card TEXT NOT NULL DEFAULT '',
+  shelf TEXT NOT NULL DEFAULT '',
   rotated_at INTEGER NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  details_cached_at INTEGER NOT NULL DEFAULT 0,
+  profile_updated_at INTEGER NOT NULL DEFAULT 0
 );
+
+-- 阅读配置:每个账号一行,断点字段用于中断后续跑
 CREATE TABLE IF NOT EXISTS weread_reading (
-  alias TEXT PRIMARY KEY REFERENCES weread_account(alias) ON DELETE CASCADE,
+  vid TEXT PRIMARY KEY REFERENCES weread_account(vid) ON DELETE CASCADE,
   enabled INTEGER NOT NULL DEFAULT 0,
   book_ids TEXT NOT NULL DEFAULT '',
   minutes INTEGER NOT NULL DEFAULT 30,
@@ -26,12 +34,22 @@ CREATE TABLE IF NOT EXISTS weread_reading (
   run_done INTEGER NOT NULL DEFAULT 0,
   run_total INTEGER NOT NULL DEFAULT 0
 );
+
+-- 运行日志:滚动保留 60 天 / 2 万条
 CREATE TABLE IF NOT EXISTS weread_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts INTEGER NOT NULL,
   level TEXT NOT NULL DEFAULT 'info',
   source TEXT NOT NULL DEFAULT '',
-  alias TEXT NOT NULL DEFAULT '',
+  vid TEXT NOT NULL DEFAULT '',
   message TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_weread_log_ts ON weread_log(ts DESC);
+CREATE INDEX IF NOT EXISTS idx_weread_log_ts ON weread_log (ts DESC);
+
+-- 推送渠道:每个渠道一行(type ∈ bark / telegram / serverchan / pushplus)
+CREATE TABLE IF NOT EXISTS weread_push_channel (
+  type TEXT PRIMARY KEY,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  params TEXT NOT NULL DEFAULT '{}',
+  created_at INTEGER NOT NULL DEFAULT 0
+);
