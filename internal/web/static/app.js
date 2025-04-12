@@ -2,6 +2,7 @@
    无框架,原生 fetch;图标来自 lucide.js 提供的 SVG 路径数据。 */
 
 const ICONS = {"search": "<path d=\"m21 21-4.34-4.34\" /> <circle cx=\"11\" cy=\"11\" r=\"8\" />", "chevron-down": "<path d=\"m6 9 6 6 6-6\" />", "x": "<path d=\"M18 6 6 18\" /> <path d=\"m6 6 12 12\" />", "refresh-cw": "<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\" /> <path d=\"M21 3v5h-5\" /> <path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\" /> <path d=\"M8 16H3v5\" />", "book-open": "<path d=\"M12 5v16\" /> <path d=\"M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z\" />", "circle-check": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"m16 9-5.5 5.5L8 12\" />", "settings-2": "<path d=\"M14 17H5\" /> <path d=\"M19 7h-9\" /> <circle cx=\"17\" cy=\"17\" r=\"3\" /> <circle cx=\"7\" cy=\"7\" r=\"3\" />", "plus": "<path d=\"M5 12h14\" /> <path d=\"M12 5v14\" />", "check": "<path d=\"M20 6 9 17l-5-5\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "square": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" />", "play": "<path d=\"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z\" />", "send": "<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\" /> <path d=\"m21.854 2.147-10.94 10.939\" />", "trash": "<path d=\"M10 11v6\" /> <path d=\"M14 11v6\" /> <path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\" /> <path d=\"M3 6h18\" /> <path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\" />", "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\" /> <path d=\"M12 2v2\" /> <path d=\"M12 20v2\" /> <path d=\"m4.93 4.93 1.41 1.41\" /> <path d=\"m17.66 17.66 1.41 1.41\" /> <path d=\"M2 12h2\" /> <path d=\"M20 12h2\" /> <path d=\"m6.34 17.66-1.41 1.41\" /> <path d=\"m19.07 4.93-1.41 1.41\" />", "scroll-text": "<path d=\"M15 12h-5\" /> <path d=\"M15 8h-5\" /> <path d=\"M19 17V5a2 2 0 0 0-2-2H4\" /> <path d=\"M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3\" />", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 6v6l4 2\" />", "user":'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
+  "user": '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
   "users-round": "<path d=\"M18 21a8 8 0 0 0-16 0\" /> <circle cx=\"10\" cy=\"8\" r=\"5\" /> <path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\" />", "pause": "<rect x=\"14\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\" /> <rect x=\"5\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\" />", "monitor": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\" /> <line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\" /> <line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\" />", "minus": "<path d=\"M5 12h14\" />", "moon": "<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />"};
 
 const $ = (sel) => document.querySelector(sel);
@@ -124,8 +125,7 @@ async function loadAccounts() {
     renderAccounts();
   } catch (err) {
     if (request !== listRequest) return;
-    $("#list-message").textContent = `无法加载账号:${err.message}`;
-    $("#list-message").classList.remove("hidden");
+    showEmptyState(`无法加载账号:${err.message}`, "点击「刷新」重试");
     $("#list-summary").textContent = "加载失败";
   } finally {
     if (request === listRequest) $("#reload-btn").disabled = false;
@@ -145,11 +145,14 @@ function renderAccounts() {
   $("#list-summary").textContent = query
     ? `找到 ${accounts.length} 个账号,共 ${allAccounts.length} 个`
     : `共 ${allAccounts.length} 个账号`;
-  $("#empty").classList.toggle("hidden", allAccounts.length > 0);
-  $("#list-message").classList.toggle("hidden", accounts.length > 0);
+  // 无账号时的空态由 #empty 承载:未添加任何账号,或搜索无匹配
+  $("#empty").classList.toggle("hidden", accounts.length > 0);
   if (!accounts.length && query) {
-    $("#list-message").textContent = "没有匹配的账号,换个关键词试试。";
-    $("#list-message").classList.remove("hidden");
+    $("#empty-title").textContent = `没有找到「${query}」`;
+    $("#empty-desc").textContent = "换个关键词试试";
+  } else {
+    $("#empty-title").textContent = "从连接第一个账号开始";
+    $("#empty-desc").textContent = "用微信扫一扫,即可把阅读账号添加到这里。";
   }
 
   const list = $("#account-list");
@@ -276,7 +279,7 @@ function stopLoginPolling() {
 }
 
 const loginStatusText = {
-  pending: "二维码 5 分钟内有效,请尽快扫码",
+  pending: "",
   scanned: "已扫码,请在微信中确认",
   success: "登录成功!",
   expired: "二维码已过期,请重新生成",
@@ -345,7 +348,7 @@ async function pollLogin(generation) {
 
   if (data.status === "success") {
     stopLoginPolling();
-    toast(`账号「${data.account.name || data.account.alias}」登录成功`);
+    toast(`账号「${data.account.vid}」登录成功`);
     setTimeout(() => {
       $("#login-dialog").close();
       loadAccounts();
@@ -365,7 +368,6 @@ function openLogin() {
 }
 
 $("#add-btn").addEventListener("click", openLogin);
-$("#empty-add").addEventListener("click", openLogin);
 $("#login-start").addEventListener("click", startLogin);
 $("#login-close").addEventListener("click", () => $("#login-dialog").close());
 $("#login-dialog").addEventListener("close", () => {
@@ -536,12 +538,14 @@ async function openChallenge() {
   const sel = $("#challenge-account");
   sel.textContent = "";
   if (!accounts.length) {
+    // 一个账号都没有:隐藏整个配置面板,只显示引导
+    $("#challenge-panel").classList.add("hidden");
+    $("#challenge-empty").classList.remove("hidden");
     challengeAlias = null;
-    $("#challenge-books").innerHTML = '<p class="empty">还没有账号,先到「我的账号」扫码添加。</p>';
-    $("#challenge-banner").classList.add("hidden");
-    $("#challenge-laststatus").textContent = "尚未执行过";
     return;
   }
+  $("#challenge-panel").classList.remove("hidden");
+  $("#challenge-empty").classList.add("hidden");
   $("#challenge-banner").classList.remove("hidden");
   if (!accounts.some((a) => a.vid === challengeAlias)) challengeAlias = accounts[0].alias;
   for (const a of accounts) {
@@ -736,6 +740,10 @@ async function stopChallenge() {
 
 $("#challenge-pause").addEventListener("click", toggleChallengePause);
 $("#challenge-stop").addEventListener("click", stopChallenge);
+$("#challenge-goto-accounts").addEventListener("click", () => {
+  setView("accounts");
+  loadAccounts();
+});
 
 /* ---------- 运行日志 ---------- */
 
@@ -764,7 +772,7 @@ async function openLogs() {
 
 async function loadLogs(silent = false) {
   const params = new URLSearchParams({ limit: "200" });
-  if ($("#log-alias").value) params.set("alias", $("#log-alias").value);
+  if ($("#log-alias").value) params.set("vid", $("#log-alias").value);
   if ($("#log-level").value) params.set("level", $("#log-level").value);
   try {
     const logs = await api(`/api/logs?${params}`);

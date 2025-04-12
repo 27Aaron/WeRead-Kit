@@ -64,11 +64,9 @@
           <div id="account-list" class="account-list"></div>
           <div id="empty" class="empty hidden">
             <span class="nav-icon" data-icon="book-open"></span>
-            <h3>从连接第一个账号开始</h3>
-            <p>用微信扫一扫,即可把阅读账号添加到这里。</p>
-            <button id="empty-add" class="btn primary"><span class="nav-icon" data-icon="user"></span>添加账户</button>
+            <h3 id="empty-title">从连接第一个账号开始</h3>
+            <p id="empty-desc">用微信扫一扫,即可把阅读账号添加到这里。</p>
           </div>
-          <div id="list-message" class="list-message hidden" role="status"></div>
           <div class="panel-foot">
             <span id="list-summary">正在读取本地账号…</span>
             <span>点击昵称可直接修改备注</span>
@@ -91,7 +89,7 @@
           <span class="banner-item">开始时间 <b id="challenge-runat">—</b></span>
           <span class="banner-item">每天时长 <b id="challenge-minutes">—</b></span>
         </div>
-        <div class="panel">
+        <div id="challenge-panel" class="panel">
           <div class="config-row">
             <label class="switch-label">
               <span class="switch"><input type="checkbox" id="challenge-enabled" /><i></i></span>
@@ -115,6 +113,12 @@
               <button id="challenge-save" class="btn primary"><span class="nav-icon" data-icon="save"></span>保存配置</button>
             </span>
           </div>
+        </div>
+        <div id="challenge-empty" class="empty hidden">
+          <span class="nav-icon" data-icon="book-open"></span>
+          <h3>还没有账号</h3>
+          <p>先到「我的账号」扫码添加一个,再回来开启自动阅读。</p>
+          <button id="challenge-goto-accounts" class="btn primary">去添加账号</button>
         </div>
       </section>
 

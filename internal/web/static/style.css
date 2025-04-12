@@ -485,13 +485,6 @@ main {
   font-size: 12px;
 }
 
-.list-message {
-  text-align: center;
-  padding: 34px 20px;
-  font-size: 13px;
-  color: var(--text-dim);
-}
-
 /* ---------- 账号列表 ---------- */
 .account-list {
   display: flex;
@@ -1284,4 +1277,26 @@ main {
     transition: none !important;
     animation: none !important;
   }
+}
+/* 挑战赛页:无账号时的引导空态 */
+#challenge-empty {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 52px 20px;
+}
+#challenge-empty .nav-icon {
+  width: 36px;
+  height: 36px;
+  opacity: 0.5;
+}
+#challenge-empty h3 {
+  margin: 14px 0 6px;
+  font-size: 15px;
+  color: var(--text);
+}
+#challenge-empty p {
+  margin: 0 0 20px;
+  font-size: 12px;
+  color: var(--text-dim);
 }
