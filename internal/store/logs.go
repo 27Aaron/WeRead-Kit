@@ -17,7 +17,7 @@ type LogEntry struct {
 	TS      int64     `json:"ts"`
 	Level   string    `json:"level"`
 	Source  string    `json:"source"`
-	Alias   string    `json:"alias"`
+	Vid     string    `json:"vid"`
 	Name    string    `json:"name"` // 账号昵称,关联账号表得到,供界面展示
 	Message string    `json:"message"`
 	Time    time.Time `json:"-"`
@@ -29,14 +29,14 @@ CREATE TABLE IF NOT EXISTS weread_log (
   ts      INTEGER NOT NULL,
   level   TEXT NOT NULL DEFAULT 'info',
   source  TEXT NOT NULL DEFAULT '',
-  alias   TEXT NOT NULL DEFAULT '',
+  vid     TEXT NOT NULL DEFAULT '',
   message TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_weread_log_ts ON weread_log (ts DESC);
 `
 
 // AddLog 写入一条日志(尽力而为:日志失败不影响主流程),并按保留条数淘汰最旧的。
-func AddLog(db *sql.DB, level, source, alias, message string) {
+func AddLog(db *sql.DB, level, source, vid, message string) {
 	if message == "" {
 		return
 	}
@@ -46,9 +46,9 @@ func AddLog(db *sql.DB, level, source, alias, message string) {
 		level = "info"
 	}
 	res, err := db.Exec(`
-		INSERT INTO weread_log (ts, level, source, alias, message)
+		INSERT INTO weread_log (ts, level, source, vid, message)
 		VALUES (?, ?, ?, ?, ?)`,
-		time.Now().Unix(), level, source, alias, message)
+		time.Now().Unix(), level, source, vid, message)
 	if err != nil {
 		return
 	}
@@ -60,18 +60,18 @@ func AddLog(db *sql.DB, level, source, alias, message string) {
 }
 
 // ListLogs 按条件查询日志,最新在前。
-func ListLogs(db *sql.DB, alias, level string, limit int) ([]*LogEntry, error) {
+func ListLogs(db *sql.DB, vid, level string, limit int) ([]*LogEntry, error) {
 	if limit <= 0 || limit > LogMaxRows {
 		limit = 200
 	}
-	query := `SELECT l.id, l.ts, l.level, l.source, l.alias, COALESCE(a.name, '') AS name, l.message
+	query := `SELECT l.id, l.ts, l.level, l.source, l.vid, COALESCE(a.name, '') AS name, l.message
 		FROM weread_log l
-		LEFT JOIN weread_account a ON a.alias = l.alias
+		LEFT JOIN weread_account a ON a.vid = l.vid
 		WHERE 1=1`
 	var args []any
-	if alias != "" {
-		query += ` AND alias = ?`
-		args = append(args, alias)
+	if vid != "" {
+		query += ` AND vid = ?`
+		args = append(args, vid)
 	}
 	if level != "" {
 		query += ` AND level = ?`
@@ -88,7 +88,7 @@ func ListLogs(db *sql.DB, alias, level string, limit int) ([]*LogEntry, error) {
 	out := []*LogEntry{}
 	for rows.Next() {
 		e := &LogEntry{}
-		if err := rows.Scan(&e.ID, &e.TS, &e.Level, &e.Source, &e.Alias, &e.Name, &e.Message); err != nil {
+		if err := rows.Scan(&e.ID, &e.TS, &e.Level, &e.Source, &e.Vid, &e.Name, &e.Message); err != nil {
 			return nil, err
 		}
 		e.Time = time.Unix(e.TS, 0)
