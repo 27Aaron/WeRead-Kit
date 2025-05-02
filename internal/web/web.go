@@ -37,7 +37,8 @@ func (s *Server) Handler() http.Handler {
 		panic("web: embedded static missing: " + err.Error())
 	}
 	mux := http.NewServeMux()
-	mux.Handle("GET /", http.FileServerFS(sub))
+	// 静态资源禁用浏览器缓存:改版后强刷不再是必要操作(本地应用,无性能顾虑)。
+	mux.Handle("GET /", noStore(http.FileServerFS(sub)))
 	mux.HandleFunc("GET /api/accounts", s.handleListAccounts)
 	mux.HandleFunc("DELETE /api/accounts/{vid}", s.handleDeleteAccount)
 	mux.HandleFunc("PUT /api/accounts/{vid}/remark", s.handleUpdateRemark)
@@ -60,6 +61,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/login/{id}", s.handleLoginStatus)
 	mux.HandleFunc("GET /api/login/{id}/qr.png", s.handleLoginQR)
 	return mux
+}
+
+// noStore 为所有静态资源响应附加禁用缓存的头。
+func noStore(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("cache-control", "no-store")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
