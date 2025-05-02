@@ -389,7 +389,7 @@ async function showDetails(account, force = false) {
   if (!$("#detail-dialog").open) $("#detail-dialog").showModal();
   $("#detail-reload").disabled = true;
   try {
-    const data = await api(`/api/accounts/${encodeURIComponent(account.alias)}/details`, {
+    const data = await api(`/api/accounts/${encodeURIComponent(account.vid)}/details`, {
       method: force ? "POST" : "GET",
     });
     if (generation !== detailRequest) return;
@@ -547,7 +547,7 @@ async function openChallenge() {
   $("#challenge-panel").classList.remove("hidden");
   $("#challenge-empty").classList.add("hidden");
   $("#challenge-banner").classList.remove("hidden");
-  if (!accounts.some((a) => a.vid === challengeAlias)) challengeAlias = accounts[0].alias;
+  if (!accounts.some((a) => a.vid === challengeAlias)) challengeAlias = accounts[0].vid;
   for (const a of accounts) {
     const opt = document.createElement("option");
     opt.value = a.vid;
@@ -794,8 +794,8 @@ async function loadLogs(silent = false) {
         source.textContent = e.source || "-";
         const account = document.createElement("span");
         account.className = "log-alias";
-        account.textContent = e.name || e.alias || "-";
-        account.title = e.alias;
+        account.textContent = e.name || e.vid || "-";
+        account.title = e.vid;
         const msg = document.createElement("span");
         msg.className = "log-msg";
         msg.textContent = e.message;
