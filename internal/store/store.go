@@ -59,18 +59,14 @@ func Open(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-// migrate 依次执行:建表 → 旧结构迁移 → 补列。
+// migrate 初始化当前数据库结构并补齐当前版本字段。
 func migrate(db *sql.DB) error {
 	for _, stmt := range []string{schema, readingSchema, logsSchema, pushSchema} {
 		if _, err := db.Exec(stmt); err != nil {
 			return err
 		}
 	}
-	// 旧版账号表以 alias 为主键;统一迁移为以 vid 为主键。
-	if err := migrateAliasKeyToVid(db); err != nil {
-		return err
-	}
-	// 渐进补列:老库逐版本演进过程中缺失的列都在这里补齐。
+	// 补齐当前版本字段，便于从空数据库逐步创建完整结构。
 	for _, column := range []struct{ table, name, def string }{
 		{"weread_account", "remark", "TEXT NOT NULL DEFAULT ''"},
 		{"weread_account", "name", "TEXT NOT NULL DEFAULT ''"},
@@ -119,89 +115,6 @@ func ensureColumn(db *sql.DB, table, column, definition string) error {
 	return err
 }
 
-// migrateAliasKeyToVid 把旧版以 alias 为主键的账号表、阅读配置表
-// 重建为以 vid 为主键;日志表的 alias 列更名为 vid,值同步改写。
-func migrateAliasKeyToVid(db *sql.DB) error {
-	var hasAlias int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('weread_account') WHERE name = 'alias'`).Scan(&hasAlias); err != nil {
-		return err
-	}
-	if hasAlias == 0 {
-		return nil // 已是新结构
-	}
-
-	// alias → vid 映射:阅读配置与日志都要据此改写
-	amap := map[string]string{}
-	rows, err := db.Query(`SELECT alias, vid FROM weread_account`)
-	if err != nil {
-		return err
-	}
-	for rows.Next() {
-		var a, v string
-		if err := rows.Scan(&a, &v); err != nil {
-			rows.Close()
-			return err
-		}
-		amap[a] = v
-	}
-	rows.Close()
-
-	// 阅读配置表:主键改写,映射不到的行丢弃
-	if _, err := db.Exec(`DROP TABLE weread_reading`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(readingSchema); err != nil {
-		return err
-	}
-	for oldKey, vid := range amap {
-		if _, err := db.Exec(`
-			INSERT INTO weread_reading (vid, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status, run_book_id, run_done, run_total)
-			SELECT ?, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status, run_book_id, run_done, run_total
-			FROM weread_reading WHERE alias = ?`, vid, oldKey); err != nil {
-			return err
-		}
-	}
-
-	// 日志:alias 值改写为 vid,随后列名同步更名
-	for a, v := range amap {
-		if _, err := db.Exec(`UPDATE weread_log SET alias = ? WHERE alias = ?`, v, a); err != nil {
-			return err
-		}
-	}
-	if err := ensureColumn(db, "weread_log", "vid", "TEXT NOT NULL DEFAULT ''"); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`UPDATE weread_log SET vid = alias WHERE vid = ''`); err != nil {
-		return err
-	}
-
-	// 账号表重建:去掉 alias 列,vid 升为主键
-	if _, err := db.Exec(`
-CREATE TABLE IF NOT EXISTS weread_account_new (
-  vid           TEXT PRIMARY KEY,
-  refresh_token TEXT NOT NULL,
-  device_id     TEXT NOT NULL,
-  access_token  TEXT NOT NULL DEFAULT '',
-  remark        TEXT NOT NULL DEFAULT '',
-  rotated_at    INTEGER NOT NULL,
-  created_at    INTEGER NOT NULL
-);`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`
-INSERT INTO weread_account_new (vid, refresh_token, device_id, access_token, remark, rotated_at, created_at)
-SELECT vid, refresh_token, device_id, access_token, remark, rotated_at, created_at FROM weread_account`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`DROP TABLE weread_account`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`ALTER TABLE weread_account_new RENAME TO weread_account`); err != nil {
-		return err
-	}
-	return nil
-}
-
 // Credential 是 weread_account 表一行的内存表示。
 type Credential struct {
 	Vid          string
@@ -213,13 +126,13 @@ type Credential struct {
 	Avatar       string
 	UserVid      string
 	// 详情缓存:三段原始 JSON 与采集时间;空串表示还没有缓存。
-	Profile         string
-	Card            string
-	Shelf           string
-	DetailsCachedAt int64
+	Profile          string
+	Card             string
+	Shelf            string
+	DetailsCachedAt  int64
 	ProfileUpdatedAt int64
-	RotatedAt       time.Time
-	CreatedAt       time.Time
+	RotatedAt        time.Time
+	CreatedAt        time.Time
 }
 
 const selectCols = `vid, refresh_token, device_id, access_token, remark, name, avatar, user_vid, profile, card, shelf, rotated_at, created_at, details_cached_at, profile_updated_at`
