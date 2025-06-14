@@ -24,6 +24,9 @@
   --radius: 10px;
   --radius-sm: 7px;
   --shadow: 0 1px 3px rgba(41, 37, 32, 0.06), 0 4px 16px rgba(41, 37, 32, 0.05);
+  --scroll-track: transparent;
+  --scroll-thumb: color-mix(in srgb, var(--text-dim) 34%, transparent);
+  --scroll-thumb-hover: var(--accent);
   --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -44,6 +47,9 @@ html[data-theme="dark"] {
   --warn: #fbbf24;
   --err: #f87171;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.2);
+  --scroll-track: transparent;
+  --scroll-thumb: color-mix(in srgb, var(--text-dim) 48%, transparent);
+  --scroll-thumb-hover: var(--accent);
 }
 
 /* ---------- 基础重置 ---------- */
@@ -98,17 +104,35 @@ select:focus-visible {
   opacity: 0.75;
 }
 
+/* 自绘滚动条：所有可滚动区域共用同一套视觉 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 5px;
+  background: var(--scroll-thumb);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  transition: background-color 160ms ease;
 }
 
 ::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
   background: transparent;
 }
 
@@ -622,16 +646,25 @@ main {
   position: absolute;
   right: 14px;
   top: 12px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  aspect-ratio: 1;
   border: 0;
   background: transparent;
   color: var(--text-dim);
+  display: grid;
+  place-items: center;
   font-size: 24px;
-  padding: 4px 8px;
-  border-radius: 6px;
+  line-height: 1;
+  padding: 0;
+  border-radius: 5px;
+  transform: translateY(1px);
 }
 
 .dialog-close:hover {
-  background: var(--surface-2);
+  background: var(--accent-soft);
   color: var(--text);
 }
 
@@ -689,7 +722,7 @@ main {
 
 /* ---------- 详情弹窗 ---------- */
 .dialog-wide {
-  width: 620px;
+  width: min(900px, calc(100vw - 48px));
 }
 
 .detail-content {
@@ -795,11 +828,14 @@ main {
 
 .shelf-item {
   min-width: 0;
+  width: 100%;
 }
 
 .shelf-item img {
-  width: 92px;
-  height: 127px;
+  width: 100%;
+  max-width: 120px;
+  aspect-ratio: 92 / 127;
+  height: auto;
   object-fit: cover;
   border-radius: 4px 7px 7px 4px;
   border: 1px solid var(--border);
@@ -809,9 +845,13 @@ main {
 }
 
 .shelf-title {
+  width: min(100%, 120px);
+  box-sizing: border-box;
   font-size: 11px;
   font-weight: 550;
   line-height: 1.45;
+  max-height: calc(1.45em * 2);
+  overflow-wrap: anywhere;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -821,6 +861,8 @@ main {
 }
 
 .shelf-author {
+  width: min(100%, 120px);
+  box-sizing: border-box;
   font-size: 10px;
   color: var(--text-dim);
   margin-top: 2px;
