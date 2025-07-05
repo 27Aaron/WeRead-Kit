@@ -1,23 +1,27 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f6f4ef" />
-  <title>wxread · 阅读助手</title>
+  <title>微信读书</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
   <script>
     // 启动前先确定主题,避免亮暗闪烁;优先取用户手动选择,其次跟随系统。
     document.documentElement.dataset.theme =
       localStorage.getItem("wxread-theme") ||
       (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   </script>
+  <link rel="stylesheet" href="https://gw.alipayobjects.com/os/k/jinkai/style.css" crossorigin="anonymous" />
   <link rel="stylesheet" href="/style.css" />
 </head>
+
 <body>
   <aside class="sidebar">
     <a class="brand" href="/" id="brand-link">
-      <span class="brand-mark" aria-hidden="true">读</span>
-      <span class="brand-text">wxread<small>微信读书助手</small></span>
+      <img class="brand-mark" src="/favicon.png" alt="" aria-hidden="true" />
+      <span class="brand-text">微信读书</span>
     </a>
     <nav class="nav">
       <a class="nav-item active" href="#accounts" data-view="accounts">
@@ -33,6 +37,9 @@
         <span class="nav-icon" data-icon="settings-2"></span>推送设置
       </a>
     </nav>
+    <button id="nav-toggle" class="nav-toggle" title="菜单" aria-label="菜单" aria-expanded="false">
+      <span class="nav-icon" data-icon="menu"></span>
+    </button>
     <div class="sidebar-foot">
       <button id="theme-toggle" class="theme-toggle" title="切换深浅主题">
         <span class="nav-icon" data-icon="moon"></span><span id="theme-label">深色</span>
@@ -108,9 +115,12 @@
             <span id="challenge-laststatus" class="dim">尚未执行过</span>
             <span class="ops">
               <button id="challenge-run" class="btn"><span class="nav-icon" data-icon="play"></span>立即刷一次</button>
-              <button id="challenge-pause" class="btn hidden"><span class="nav-icon" data-icon="pause"></span>暂停</button>
-              <button id="challenge-stop" class="btn danger hidden"><span class="nav-icon" data-icon="square"></span>停止</button>
-              <button id="challenge-save" class="btn primary"><span class="nav-icon" data-icon="save"></span>保存配置</button>
+              <button id="challenge-pause" class="btn hidden"><span class="nav-icon"
+                  data-icon="pause"></span>暂停</button>
+              <button id="challenge-stop" class="btn danger hidden"><span class="nav-icon"
+                  data-icon="square"></span>停止</button>
+              <button id="challenge-save" class="btn primary"><span class="nav-icon"
+                  data-icon="save"></span>保存配置</button>
             </span>
           </div>
         </div>
@@ -129,7 +139,9 @@
             <h1 class="page-title">运行日志</h1>
           </div>
           <div class="logs-toolbar">
-            <select id="log-alias" class="select"><option value="">全部账号</option></select>
+            <select id="log-alias" class="select">
+              <option value="">全部账号</option>
+            </select>
             <select id="log-level" class="select">
               <option value="">全部级别</option>
               <option value="info">info</option>
@@ -144,7 +156,9 @@
           <div class="logs-header">
             <span>时间</span><span>级别</span><span>来源</span><span>账号</span><span>内容</span>
           </div>
-          <div id="logs-list" class="logs-list"><p class="empty">暂无日志</p></div>
+          <div id="logs-list" class="logs-list">
+            <p class="empty">暂无日志</p>
+          </div>
           <div class="panel-foot">
             <span>自动刷新:每 10 秒</span>
             <span id="logs-updated">—</span>
@@ -175,7 +189,8 @@
         <p class="dialog-note">打开微信扫一扫,并在手机上确认登录</p>
       </div>
       <div class="dialog-ops">
-        <button id="login-start" class="btn primary block"><span class="nav-icon" data-icon="refresh-cw"></span><span id="login-start-text">生成登录二维码</span></button>
+        <button id="login-start" class="btn primary block"><span class="nav-icon" data-icon="refresh-cw"></span><span
+            id="login-start-text">生成登录二维码</span></button>
       </div>
     </div>
   </dialog>
@@ -185,7 +200,9 @@
     <div class="dialog-body">
       <button id="detail-close" class="dialog-close" aria-label="关闭">×</button>
       <h2 id="detail-title">账号详情</h2>
-      <div id="detail-content" class="detail-content"><p class="empty">正在加载…</p></div>
+      <div id="detail-content" class="detail-content">
+        <p class="empty">正在加载…</p>
+      </div>
       <div class="dialog-ops">
         <button id="detail-reload" class="btn"><span class="nav-icon" data-icon="refresh-cw"></span>刷新数据</button>
       </div>
@@ -195,4 +212,5 @@
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   <script src="/app.js"></script>
 </body>
+
 </html>

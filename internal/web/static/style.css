@@ -27,9 +27,9 @@
   --scroll-track: transparent;
   --scroll-thumb: color-mix(in srgb, var(--text-dim) 34%, transparent);
   --scroll-thumb-hover: var(--accent);
-  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: "TsangerJinKai02", system-ui, sans-serif;
+  --font-serif: var(--font-sans);
+  --font-mono: var(--font-sans);
 }
 
 html[data-theme="dark"] {
@@ -140,7 +140,7 @@ select:focus-visible {
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
-  width: 224px;
+  width: 190px;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -156,31 +156,16 @@ select:focus-visible {
 }
 
 .brand-mark {
+  display: block;
   width: 40px;
   height: 40px;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: #fff;
   border-radius: 10px 10px 10px 3px;
-  font-family: var(--font-serif);
-  font-size: 22px;
-  font-weight: 600;
 }
 
 .brand-text {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.5px;
-}
-
-.brand-text small {
-  display: block;
-  font-size: 10px;
-  font-weight: 400;
-  color: var(--text-dim);
-  letter-spacing: 1px;
-  margin-top: 3px;
 }
 
 .nav {
@@ -210,6 +195,11 @@ select:focus-visible {
 .nav-item.active {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+/* 窄屏才显示的导航开关,桌面端隐藏 */
+.nav-toggle {
+  display: none;
 }
 
 .nav-icon {
@@ -254,7 +244,7 @@ select:focus-visible {
 
 /* ---------- 主区 ---------- */
 .workspace {
-  margin-left: 224px;
+  margin-left: 190px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -278,9 +268,8 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  min-height: 44px;
+  height: 44px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
 }
 
 .page-title {
@@ -775,7 +764,7 @@ main {
 
 .user-name {
   font-size: 16px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .user-vid {
@@ -886,7 +875,7 @@ main {
 
 .banner-state {
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1092,7 +1081,7 @@ main {
 }
 
 .log-level {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .log-info .log-level {
@@ -1153,7 +1142,7 @@ main {
 
 .push-card-name {
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .push-card-desc {
@@ -1207,19 +1196,6 @@ main {
 
 /* ---------- 响应式 ---------- */
 @media (max-width: 900px) {
-  .sidebar {
-    width: 190px;
-    padding-inline: 12px;
-  }
-
-  .workspace {
-    margin-left: 190px;
-  }
-
-  main {
-    padding: 20px 24px 32px;
-  }
-
   .dialog-wide {
     width: calc(100% - 32px);
   }
@@ -1240,30 +1216,63 @@ main {
     align-items: center;
     gap: 8px;
     padding: 0 14px;
-    overflow-x: auto;
   }
 
-  .brand-text small,
   .sidebar-foot {
     display: none;
   }
 
   .brand {
     padding: 0;
+    flex-shrink: 0;
   }
 
   .brand-text {
     font-size: 17px;
   }
 
+  .nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: auto;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+
+  .nav-toggle:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  /* 导航收进顶栏下方的抽屉,点击菜单按钮展开 */
   .nav {
-    flex-direction: row;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
     margin: 0;
-    gap: 2px;
+    padding: 8px 14px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+
+  .sidebar.nav-open .nav {
+    display: flex;
   }
 
   .nav-item {
-    padding: 8px 11px;
+    padding: 10px 11px;
     white-space: nowrap;
   }
 
@@ -1273,6 +1282,13 @@ main {
 
   main {
     padding: 18px 16px 30px;
+  }
+
+  /* 小屏放不下时允许页头折行,高度不锁死 */
+  .page-head {
+    height: auto;
+    min-height: 44px;
+    flex-wrap: wrap;
   }
 
   .page-title {
@@ -1320,6 +1336,7 @@ main {
     animation: none !important;
   }
 }
+
 /* 挑战赛页:无账号时的引导空态 */
 #challenge-empty {
   background: var(--surface);
@@ -1327,16 +1344,19 @@ main {
   border-radius: var(--radius);
   padding: 52px 20px;
 }
+
 #challenge-empty .nav-icon {
   width: 36px;
   height: 36px;
   opacity: 0.5;
 }
+
 #challenge-empty h3 {
   margin: 14px 0 6px;
   font-size: 15px;
   color: var(--text);
 }
+
 #challenge-empty p {
   margin: 0 0 20px;
   font-size: 12px;
