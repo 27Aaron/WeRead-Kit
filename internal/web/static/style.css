@@ -1206,13 +1206,13 @@ main {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 780px) {
   .sidebar {
     position: sticky;
     top: 0;
     z-index: 10;
     width: 100%;
-    height: 58px;
+    height: 48px;
     flex-direction: row;
     align-items: center;
     gap: 8px;
@@ -1228,8 +1228,14 @@ main {
     flex-shrink: 0;
   }
 
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px 7px 7px 2px;
+  }
+
   .brand-text {
-    font-size: 17px;
+    font-size: 15px;
   }
 
   .nav-toggle {
@@ -1273,8 +1279,14 @@ main {
   }
 
   .nav-item {
-    padding: 10px 11px;
+    padding: 8px 10px;
+    font-size: 12px;
     white-space: nowrap;
+  }
+
+  .nav-item .nav-icon {
+    width: 15px;
+    height: 15px;
   }
 
   .workspace {
@@ -1282,7 +1294,7 @@ main {
   }
 
   main {
-    padding: 18px 16px 30px;
+    padding: 20px 16px 30px;
   }
 
   /* 小屏放不下时允许页头折行,高度不锁死 */
@@ -1292,9 +1304,19 @@ main {
     flex-wrap: wrap;
   }
 
-  .page-title {
-    font-size: 22px;
-    line-height: 33px;
+  .btn {
+    padding: 0 11px;
+    gap: 5px;
+    font-size: 12px;
+  }
+
+  .btn .nav-icon {
+    width: 13px;
+    height: 13px;
+  }
+
+  .select {
+    padding: 5px 9px;
   }
 
   .account-row {
