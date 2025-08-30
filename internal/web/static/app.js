@@ -83,6 +83,83 @@ $("#nav-toggle").addEventListener("click", () => {
   $("#nav-toggle").setAttribute("aria-expanded", String(open));
 });
 
+/* ---------- 自绘下拉 ---------- */
+
+// 用自绘弹层替换原生 select:select 本体隐藏但仍保存值、派发 change,
+// 选项被外部重建时自动刷新弹层与按钮文案。
+function enhanceSelect(sel) {
+  if (sel.dataset.dd) return;
+  sel.dataset.dd = "1";
+  const dd = document.createElement("div");
+  dd.className = "dd";
+  sel.before(dd);
+  dd.append(sel);
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "dd-toggle";
+  toggle.setAttribute("aria-haspopup", "listbox");
+  toggle.innerHTML = '<span class="dd-label"></span><span class="nav-icon" data-icon="chevron-down"></span>';
+  const menu = document.createElement("div");
+  menu.className = "dd-menu";
+  dd.append(toggle, menu);
+  renderIcons(toggle);
+
+  const currentLabel = () => sel.options[sel.selectedIndex]?.textContent ?? "";
+  function sync() {
+    toggle.querySelector(".dd-label").textContent = currentLabel();
+    [...menu.children].forEach((item, i) => item.classList.toggle("active", sel.options[i]?.selected));
+  }
+  function renderMenu() {
+    menu.textContent = "";
+    for (const opt of sel.options) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "dd-item";
+      item.textContent = opt.textContent;
+      item.addEventListener("click", () => {
+        sel.value = opt.value;
+        sync();
+        close();
+        sel.dispatchEvent(new Event("change"));
+      });
+      menu.append(item);
+    }
+    sync();
+  }
+  function open() {
+    renderMenu();
+    dd.classList.add("open");
+    menu.querySelector(".active")?.scrollIntoView({ block: "nearest" });
+  }
+  function close() {
+    dd.classList.remove("open");
+  }
+  toggle.addEventListener("click", () => (dd.classList.contains("open") ? close() : open()));
+  document.addEventListener("click", (e) => {
+    if (!dd.contains(e.target)) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") close();
+  });
+  new MutationObserver(() => {
+    sync();
+    if (dd.classList.contains("open")) renderMenu();
+  }).observe(sel, { childList: true });
+  renderMenu();
+}
+
+// 开始时间下拉:30 分钟一档
+const runatSel = $("#challenge-runat-input");
+for (let h = 0; h < 24; h++) {
+  for (const m of [0, 30]) {
+    const opt = document.createElement("option");
+    opt.value = opt.textContent = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    runatSel.append(opt);
+  }
+}
+runatSel.value = "03:00";
+document.querySelectorAll("select.select").forEach(enhanceSelect);
+
 $$(".nav-item").forEach((el) => {
   el.addEventListener("click", (e) => {
     e.preventDefault();
@@ -595,7 +672,16 @@ function renderChallenge(d) {
   $("#challenge-runat").textContent = cfg.run_at || "—";
   $("#challenge-minutes").textContent = `${cfg.minutes || 30} 分钟`;
   $("#challenge-enabled").checked = !!cfg.enabled;
-  $("#challenge-runat-input").value = cfg.run_at || "03:00";
+  const runatValue = cfg.run_at || "03:00";
+  const runatInput = $("#challenge-runat-input");
+  runatInput.value = runatValue;
+  if (runatInput.value !== runatValue) {
+    // 已保存的时间不在 30 分钟档位:补一个选项,避免显示为空
+    const opt = document.createElement("option");
+    opt.value = opt.textContent = runatValue;
+    runatInput.append(opt);
+    runatInput.value = runatValue;
+  }
   $("#challenge-minutes-input").value = cfg.minutes || 30;
   updateChallengeButtons(!!cfg.running, !!cfg.paused);
   $("#challenge-laststatus").textContent = cfg.last_status
