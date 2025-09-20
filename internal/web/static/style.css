@@ -1207,17 +1207,19 @@ main {
 
 /* ---------- 设置(推送渠道) ---------- */
 .push-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .push-card {
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.push-card:last-child {
-  border-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 .push-card-head {
@@ -1239,6 +1241,7 @@ main {
 }
 
 .push-fields {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 9px;
@@ -1246,11 +1249,19 @@ main {
 
 .push-param-input {
   width: 100%;
-  padding: 9px 11px;
+  height: 32px;
+  padding: 0 11px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
   font-size: 12px;
+  transition: border-color 0.15s;
+}
+
+.push-param-input::placeholder {
+  color: var(--text-dim);
 }
 
 .push-param-input:focus {
@@ -1260,6 +1271,7 @@ main {
 
 .push-card-ops {
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
   margin-top: 13px;
 }
@@ -1267,18 +1279,55 @@ main {
 /* ---------- Toast ---------- */
 .toast {
   position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--text);
-  color: var(--bg);
-  padding: 12px 20px;
+  inset: auto;
+  margin: 0;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 11px 16px;
   border-radius: var(--radius-sm);
   font-size: 13px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
-  z-index: 20;
-  max-width: calc(100% - 32px);
+  box-shadow: var(--shadow);
+  z-index: 60;
   width: max-content;
+  max-width: min(420px, calc(100% - 32px));
+  animation: toast-in 0.18s ease;
+}
+
+.toast .nav-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+
+.toast.ok .nav-icon {
+  color: var(--ok);
+}
+
+.toast.error {
+  border-color: var(--err);
+}
+
+.toast.error .nav-icon {
+  color: var(--err);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ---------- 响应式 ---------- */
@@ -1429,6 +1478,10 @@ main {
   .log-msg {
     grid-column: 1 / -1;
     white-space: normal;
+  }
+
+  .push-list {
+    grid-template-columns: 1fr;
   }
 
   .dialog-wide {

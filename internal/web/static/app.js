@@ -3,7 +3,7 @@
 
 const ICONS = {"search": "<path d=\"m21 21-4.34-4.34\" /> <circle cx=\"11\" cy=\"11\" r=\"8\" />", "chevron-down": "<path d=\"m6 9 6 6 6-6\" />", "x": "<path d=\"M18 6 6 18\" /> <path d=\"m6 6 12 12\" />", "refresh-cw": "<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\" /> <path d=\"M21 3v5h-5\" /> <path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\" /> <path d=\"M8 16H3v5\" />", "book-open": "<path d=\"M12 5v16\" /> <path d=\"M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z\" />", "circle-check": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"m16 9-5.5 5.5L8 12\" />", "settings-2": "<path d=\"M14 17H5\" /> <path d=\"M19 7h-9\" /> <circle cx=\"17\" cy=\"17\" r=\"3\" /> <circle cx=\"7\" cy=\"7\" r=\"3\" />", "plus": "<path d=\"M5 12h14\" /> <path d=\"M12 5v14\" />", "check": "<path d=\"M20 6 9 17l-5-5\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "square": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" />", "play": "<path d=\"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z\" />", "send": "<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\" /> <path d=\"m21.854 2.147-10.94 10.939\" />", "trash": "<path d=\"M10 11v6\" /> <path d=\"M14 11v6\" /> <path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\" /> <path d=\"M3 6h18\" /> <path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\" />", "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\" /> <path d=\"M12 2v2\" /> <path d=\"M12 20v2\" /> <path d=\"m4.93 4.93 1.41 1.41\" /> <path d=\"m17.66 17.66 1.41 1.41\" /> <path d=\"M2 12h2\" /> <path d=\"M20 12h2\" /> <path d=\"m6.34 17.66-1.41 1.41\" /> <path d=\"m19.07 4.93-1.41 1.41\" />", "scroll-text": "<path d=\"M15 12h-5\" /> <path d=\"M15 8h-5\" /> <path d=\"M19 17V5a2 2 0 0 0-2-2H4\" /> <path d=\"M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3\" />", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 6v6l4 2\" />", "user":'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
   "user": '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
-  "users-round": "<path d=\"M18 21a8 8 0 0 0-16 0\" /> <circle cx=\"10\" cy=\"8\" r=\"5\" /> <path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\" />", "pause": "<rect x=\"14\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\" /> <rect x=\"5\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\" />", "monitor": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\" /> <line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\" /> <line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\" />", "minus": "<path d=\"M5 12h14\" />", "moon": "<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />", "menu": "<path d=\"M4 6h16\" /> <path d=\"M4 12h16\" /> <path d=\"M4 18h16\" />"};
+  "users-round": "<path d=\"M18 21a8 8 0 0 0-16 0\" /> <circle cx=\"10\" cy=\"8\" r=\"5\" /> <path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\" />", "pause": "<rect x=\"14\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\" /> <rect x=\"5\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\" />", "monitor": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\" /> <line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\" /> <line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\" />", "minus": "<path d=\"M5 12h14\" />", "moon": "<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />", "menu": "<path d=\"M4 6h16\" /> <path d=\"M4 12h16\" /> <path d=\"M4 18h16\" />", "alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 20h16a2 2 0 0 0 1.73-2\" /> <path d=\"M12 9v4\" /> <path d=\"M12 17h.01\" />", "info": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 16v-4\" /> <path d=\"M12 8h.01\" />"};
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -193,12 +193,25 @@ syncThemeUI();
 /* ---------- Toast ---------- */
 
 let toastTimer = null;
-function toast(msg) {
+function toast(msg, type = "info") {
   const el = $("#toast");
-  el.textContent = msg;
-  el.classList.remove("hidden");
+  el.textContent = "";
+  const icon = document.createElement("span");
+  icon.className = "nav-icon";
+  icon.dataset.icon = type === "error" ? "alert" : type === "ok" ? "circle-check" : "info";
+  const text = document.createElement("span");
+  text.textContent = msg;
+  el.append(icon, text);
+  renderIcons(el);
+  el.classList.remove("hidden", "ok", "error");
+  el.classList.add(type);
+  // popover 提到最顶层,原生弹窗打开时也能看到报错
+  try { el.showPopover(); } catch {}
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.add("hidden"), 2600);
+  toastTimer = setTimeout(() => {
+    el.classList.add("hidden");
+    try { el.hidePopover(); } catch {}
+  }, type === "error" ? 4200 : 2600);
 }
 
 /* ---------- 账号列表 ---------- */
@@ -287,10 +300,10 @@ function renderAccounts() {
           body: JSON.stringify({ remark: name.value.trim() }),
         });
         a.remark = name.value.trim();
-        toast("备注已保存");
+        toast("备注已保存", "ok");
       } catch (err) {
         name.value = a.remark || "";
-        toast(`保存失败:${err.message}`);
+        toast(`保存失败:${err.message}`, "error");
       }
     });
     const sub = document.createElement("div");
@@ -318,10 +331,10 @@ function renderAccounts() {
       refreshBtn.disabled = true;
       try {
         await api(`/api/accounts/${encodeURIComponent(a.vid)}/refresh`, { method: "POST" });
-        toast(`已刷新 ${displayName(a)}`);
+        toast(`已刷新 ${displayName(a)}`, "ok");
         await loadAccounts();
       } catch (err) {
-        toast(`刷新失败:${err.message}`);
+        toast(`刷新失败:${err.message}`, "error");
         refreshBtn.disabled = false;
       }
     });
@@ -329,10 +342,10 @@ function renderAccounts() {
       if (!confirm(`确定删除账号「${displayName(a)}」?仅删除本地凭据,不影响微信读书账号。`)) return;
       try {
         await api(`/api/accounts/${encodeURIComponent(a.vid)}`, { method: "DELETE" });
-        toast("已删除");
+        toast("已删除", "ok");
         await loadAccounts();
       } catch (err) {
-        toast(`删除失败:${err.message}`);
+        toast(`删除失败:${err.message}`, "error");
       }
     });
     ops.append(detailBtn, refreshBtn, delBtn);
@@ -419,7 +432,7 @@ async function startLogin() {
     loginPollTimer = setInterval(() => pollLogin(generation), 1500);
   } catch (err) {
     if (generation !== loginGeneration) return;
-    toast(`发起登录失败:${err.message}`);
+    toast(`发起登录失败:${err.message}`, "error");
     $("#login-start").disabled = false;
     setStartBtnText("重新生成二维码");
   }
@@ -438,7 +451,7 @@ async function pollLogin(generation) {
 
   if (data.status === "success") {
     stopLoginPolling();
-    toast(`账号「${data.account.vid}」登录成功`);
+    toast(`账号「${data.account.vid}」登录成功`, "ok");
     setTimeout(() => {
       $("#login-dialog").close();
       loadAccounts();
@@ -761,9 +774,9 @@ $("#challenge-save").addEventListener("click", async () => {
     $("#challenge-banner").classList.toggle("off", !$("#challenge-enabled").checked);
     $("#challenge-runat").textContent = $("#challenge-runat-input").value || "03:00";
     $("#challenge-minutes").textContent = `${$("#challenge-minutes-input").value || 30} 分钟`;
-    toast($("#challenge-enabled").checked ? "已保存,到点自动阅读" : "配置已保存(未开启)");
+    toast($("#challenge-enabled").checked ? "已保存,到点自动阅读" : "配置已保存(未开启)", "ok");
   } catch (err) {
-    toast(`保存失败:${err.message}`);
+    toast(`保存失败:${err.message}`, "error");
   }
   btn.disabled = false;
 });
@@ -774,9 +787,9 @@ async function runChallengeNow() {
   btn.disabled = true;
   try {
     const data = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/run`, { method: "POST" });
-    toast(data.resumed ? "继续上次未完成的阅读" : "阅读会话已启动,每 30 秒记 0.5 分钟");
+    toast(data.resumed ? "继续上次未完成的阅读" : "阅读会话已启动,每 30 秒记 0.5 分钟", "ok");
   } catch (err) {
-    toast(`启动失败:${err.message}`);
+    toast(`启动失败:${err.message}`, "error");
     btn.disabled = false;
     return;
   }
@@ -818,7 +831,7 @@ async function toggleChallengePause() {
       ? "已暂停(剩余时长保留,点「继续阅读」恢复)"
       : "阅读中…";
   } catch (err) {
-    toast(`操作失败:${err.message}`);
+    toast(`操作失败:${err.message}`, "error");
   }
   btn.disabled = false;
 }
@@ -832,7 +845,7 @@ async function stopChallenge() {
     await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/stop`, { method: "POST" });
     $("#challenge-laststatus").textContent = "正在停止…";
   } catch (err) {
-    toast(`停止失败:${err.message}`);
+    toast(`停止失败:${err.message}`, "error");
     btn.disabled = false;
   }
 }
@@ -906,7 +919,7 @@ async function loadLogs(silent = false) {
     }
     $("#logs-updated").textContent = `更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
   } catch (err) {
-    if (!silent) toast(`加载日志失败:${err.message}`);
+    if (!silent) toast(`加载日志失败:${err.message}`, "error");
   }
 }
 
@@ -917,10 +930,10 @@ $("#logs-clear").addEventListener("click", async () => {
   if (!confirm("确定清空全部日志?")) return;
   try {
     await api("/api/logs", { method: "DELETE" });
-    toast("日志已清空");
+    toast("日志已清空", "ok");
     loadLogs();
   } catch (err) {
-    toast(`清空失败:${err.message}`);
+    toast(`清空失败:${err.message}`, "error");
   }
 });
 
@@ -991,6 +1004,7 @@ async function loadPushChannels() {
     for (const [key, label, required, def] of meta.fields) {
       const input = document.createElement("input");
       input.type = "text";
+      input.className = "push-param-input";
       input.value = saved[key] !== undefined ? saved[key] : (def || "");
       input.placeholder = required ? `${label}(必填)` : label;
       input.dataset.key = key;
@@ -1008,9 +1022,9 @@ async function loadPushChannels() {
       testBtn.disabled = true;
       try {
         await api(`/api/settings/push/${type}/test`, { method: "POST", body: JSON.stringify({ params }) });
-        toast("测试消息已发送,请查收");
+        toast("测试消息已发送,请查收", "ok");
       } catch (err) {
-        toast(`测试失败:${err.message}`);
+        toast(`测试失败:${err.message}`, "error");
       }
       testBtn.disabled = false;
     });
@@ -1034,9 +1048,9 @@ async function saveChannel(type, enabled, params) {
       method: "POST",
       body: JSON.stringify({ type, enabled, params }),
     });
-    toast(enabled ? "已开启" : "配置已保存(未开启)");
+    toast(enabled ? "已开启" : "配置已保存(未开启)", "ok");
   } catch (err) {
-    toast(`保存失败:${err.message}`);
+    toast(`保存失败:${err.message}`, "error");
   }
 }
 
