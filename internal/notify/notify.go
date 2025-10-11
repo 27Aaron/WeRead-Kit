@@ -1,5 +1,4 @@
 // Package notify 实现推送渠道的发送:Bark、Telegram、Server酱、pushplus。
-// 各渠道均为一次 HTTP 调用,无 SDK 依赖。
 package notify
 
 import (

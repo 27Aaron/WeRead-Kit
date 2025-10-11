@@ -23,7 +23,6 @@ func UpdateProfile(db *sql.DB, vid, name, avatar, userVid string) error {
 }
 
 // SaveDetailsCache 仅持久化界面渲染所需的少量缓存字段,
-// 易变的接口元数据、签名与支付类数据一律丢弃。
 func SaveDetailsCache(db *sql.DB, vid string, profile, card, shelf []byte) error {
 	profile = compactJSON(profile, []string{"userVid", "name", "avatar"})
 	card = compactJSON(card, []string{"startTime", "expiredTime", "expired", "remainTime"})
