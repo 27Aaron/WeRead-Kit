@@ -1,6 +1,4 @@
--- wxread 数据库基线（数据库文件仍位于 data/wxread.db）。
--- 账号以 vid（微信读书用户 ID）为唯一键；令牌与详情缓存只保留
--- 运行和 Web UI 所需的字段，令牌不会进入日志。
+-- 数据库基线
 
 CREATE TABLE IF NOT EXISTS weread_account (
   vid TEXT PRIMARY KEY,
