@@ -1335,10 +1335,6 @@ main {
   .dialog-wide {
     width: calc(100% - 32px);
   }
-
-  .account-meta {
-    display: none;
-  }
 }
 
 @media (max-width: 780px) {
@@ -1458,10 +1454,22 @@ main {
     flex-wrap: wrap;
   }
 
+  .account-row .ops {
+    margin-left: auto;
+  }
+
+  /* 空间不足:只保留凭据徽标,隐藏刷新时间,整行保持单行 */
   .account-meta {
-    display: block;
-    width: 100%;
-    padding-left: 60px;
+    width: auto;
+    font-size: 0;
+  }
+
+  .account-meta br {
+    display: none;
+  }
+
+  .account-meta .badge {
+    font-size: 10px;
   }
 
 
