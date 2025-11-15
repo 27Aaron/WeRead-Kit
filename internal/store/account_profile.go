@@ -3,11 +3,14 @@ package store
 import (
 	"database/sql"
 	"encoding/json"
+	"strings"
 	"time"
 )
 
 // UpdateProfile 仅更新 Web UI 渲染所需的身份字段(昵称/头像/用户 ID)。
 func UpdateProfile(db *sql.DB, vid, name, avatar, userVid string) error {
+	name = strings.TrimSpace(name)
+	userVid = strings.TrimSpace(userVid)
 	res, err := db.Exec(`UPDATE weread_account SET name = ?, avatar = ?, user_vid = ?, profile_updated_at = ? WHERE vid = ?`, name, avatar, userVid, time.Now().Unix(), vid)
 	if err != nil {
 		return err
@@ -54,4 +57,3 @@ func compactJSON(raw []byte, fields []string) []byte {
 	}
 	return out
 }
-
