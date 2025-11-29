@@ -108,12 +108,12 @@
               <input type="number" id="challenge-minutes-input" min="1" max="480" value="30" /> 分钟
             </label>
           </div>
-          <div class="books-head">选择书籍 <small>可多选;选多本时每天随机刷其中一本</small></div>
+          <div class="books-head">选择书籍 <small>不选则从全部书架随机；选 1 本固定阅读；选多本时随机阅读其中一本</small></div>
           <div id="challenge-books" class="book-grid"></div>
           <div class="panel-foot ops-between">
             <span id="challenge-laststatus" class="dim">尚未执行过</span>
             <span class="ops">
-              <button id="challenge-run" class="btn"><span class="nav-icon" data-icon="play"></span>立即刷一次</button>
+              <button id="challenge-run" class="btn"><span class="nav-icon" data-icon="play"></span>立即执行</button>
               <button id="challenge-pause" class="btn hidden"><span class="nav-icon"
                   data-icon="pause"></span>暂停</button>
               <button id="challenge-stop" class="btn danger hidden"><span class="nav-icon"

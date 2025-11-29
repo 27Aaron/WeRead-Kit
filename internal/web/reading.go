@@ -45,10 +45,6 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadRequest, errors.New("阅读时长需在 1~480 分钟之间"))
 			return
 		}
-		if body.Enabled && len(body.BookIDs) == 0 {
-			writeErr(w, http.StatusBadRequest, errors.New("启用自动阅读前请至少选择一本书"))
-			return
-		}
 		if err := store.SaveReadingConfig(s.db, &store.ReadingConfig{
 			Vid:   vid,
 			Enabled: body.Enabled,
@@ -324,4 +320,3 @@ func resumeNote(done int) string {
 	}
 	return ""
 }
-
