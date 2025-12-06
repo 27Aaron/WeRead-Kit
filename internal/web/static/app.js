@@ -723,6 +723,10 @@ function renderChallenge(d) {
       ph.textContent = "▤";
       card.append(ph);
     }
+    const meta = document.createElement("div");
+    meta.className = "book-meta";
+    meta.innerHTML = `<div class="book-title">${escapeHtml(b.title || "未命名书籍")}</div><div class="book-author">${escapeHtml(b.author || b.authorName || "未知作者")}</div>`;
+    card.append(meta);
     const check = document.createElement("span");
     check.className = "check";
     check.textContent = "✓";
