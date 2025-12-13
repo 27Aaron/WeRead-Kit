@@ -1144,10 +1144,10 @@ main {
 .logs-header,
 .log-row {
   display: grid;
-  grid-template-columns: 150px 64px 70px 130px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 20% 12% 14% 16% minmax(0, 1fr);
+  gap: 20px;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 32px;
 }
 
 .logs-header {

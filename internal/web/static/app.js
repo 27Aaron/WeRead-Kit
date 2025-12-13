@@ -245,9 +245,7 @@ function renderAccounts() {
     `${a.remark || ""} ${a.name || ""} ${a.vid}`.toLocaleLowerCase().includes(query)
   );
   $("#account-count").textContent = accounts.length;
-  $("#list-summary").textContent = query
-    ? `找到 ${accounts.length} 个账号,共 ${allAccounts.length} 个`
-    : `共 ${allAccounts.length} 个账号`;
+  $("#account-count-label").textContent = query ? "搜索结果" : "全部账号";
   // 无账号时的空态由 #empty 承载:未添加任何账号,或搜索无匹配
   $("#empty").classList.toggle("hidden", accounts.length > 0);
   if (!accounts.length && query) {
