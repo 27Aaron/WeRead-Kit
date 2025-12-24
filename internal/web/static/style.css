@@ -255,11 +255,19 @@ main {
   max-width: 1080px;
   width: 100%;
   margin: 0 auto;
-  padding: 20px 36px 40px;
+  padding: 24px 36px;
 }
 
 .view.hidden {
   display: none;
+}
+
+.view { width: 100%; }
+
+/* 所有页面沿用同一内容坐标，面板与页面标题严格对齐 */
+.view > .panel,
+.view > .banner {
+  width: 100%;
 }
 
 /* ---------- 页面头(全站统一模板:标题坐标固定) ---------- */
@@ -280,6 +288,7 @@ main {
   line-height: 30px;
   letter-spacing: 0.5px;
 }
+
 
 .page-actions {
   display: flex;
@@ -432,7 +441,7 @@ main {
 }
 
 .search input {
-  width: 180px;
+  width: 130px;
   border: 0;
   background: transparent;
   outline: none;
@@ -1160,10 +1169,22 @@ main {
 }
 
 .logs-list {
-  max-height: calc(100vh - 320px);
-  min-height: 240px;
+  max-height: calc(100vh - 190px);
+  min-height: 370px;
   overflow-y: auto;
   scrollbar-width: thin;
+}
+
+#view-logs > .panel {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 125px);
+}
+
+#view-logs .logs-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 
 .log-row {
