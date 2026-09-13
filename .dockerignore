@@ -1,0 +1,27 @@
+# 版本控制与本地开发配置
+.git
+.github
+.direnv
+.env
+.env.*
+!.env.example
+
+# 本地运行数据与构建产物
+data
+dist
+wxread
+wxread-bin
+*.db
+*.db-wal
+*.db-shm
+
+# 编辑器与系统文件
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# 文档与本地辅助文件
+README*
+*.log
