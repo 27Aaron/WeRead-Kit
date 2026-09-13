@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io/fs"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/skip2/go-qrcode"
@@ -24,11 +25,12 @@ type Server struct {
 	db     *sql.DB
 	client *weread.Client
 	logins *loginManager
+	username, password string
 }
 
 func New(db *sql.DB) *Server {
 	client := weread.NewClient()
-	return &Server{db: db, client: client, logins: newLoginManager(db, client)}
+	return &Server{db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WXREAD_USERNAME"), password: os.Getenv("WXREAD_PASSWORD")}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -38,7 +40,9 @@ func (s *Server) Handler() http.Handler {
 	}
 	mux := http.NewServeMux()
 	// 静态资源禁用浏览器缓存:改版后强刷不再是必要操作(本地应用,无性能顾虑)。
-	mux.Handle("GET /", noStore(http.FileServerFS(sub)))
+	mux.HandleFunc("GET /login", s.handleLoginPage)
+	mux.HandleFunc("POST /login", s.handleLoginPost)
+	mux.Handle("GET /", s.auth(noStore(http.FileServerFS(sub))))
 	mux.HandleFunc("GET /api/accounts", s.handleListAccounts)
 	mux.HandleFunc("DELETE /api/accounts/{vid}", s.handleDeleteAccount)
 	mux.HandleFunc("PUT /api/accounts/{vid}/remark", s.handleUpdateRemark)
@@ -60,8 +64,20 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/login", s.handleStartLogin)
 	mux.HandleFunc("GET /api/login/{id}", s.handleLoginStatus)
 	mux.HandleFunc("GET /api/login/{id}/qr.png", s.handleLoginQR)
-	return mux
+	return s.auth(mux)
 }
+
+func (s *Server) auth(next http.Handler) http.Handler { return http.HandlerFunc(func(w http.ResponseWriter,r *http.Request) { if r.URL.Path == "/login" || r.URL.Path == "/favicon.png" { next.ServeHTTP(w,r); return }; if s.username=="" && s.password=="" { next.ServeHTTP(w,r); return }; c,_:=r.Cookie("wxread_session"); if c==nil || c.Value!="ok" { http.Redirect(w,r,"/login",http.StatusFound); return }; next.ServeHTTP(w,r) }) }
+func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
+ w.Header().Set("content-type", "text/html; charset=utf-8")
+ errMsg := ""
+ if r.URL.Query().Get("error") == "1" { errMsg = `<div class="error" role="alert">账号或密码错误，请重试</div>` }
+ html := `<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width"><title>登录 · 微信读书</title><style>
+ :root{color-scheme:light;--bg:#f5f2ec;--card:#fff;--text:#29251f;--muted:#817a70;--line:#ddd6ca;--accent:#d99743;--accent2:#bc7629}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,sans-serif}.card{width:min(100%,390px);padding:40px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 16px 45px #4c3b2418}.brand{text-align:center;margin-bottom:28px}.brand img{width:54px;height:54px;border-radius:14px}.brand h1{font-size:22px;margin:14px 0 6px}.brand p{color:var(--muted);margin:0;font-size:13px}label{display:block;font-size:13px;font-weight:600;margin:16px 0 7px}input{display:block;width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:9px;background:transparent;color:inherit;font:inherit}input:focus{outline:2px solid #d9974366;border-color:var(--accent)}button{width:100%;margin-top:24px;padding:12px;border:0;border-radius:9px;background:var(--accent);color:#fff;font:600 15px inherit;cursor:pointer}button:hover{background:var(--accent2)}.error{padding:10px 12px;border-radius:8px;background:#c94d3514;color:#b43d2c;font-size:13px;margin-bottom:12px}@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#171513;--card:#25211d;--text:#f2eee8;--muted:#aaa196;--line:#494139}.card{box-shadow:0 16px 45px #0005}.error{background:#e06b581f;color:#ff9b89}}
+ </style><main class="card"><div class="brand"><img src="/favicon.png" alt=""><h1>欢迎回来</h1><p>登录后管理你的微信读书账号</p></div>` + errMsg + `<form method="post"><label for="username">账号</label><input id="username" name="username" autocomplete="username" placeholder="请输入登录账号" required><label for="password">密码</label><input id="password" name="password" type="password" autocomplete="current-password" placeholder="请输入登录密码" required><button type="submit">登录</button></form></main></html>`
+ w.Write([]byte(html))
+}
+func (s *Server) handleLoginPost(w http.ResponseWriter,r *http.Request) { if r.ParseForm()==nil && r.Form.Get("username")==s.username && r.Form.Get("password")==s.password { http.SetCookie(w,&http.Cookie{Name:"wxread_session",Value:"ok",Path:"/",HttpOnly:true,SameSite:http.SameSiteLaxMode}); http.Redirect(w,r,"/",http.StatusFound); return }; store.AddLog(s.db, "warn", "auth", "", "Web 登录失败"); http.Redirect(w,r,"/login?error=1",http.StatusFound) }
 
 // noStore 为所有静态资源响应附加禁用缓存的头。
 func noStore(next http.Handler) http.Handler {

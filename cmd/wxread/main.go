@@ -9,6 +9,7 @@ import (
     "net/http"
     "os"
     "os/signal"
+    "strings"
     "time"
 
     "wxread/internal/store"
@@ -16,12 +17,14 @@ import (
 )
 
 func main() {
+    loadDotEnv(".env")
     ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
     defer stop()
     dbPath := os.Getenv("WXREAD_DB")
     if dbPath == "" { dbPath = "data/wxread.db" }
-    addr := os.Getenv("WXREAD_ADDR")
-    if addr == "" { addr = "127.0.0.1:8080" }
+    host := os.Getenv("WXREAD_HOST"); if host == "" { host = "127.0.0.1" }
+    port := os.Getenv("WXREAD_PORT"); if port == "" { port = "8080" }
+    addr := host + ":" + port
     db, err := store.Open(dbPath)
     if err != nil { panic(fmt.Sprintf("打开数据库失败: %v", err)) }
     defer db.Close()
@@ -42,3 +45,13 @@ func main() {
     }
 }
 
+// loadDotEnv loads simple KEY=VALUE entries without overriding real environment variables.
+func loadDotEnv(path string) {
+    b, err := os.ReadFile(path); if err != nil { return }
+    for _, line := range strings.Split(string(b), "\n") {
+        line = strings.TrimSpace(line); if line == "" || strings.HasPrefix(line, "#") { continue }
+        k, v, ok := strings.Cut(line, "="); if !ok { continue }
+        k = strings.TrimSpace(k); v = strings.Trim(strings.TrimSpace(v), "\"'")
+        if k != "" { if _, exists := os.LookupEnv(k); !exists { _ = os.Setenv(k, v) } }
+    }
+}
