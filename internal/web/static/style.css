@@ -151,7 +151,7 @@ select:focus-visible {
 .brand {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
   padding: 0 8px;
 }
 
@@ -163,7 +163,7 @@ select:focus-visible {
 }
 
 .brand-text {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.5px;
 }
@@ -614,6 +614,9 @@ main {
   display: flex;
   flex-direction: column;
 }
+
+.brand-text { display: inline-flex; flex-direction: column; gap: 0; line-height: 1.05; }
+.brand-version { margin-top: 1px; font-size: 12px; font-weight: 500; color: var(--text-dim); letter-spacing: .04em; }
 
 .account-row {
   display: grid;
