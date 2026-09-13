@@ -319,7 +319,10 @@ function renderAccounts() {
     badge.className = "badge " + (a.has_access_token ? "ok" : "missing");
     badge.textContent = a.has_access_token ? "凭据有效" : "待刷新";
     badge.title = "表示本地是否保存凭据,不代表实时登录状态";
-    cred.append(badge, document.createElement("br"), `刷新于 ${fmtTime(a.rotated_at)}`);
+    const rotated = document.createElement("span");
+    rotated.className = "account-time";
+    rotated.textContent = fmtTime(a.rotated_at);
+    cred.append(badge, rotated);
 
     // 操作:详情 / 刷新 / 删除
     const ops = document.createElement("div");

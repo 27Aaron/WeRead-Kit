@@ -616,7 +616,8 @@ main {
 }
 
 .account-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 46px minmax(220px, 1.25fr) minmax(125px, .75fr) auto;
   align-items: center;
   gap: 14px;
   padding: 16px 20px;
@@ -687,10 +688,15 @@ main {
 }
 
 .account-meta {
-  width: 150px;
+  width: auto;
   font-size: 11px;
   color: var(--text-dim);
   line-height: 1.7;
+}
+
+.account-time {
+  display: block;
+  white-space: nowrap;
 }
 
 .badge {
@@ -1492,6 +1498,7 @@ main {
   }
 
   .account-row {
+    display: flex;
     flex-wrap: wrap;
   }
 
@@ -1503,10 +1510,6 @@ main {
   .account-meta {
     width: auto;
     font-size: 0;
-  }
-
-  .account-meta br {
-    display: none;
   }
 
   .account-meta .badge {
