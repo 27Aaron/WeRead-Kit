@@ -9,32 +9,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/27Aaron/weread-kit/internal/store"
 	"github.com/27Aaron/weread-kit/internal/web"
 )
-
-// migrateLegacyDB 项目更名(wxread → weread-kit)后数据库文件也换了名:
-// 老版本升级上来时,若新名文件不存在而旧的 wxread.db 存在,则连同 WAL
-// 伴生文件一起改名,让现有数据自动带过来。
-func migrateLegacyDB(path string) {
-	if filepath.Base(path) != "weread.db" {
-		return
-	}
-	legacy := filepath.Join(filepath.Dir(path), "wxread.db")
-	if _, err := os.Stat(legacy); err != nil {
-		return
-	}
-	if _, err := os.Stat(path); err == nil {
-		return
-	}
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		_ = os.Rename(legacy+suffix, path+suffix)
-	}
-}
 
 func main() {
 	loadDotEnv(".env")
@@ -44,7 +24,6 @@ func main() {
 	if dbPath == "" {
 		dbPath = "data/weread.db"
 	}
-	migrateLegacyDB(dbPath)
 	host := os.Getenv("WEREAD_HOST")
 	if host == "" {
 		host = "127.0.0.1"
