@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -60,4 +61,16 @@ func TestSaveRejectsIncomplete(t *testing.T) {
 	if err := Save(db, &Credential{Vid: "x", RefreshToken: "", DeviceID: "dev"}); err == nil {
 		t.Fatal("Save with empty refresh_token: want error, got nil")
 	}
+}
+
+// TestOpenRelativePath 回归:相对路径经 url.URL 构造 DSN 时,
+// 首段会被当成 URI authority(file://data/...),驱动报 invalid uri authority。
+func TestOpenRelativePath(t *testing.T) {
+	dir := "wxread-testdata-relative"
+	defer os.RemoveAll(dir)
+	db, err := Open(filepath.Join(dir, "test.db"))
+	if err != nil {
+		t.Fatalf("Open relative path: %v", err)
+	}
+	defer db.Close()
 }
