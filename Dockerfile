@@ -1,9 +1,16 @@
-FROM golang:1.26-alpine AS build
+# builder 固定跑在构建机原生平台($BUILDPLATFORM),用 Go 交叉编译产出
+# TARGETOS/TARGETARCH 产物,避免 CI 上 QEMU 模拟 arm64 整场编译。
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /src
+ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /wxread ./cmd/wxread
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath -ldflags="-s -w" -o /wxread ./cmd/wxread
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates && mkdir -p /data
