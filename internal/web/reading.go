@@ -142,10 +142,12 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 	farmSessions.Unlock()
 
 	today := time.Now().Format("2006-01-02")
+	// 书名前置到各类日志与状态文案里,日志页一眼可见当前刷的是哪本书。
+	book := "《" + s.readingBookTitle(vid, task.BookID) + "》"
 	// 先标记归属日期,防止调度器同日重复触发;手动执行也计入当日。
-	_ = store.SaveReadingRunState(s.db, vid, today, "阅读中…", &store.RunProgress{BookID: task.BookID, Done: task.Done, Total: task.Total})
-	s.logf("info", "farm", vid, "阅读会话已启动,目标 %.1f 分钟(心跳 %d 次)%s",
-		float64(task.Total)*0.5, task.Total-task.Done, resumeNote(task.Done))
+	_ = store.SaveReadingRunState(s.db, vid, today, book+"正在阅读…", &store.RunProgress{BookID: task.BookID, Done: task.Done, Total: task.Total})
+	s.logf("info", "farm", vid, "%s阅读会话已启动,目标 %.1f 分钟%s",
+		book, float64(task.Total)*0.5, resumeNote(task.Done))
 
 	go func() {
 		defer func() {
@@ -157,8 +159,8 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 
 		result, next, err := s.client.FarmSession(sessCtx, creds, task, func(done, total int, msg string) {
 			// 断点与日志每次心跳(30 秒)记一条,粒度 0.5 分钟。
-			_ = store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("阅读中 %.1f/%d 分钟", float64(done)*0.5, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total})
-			s.logf("info", "farm", vid, "阅读中 %.1f/%d 分钟", float64(done)*0.5, total/2)
+			_ = store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total})
+			s.logf("info", "farm", vid, "正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2)
 		}, ctrl)
 		if next != nil {
 			// 会话中途轮换了移动端凭据,落库,否则会丢会话。
@@ -175,17 +177,17 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 			}
 		}
 		minutesText := fmt.Sprintf("%.1f 分钟", float64(result.Done)*0.5)
-		status := fmt.Sprintf("完成:阅读 %s(记 %d/%d 次心跳)", minutesText, result.Done, task.Total)
+		status := fmt.Sprintf("%s完成:阅读 %s", book, minutesText)
 		level := "info"
 		switch {
 		case ctrl.Stopped():
-			status = fmt.Sprintf("已停止(已记 %s)", minutesText)
+			status = fmt.Sprintf("%s已停止(已记 %s)", book, minutesText)
 			level = "warn"
 		case err != nil:
-			status = "失败:" + err.Error()
+			status = book + "失败:" + err.Error()
 			level = "error"
 		case result.Err != "":
-			status = fmt.Sprintf("中断(已记 %s):%s", minutesText, result.Err)
+			status = fmt.Sprintf("%s中断(已记 %s):%s", book, minutesText, result.Err)
 			level = "warn"
 		}
 		_ = store.SaveReadingRunState(s.db, vid, today, status, nil)
@@ -220,7 +222,8 @@ func (s *Server) ResumeInterrupted() {
 		if err != nil {
 			continue
 		}
-		s.logf("info", "farm", cfg.Vid, "续跑上次未完成的阅读会话(已完成 %.1f/%.1f 分钟)", float64(done)*0.5, float64(total)*0.5)
+		s.logf("info", "farm", cfg.Vid, "《%s》续跑上次未完成的阅读会话(已完成 %.1f/%.1f 分钟)",
+			s.readingBookTitle(cfg.Vid, bookID), float64(done)*0.5, float64(total)*0.5)
 		s.startFarm(cfg.Vid, weread.FarmTask{BookID: bookID, Done: done, Total: total}, toWeread(c))
 	}
 }
@@ -284,7 +287,8 @@ func (s *Server) tickFarm(ctx context.Context) {
 			continue
 		}
 		task := weread.NewFarmTask(cfg.BookIDs, cfg.Minutes)
-		s.logf("info", "farm", cfg.Vid, "调度器触发每日阅读(计划 %s,目标 %.1f 分钟)", cfg.RunAt, float64(task.Total)*0.5)
+		s.logf("info", "farm", cfg.Vid, "调度器触发每日阅读:%s(计划 %s,目标 %.1f 分钟)",
+			"《"+s.readingBookTitle(cfg.Vid, task.BookID)+"》", cfg.RunAt, float64(task.Total)*0.5)
 		if !s.startFarm(cfg.Vid, task, toWeread(c)) {
 			continue
 		}
