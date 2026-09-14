@@ -50,7 +50,7 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := store.SaveReadingConfig(s.db, &store.ReadingConfig{
-			Vid:   vid,
+			Vid:     vid,
 			Enabled: body.Enabled,
 			BookIDs: body.BookIDs,
 			Minutes: body.Minutes,

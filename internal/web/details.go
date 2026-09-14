@@ -28,7 +28,7 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost && c.Profile != "" && c.Card != "" && c.Shelf != "" {
 		resp := map[string]any{
-			"vid":     vid,
+			"vid":       vid,
 			"remark":    c.Remark,
 			"user":      json.RawMessage(c.Profile),
 			"card":      json.RawMessage(c.Card),
@@ -80,7 +80,7 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"vid":     vid,
+		"vid":       vid,
 		"remark":    c.Remark,
 		"user":      d.User,
 		"card":      d.Card,

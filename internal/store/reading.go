@@ -9,14 +9,14 @@ import (
 
 // ReadingConfig 是单个账号的挑战赛配置。
 type ReadingConfig struct {
-	Vid       string `json:"vid"`
-	Enabled   bool   `json:"enabled"`
-	BookIDs   []string `json:"book_ids"`
-	Minutes   int    `json:"minutes"`
-	RunAt     string `json:"run_at"`          // 每日执行时间点 HH:MM(本地时区)
-	LastRunDate string `json:"last_run_date"` // 最近一次执行归属的日期 YYYY-MM-DD(用于每日去重)
-	LastRunAt int64  `json:"last_run_at"`     // 最近一次执行开始时刻
-	LastStatus  string `json:"last_status"`   // 最近一次执行结果描述
+	Vid         string   `json:"vid"`
+	Enabled     bool     `json:"enabled"`
+	BookIDs     []string `json:"book_ids"`
+	Minutes     int      `json:"minutes"`
+	RunAt       string   `json:"run_at"`        // 每日执行时间点 HH:MM(本地时区)
+	LastRunDate string   `json:"last_run_date"` // 最近一次执行归属的日期 YYYY-MM-DD(用于每日去重)
+	LastRunAt   int64    `json:"last_run_at"`   // 最近一次执行开始时刻
+	LastStatus  string   `json:"last_status"`   // 最近一次执行结果描述
 	// 断点续跑:当日会话被停止/中断后,据此接着刷
 	RunBookID string `json:"run_book_id"`
 	RunDone   int    `json:"run_done"`
