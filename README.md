@@ -70,7 +70,7 @@ nix profile install github:27Aaron/WeRead-Kit
 ```bash
 go run ./cmd/weread-kit
 # 或
-go build -o wxread ./cmd/wxread && ./wxread
+go build -o weread-kit ./cmd/weread-kit && ./weread-kit
 ```
 
 需要 Go 1.26+；也可以使用仓库提供的 `nix develop` 环境进行开发。
