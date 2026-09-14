@@ -13,9 +13,17 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -trimpath -ldflags="-s -w" -o /weread-kit ./cmd/weread-kit
 
 FROM alpine:3.22
-RUN apk add --no-cache ca-certificates wget tzdata && addgroup -S weread && adduser -S -G weread weread && mkdir -p /data && chown weread:weread /data
+RUN apk add --no-cache ca-certificates wget tzdata su-exec \
+    && addgroup -S -g 10001 weread \
+    && adduser -S -D -H -u 10001 -G weread weread \
+    && mkdir -p /data \
+    && chown weread:weread /data
 COPY --from=build /weread-kit /usr/local/bin/weread-kit
-USER weread
+COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+ENV WEREAD_HOST=0.0.0.0 WEREAD_DB=/data/weread.db TZ=Asia/Shanghai
 EXPOSE 8080
 VOLUME ["/data"]
-ENTRYPOINT ["/usr/local/bin/weread-kit"]
+STOPSIGNAL SIGINT
+# 初始化挂载目录后立即降权，应用本身始终以非 root 用户运行。
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["/usr/local/bin/weread-kit"]
