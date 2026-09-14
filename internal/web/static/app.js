@@ -38,6 +38,7 @@ function iconEl(name) {
 async function api(path, opts = {}) {
   const resp = await fetch(path, { headers: { "content-type": "application/json" }, ...opts });
   const data = await resp.json().catch(() => ({}));
+  if (resp.status === 401) { window.location.assign("/login"); throw new Error("登录已过期，请重新登录"); }
   if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
   return data;
 }
