@@ -3,31 +3,15 @@
 [![Release](https://img.shields.io/github/v/release/27Aaron/wxread)](https://github.com/27Aaron/wxread/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-微信读书账号管理与挑战赛工具,内置 Web UI。单二进制 / Docker / Nix 三种分发形态;本地优先:账号凭据只存在你自己的机器上。
-
 ## 功能特性
 
-- **账号管理** —— 微信扫码添加账号;凭据存储于本地 SQLite(文件权限 `0600`),refreshToken 自动轮换续期
-- **挑战赛** —— 以 30 秒心跳模拟真实阅读上报;支持每日定时调度、断点续跑、指定书单(1 本固定阅读 / 多本随机阅读其中一本)
-- **推送通知** —— 支持 Bark、Telegram、Server酱、PushPlus;阅读完成 / 中断 / 失败自动推送
-- **Web UI** —— 暖纸色主题,深浅色自适应,窄屏响应式布局;运行日志自动刷新
-- **登录鉴权** —— 可选的账号密码保护,签名 cookie 7 天有效,带 CSRF 防护
-- **优雅退出** —— Ctrl+C / 停容器时先停后台阅读会话并保留断点,再关闭数据库
-- **版本检查** —— 内置新版本检测与提醒
+- **账号管理**:微信扫码添加账号;凭据存储于本地 SQLite,自动轮换续期
+- **挑战赛**:以 30 秒心跳模拟真实阅读上报;支持每日定时调度、断点续跑、指定书单
+- **推送通知**:支持 Bark、Telegram、Server酱、PushPlus;
+- **Web UI**:暖纸色主题,深浅色自适应,窄屏响应式布局;运行日志自动刷新
+- **登录鉴权**:可选的账号密码保护,签名 cookie 7 天有效,带 CSRF 防护
 
 ## 快速开始
-
-### Docker Compose(推荐)
-
-仓库自带 `compose.yaml`,数据落在同目录 `./data/`:
-
-```bash
-mkdir wxread && cd wxread
-curl -O https://raw.githubusercontent.com/27Aaron/wxread/main/compose.yaml
-# 可选:配置 Web 登录(两项都填才启用鉴权)
-printf 'WXREAD_USERNAME=admin\nWXREAD_PASSWORD=改成你的密码\n' > .env
-docker compose up -d
-```
 
 ### docker run
 
@@ -42,15 +26,13 @@ docker run -d --name wxread \
 
 > `--stop-signal SIGINT` 让容器停止时走应用的优雅退出路径;不配也能用,但停止会退化成等超时后强杀。
 
-多架构镜像(`linux/amd64`、`linux/arm64`)发布于 `ghcr.io/27aaron/wxread`,`latest` 跟随最新发布。
-
 ### 下载二进制
 
-从 [Releases](https://github.com/27Aaron/wxread/releases) 下载对应平台的二进制(linux / darwin / windows × amd64 / arm64),解压后直接运行:
+从 [Releases](https://github.com/27Aaron/wxread/releases) 下载对应平台的二进制文件
 
 ```bash
-chmod +x wxread-<你的平台>
-./wxread-<你的平台>
+chmod +x wxread-<平台>
+./wxread-<平台>
 ```
 
 ### 源码构建
@@ -92,7 +74,7 @@ nix profile install github:27Aaron/wxread  # 安装到 profile
 进入「挑战赛」页:
 
 1. **选择书籍**(必选):至少勾选 1 本;选 1 本固定阅读,选多本时随机阅读其中一本
-2. 点击「**保存配置**」——不选书无法保存
+2. 点击「**保存配置**」,不选书无法保存
 3. 按需调整「每天自动参与挑战赛」开关、开始时间(默认 03:00)和每天时长(默认 30 分钟)
 
 ### 3. 立即执行 / 停止
@@ -145,12 +127,6 @@ go build ./...       # 构建
 go test ./...        # 测试
 gofmt -l .           # 格式检查
 ```
-
-仓库自动化(维护者向):
-
-- 推送 `v*` 标签 → 构建全平台二进制与多架构镜像并发布 Release
-- tag 推送同时触发 `nix/hashes.json` 的版本与哈希更新 PR
-- 每日定时刷新 flake.lock
 
 ## 免责声明
 

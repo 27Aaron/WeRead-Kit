@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "要更新的 wxread tag(如 v0.1.2);留空则取最新 Release"
         required: false
         type: string
 
