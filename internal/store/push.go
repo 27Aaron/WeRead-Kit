@@ -77,26 +77,28 @@ func GetPushChannel(db *sql.DB, chType string) (*PushChannel, error) {
 	return c, nil
 }
 
-// SavePushChannel 按类型 UPSERT 渠道配置。
-// 采用先查后写而非 ON CONFLICT:兼容早期以自增 id 为主键的旧表结构。
+// SavePushChannel 保存渠道配置，同时兼容早期带 id 列的表。
 func SavePushChannel(db *sql.DB, c *PushChannel) error {
 	if c.Type == "" {
 		return errors.New("渠道类型不能为空")
 	}
-	var id int64
-	err := db.QueryRow(`SELECT id FROM weread_push_channel WHERE type = ?`, c.Type).Scan(&id)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		_, err = db.Exec(`
-			INSERT INTO weread_push_channel (type, enabled, params, created_at)
-			VALUES (?, ?, ?, ?)`,
-			c.Type, boolToInt(c.Enabled), c.Params, time.Now().Unix())
-		return err
-	case err != nil:
+	tx, err := db.Begin()
+	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`
-		UPDATE weread_push_channel SET enabled = ?, params = ? WHERE id = ?`,
-		boolToInt(c.Enabled), c.Params, id)
-	return err
+	defer tx.Rollback()
+	res, err := tx.Exec(`UPDATE weread_push_channel SET enabled = ?, params = ? WHERE type = ?`, boolToInt(c.Enabled), c.Params, c.Type)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		if _, err = tx.Exec(`INSERT INTO weread_push_channel (type, enabled, params, created_at) VALUES (?, ?, ?, ?)`, c.Type, boolToInt(c.Enabled), c.Params, time.Now().Unix()); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -39,11 +40,12 @@ func Open(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("创建数据目录失败: %w", err)
 	}
 	// modernc.org/sqlite 的 DSN 通过 _pragma 传连接级编译指令。
-	dsn := "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
+	dsn := (&url.URL{Scheme: "file", Path: path}).String() + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("打开数据库失败: %w", err)
 	}
+	db.SetMaxOpenConns(1)
 	if err := db.Ping(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("连接数据库失败: %w", err)
@@ -212,12 +214,24 @@ func UpdateRemark(db *sql.DB, vid, remark string) error {
 
 // Delete 删除账号记录(不影响微信读书服务端的会话)。
 func Delete(db *sql.DB, vid string) error {
-	res, err := db.Exec(`DELETE FROM weread_account WHERE vid = ?`, vid)
+	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
-	if n, err := res.RowsAffected(); err == nil && n == 0 {
+	defer tx.Rollback()
+	res, err := tx.Exec(`DELETE FROM weread_account WHERE vid = ?`, vid)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
 		return ErrNotFound
 	}
-	return nil
+	if _, err := tx.Exec(`DELETE FROM weread_reading WHERE vid = ?`, vid); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

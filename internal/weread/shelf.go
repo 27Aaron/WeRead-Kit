@@ -34,6 +34,9 @@ func (c *Client) ShelfSync(ctx context.Context, creds *Credentials) (*ShelfSync,
 	if err != nil {
 		return nil, fmt.Errorf("获取书架失败: %w", err)
 	}
+	if status == http.StatusUnauthorized {
+		return nil, ErrSessionExpired
+	}
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("获取书架失败: HTTP %d", status)
 	}

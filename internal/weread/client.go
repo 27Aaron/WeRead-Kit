@@ -52,6 +52,7 @@ type Client struct {
 
 func NewClient() *Client {
 	return &Client{HTTP: &http.Client{
+		Timeout: 70 * time.Second,
 		// 协议里出现重定向都按异常处理,不跟随。
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}}
@@ -144,6 +145,9 @@ func (c *Client) postJSON(ctx context.Context, rawURL string, headers map[string
 // rawString 兼容 vid 这类服务端可能回字符串或整数的字段。
 func rawString(raw json.RawMessage) string {
 	s := string(raw)
+	if s == "null" {
+		return ""
+	}
 	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
 		var unquoted string
 		if err := json.Unmarshal(raw, &unquoted); err == nil {

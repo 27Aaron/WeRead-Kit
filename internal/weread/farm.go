@@ -82,7 +82,7 @@ func NewFarmTask(bookIDs []string, minutes int) FarmTask {
 // ctrl 可为 nil(如 CLI 场景);非 nil 时可由外部标记停止。
 func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmTask, onProgress FarmProgress, ctrl *FarmControl) (*FarmResult, *Credentials, error) {
 	if task.BookID == "" {
-		return nil, nil, errors.New("未选择要阅读的书籍")
+		return &FarmResult{Done: task.Done, Total: task.Total}, nil, errors.New("未选择要阅读的书籍")
 	}
 	if task.Total <= task.Done {
 		// 续跑时发现已刷满,直接返回完成状态。
@@ -117,8 +117,8 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 	percent := 0
 	consecutiveFails := 0
 
-	for beat := task.Done; beat < task.Total; beat++ {
-		if beat > task.Done {
+	for result.Done < task.Total {
+		if result.Done > task.Done {
 			if err := sleepCtx(ctx, farmHeartbeatSeconds*time.Second); err != nil {
 				result.Err = "已取消"
 				return result, active, nil
@@ -161,7 +161,7 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 			continue
 		}
 		consecutiveFails = 0
-		result.Done = beat + 1
+		result.Done++
 		if onProgress != nil {
 			onProgress(result.Done, task.Total, fmt.Sprintf("已阅读 %.1f 分钟", float64(result.Done)*0.5))
 		}
@@ -194,7 +194,7 @@ func (c *Client) webSession(ctx context.Context, creds *Credentials) (string, *C
 		// 桥接失败未必是凭据过期,也重试一次刷新路径。
 		next, rerr := c.Refresh(ctx, creds)
 		if rerr != nil {
-			return "", nil, fmt.Errorf("桥接网页会话失败: %w", err)
+			return "", creds, fmt.Errorf("桥接网页会话失败: %w", err)
 		}
 		cookie, err = c.WebCookie(ctx, next)
 		if err != nil {
@@ -204,7 +204,7 @@ func (c *Client) webSession(ctx context.Context, creds *Credentials) (string, *C
 	}
 	next, rerr := c.Refresh(ctx, creds)
 	if rerr != nil {
-		return "", nil, fmt.Errorf("凭据过期且续期失败: %w", rerr)
+		return "", creds, fmt.Errorf("凭据过期且续期失败: %w", rerr)
 	}
 	cookie, err = c.WebCookie(ctx, next)
 	if err != nil {

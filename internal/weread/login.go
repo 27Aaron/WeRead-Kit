@@ -30,6 +30,8 @@ var (
 // onStatus 收到"已扫码"等进度提示;两个回调都可为 nil。
 // deviceID 传空则生成新设备 ID;复用旧值可保持同一设备身份。
 func (c *Client) Login(ctx context.Context, deviceID string, onQR func(confirmURL string), onStatus func(status string)) (*Credentials, error) {
+	ctx, cancel := context.WithTimeout(ctx, loginOverall)
+	defer cancel()
 	if deviceID == "" {
 		deviceID = NewDeviceID()
 	}
@@ -117,7 +119,7 @@ func (c *Client) pollForCode(ctx context.Context, uuid string, onStatus func(str
 	for {
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
-			return "", errors.New("登录超时(5 分钟),请重新运行 login")
+			return "", errors.New("登录超时（5 分钟），请重新生成二维码")
 		}
 
 		q := url.Values{}

@@ -43,7 +43,16 @@ func (c *Client) WebCookie(ctx context.Context, creds *Credentials) (string, err
 		return "", fmt.Errorf("桥接网页会话失败: %w", err)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", ErrSessionExpired
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("桥接网页会话失败: HTTP %d", resp.StatusCode)
+	}
 
 	// 桥接失败最常见的原因是移动端凭据过期(-2012),交给上层走续期重试。
 	var envelope struct {
@@ -107,6 +116,9 @@ func (c *Client) webCall(ctx context.Context, method, u string, body []byte, coo
 	}, body)
 	if err != nil {
 		return nil, fmt.Errorf("网页接口 %s 失败: %w", u, err)
+	}
+	if status == http.StatusUnauthorized {
+		return nil, ErrSessionExpired
 	}
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("网页接口 %s 失败: HTTP %d", u, status)
