@@ -1,5 +1,5 @@
 {
-  description = "wxread - WeRead account management and automated reading";
+  description = "wxread - WeRead account management and reading challenge automation";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

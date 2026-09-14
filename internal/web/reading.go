@@ -1,4 +1,4 @@
-// 自动阅读的 API 层:配置读写、立即执行、以及 serve 进程内的每日调度器。
+// 挑战赛的 API 层:配置读写、立即执行、以及 serve 进程内的每日调度器。
 package web
 
 import (
@@ -241,7 +241,7 @@ func (s *Server) handleReadingStop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"stopped": true})
 }
 
-// StartFarmScheduler 启动每日调度循环:每 30 秒扫描一次启用了自动阅读的账号,
+// StartFarmScheduler 启动每日调度循环:每 30 秒扫描一次启用了挑战赛的账号,
 // 到达当日执行时间且今天还没跑过的就开一场阅读会话。错过时间点(如进程
 // 中午才启动、计划在凌晨)会在启动后补跑当日场次。
 func (s *Server) StartFarmScheduler(ctx context.Context) {
