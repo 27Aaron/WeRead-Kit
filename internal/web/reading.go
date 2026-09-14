@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"wxread/internal/store"
@@ -36,7 +37,7 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadRequest, errors.New("请求体不是 JSON"))
 			return
 		}
-		if _, err := time.Parse("15:04", body.RunAt); err != nil {
+		if parsed, err := time.Parse("15:04", body.RunAt); err != nil || parsed.Format("15:04") != body.RunAt {
 			writeErr(w, http.StatusBadRequest, errors.New("执行时间格式应为 HH:MM,如 03:00"))
 			return
 		}
@@ -44,6 +45,20 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadRequest, errors.New("阅读时长需在 1~480 分钟之间"))
 			return
 		}
+		seen := map[string]bool{}
+		ids := []string{}
+		for _, id := range body.BookIDs {
+			id = strings.TrimSpace(id)
+			if id == "" || strings.ContainsAny(id, ",\r\n") {
+				writeErr(w, 400, errors.New("书籍 ID 无效"))
+				return
+			}
+			if !seen[id] {
+				ids = append(ids, id)
+				seen[id] = true
+			}
+		}
+		body.BookIDs = ids
 		if len(body.BookIDs) == 0 {
 			writeErr(w, http.StatusBadRequest, errors.New("请至少选择一本书籍"))
 			return
@@ -205,7 +220,8 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 	return true
 }
 
-// ResumeInterrupted 在服务启动时续跑当日未完成的阅读会话(误停/中断/崩溃恢复)。
+// ResumeInterrupted 在服务启动时仅续跑进程异常退出后留下的当日未完成会话。
+// 用户主动停止或上报失败会清除断点，并视为当日任务结束。
 func (s *Server) ResumeInterrupted() {
 	cfgs, err := store.ListEnabledReadingConfigs(s.db)
 	if err != nil {
