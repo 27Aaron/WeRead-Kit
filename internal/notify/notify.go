@@ -105,6 +105,9 @@ func Send(ctx context.Context, chType string, params map[string]string, title, b
 	return fmt.Errorf("未知推送类型 %q", chType)
 }
 
+// barkIcon 是 Bark 推送展示的图标:仓库 favicon 走 jsdelivr CDN,国内网络可直连。
+const barkIcon = "https://cdn.jsdelivr.net/gh/27Aaron/wxread@main/internal/web/static/favicon.png"
+
 // Bark:POST {server}/{device_key},自建服务端可通过 server 参数覆盖。
 func sendBark(ctx context.Context, p map[string]string, title, body string) error {
 	key := strings.TrimSpace(p["device_key"])
@@ -119,6 +122,7 @@ func sendBark(ctx context.Context, p map[string]string, title, body string) erro
 		"title": title,
 		"body":  body,
 		"group": "wxread",
+		"icon":  barkIcon,
 	})
 	if err != nil {
 		return err
