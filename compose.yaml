@@ -1,7 +1,7 @@
 services:
-  wxread:
-    image: ghcr.io/27aaron/wxread:latest
-    container_name: wxread
+  weread-kit:
+    image: ghcr.io/27aaron/weread-kit:latest
+    container_name: weread-kit
     restart: unless-stopped
     stop_signal: SIGINT
     ports:

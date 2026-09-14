@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"wxread/internal/store"
-	"wxread/internal/weread"
+	"github.com/27Aaron/weread-kit/internal/store"
+	"github.com/27Aaron/weread-kit/internal/weread"
 )
 
 // weeklyClaimPrefKey 是账号奖励预约在 weread_setting 表中的键前缀,

@@ -7,11 +7,11 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"github.com/27Aaron/weread-kit/internal/store"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	"wxread/internal/store"
 )
 
 const webSessionTTL = 7 * 24 * time.Hour

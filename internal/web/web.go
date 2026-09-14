@@ -15,8 +15,8 @@ import (
 
 	"github.com/skip2/go-qrcode"
 
-	"wxread/internal/store"
-	"wxread/internal/weread"
+	"github.com/27Aaron/weread-kit/internal/store"
+	"github.com/27Aaron/weread-kit/internal/weread"
 )
 
 //go:embed static

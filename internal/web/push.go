@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"wxread/internal/notify"
-	"wxread/internal/store"
+	"github.com/27Aaron/weread-kit/internal/notify"
+	"github.com/27Aaron/weread-kit/internal/store"
 )
 
 var pushTypes = []string{
@@ -129,7 +129,7 @@ func (s *Server) handlePushTest(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
-	if err := notify.Send(ctx, chType, params, "wxread 测试通知", "收到这条消息说明推送配置有效。"); err != nil {
+	if err := notify.Send(ctx, chType, params, "weread-kit 测试通知", "收到这条消息说明推送配置有效。"); err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}

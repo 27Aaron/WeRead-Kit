@@ -10,11 +10,11 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    go build -trimpath -ldflags="-s -w" -o /wxread ./cmd/wxread
+    go build -trimpath -ldflags="-s -w" -o /weread-kit ./cmd/weread-kit
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates && mkdir -p /data
-COPY --from=build /wxread /usr/local/bin/wxread
+COPY --from=build /weread-kit /usr/local/bin/weread-kit
 EXPOSE 8080
 VOLUME ["/data"]
-ENTRYPOINT ["/usr/local/bin/wxread"]
+ENTRYPOINT ["/usr/local/bin/weread-kit"]

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"wxread/internal/store"
+	"github.com/27Aaron/weread-kit/internal/store"
 )
 
 // TestSessionToken 验证签名 cookie 的签发与校验:有效放行,篡改/过期/垃圾值拒绝。

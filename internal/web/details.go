@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"wxread/internal/store"
+	"github.com/27Aaron/weread-kit/internal/store"
 )
 
 // handleAccountDetails 返回账号详情(用户信息/会员卡/书架)。

@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"wxread/internal/store"
-	"wxread/internal/weread"
+	"github.com/27Aaron/weread-kit/internal/store"
+	"github.com/27Aaron/weread-kit/internal/weread"
 )
 
 func saveProfile(db *sql.DB, c *store.Credential, raw json.RawMessage) error {

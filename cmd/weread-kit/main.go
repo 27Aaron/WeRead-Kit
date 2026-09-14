@@ -1,4 +1,4 @@
-// wxread 启动本地 Web 服务,承载账号管理与阅读挑战调度。
+// weread-kit 启动本地 Web 服务,承载账号管理与阅读挑战调度。
 // 所有操作均通过浏览器界面完成,配置经环境变量注入。
 package main
 
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"wxread/internal/store"
-	"wxread/internal/web"
+	"github.com/27Aaron/weread-kit/internal/store"
+	"github.com/27Aaron/weread-kit/internal/web"
 )
 
 func main() {
@@ -51,7 +51,7 @@ func main() {
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
 	}()
-	fmt.Printf("wxread Web UI: http://%s\n", addr)
+	fmt.Printf("weread-kit Web UI: http://%s\n", addr)
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fmt.Fprintf(os.Stderr, "Web 服务失败: %v\n", err)
 	}

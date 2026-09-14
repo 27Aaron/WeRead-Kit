@@ -9,8 +9,8 @@
 # 本地运行数据与构建产物
 data
 dist
-wxread
-wxread-bin
+weread-kit
+weread-kit-bin
 *.db
 *.db-wal
 *.db-shm

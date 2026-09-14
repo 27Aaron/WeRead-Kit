@@ -1,5 +1,5 @@
 {
-  description = "wxread - WeRead account management and reading challenge automation";
+  description = "weread-kit - WeRead account management and reading challenge automation";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -23,17 +23,17 @@
           inherit system;
         };
       in rec {
-        wxread = pkgs.callPackage ./nix/wxread.nix {};
-        default = wxread;
+        weread-kit = pkgs.callPackage ./nix/weread-kit.nix {};
+        default = weread-kit;
       }
     );
 
     apps = forAllSystems (system: rec {
-      wxread = {
+      weread-kit = {
         type = "app";
-        program = "${self.packages.${system}.wxread}/bin/wxread";
+        program = "${self.packages.${system}.weread-kit}/bin/weread-kit";
       };
-      default = wxread;
+      default = weread-kit;
     });
 
     devShells = forAllSystems (

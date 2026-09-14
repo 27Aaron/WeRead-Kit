@@ -9,13 +9,13 @@
   # 避免无关资源变动导致源码目录与构建产物变化。
   root = fetchFromGitHub {
     owner = "27Aaron";
-    repo = "wxread";
+    repo = "WeRead-Kit";
     tag = "v${hashes.version}";
     hash = hashes.srcHash;
   };
 in
   buildGoModule {
-    pname = "wxread";
+    pname = "weread-kit";
     version = hashes.version;
 
     src = lib.cleanSourceWith {
@@ -41,9 +41,9 @@ in
 
     meta = with lib; {
       description = "WeRead account management and reading challenge";
-      homepage = "https://github.com/27Aaron/wxread";
+      homepage = "https://github.com/27Aaron/WeRead-Kit";
       license = licenses.mit;
-      mainProgram = "wxread";
+      mainProgram = "weread-kit";
       platforms = platforms.unix;
     };
   }

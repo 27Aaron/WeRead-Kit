@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"wxread/internal/store"
+	"github.com/27Aaron/weread-kit/internal/store"
 )
 
 // TestReadingConfigValidation 验证 RunAt 补零校验、书 ID 分隔符拒绝与自动去重。
