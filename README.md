@@ -4,7 +4,7 @@
 
 [![Release](https://img.shields.io/github/v/release/27Aaron/wxread)](https://github.com/27Aaron/wxread/releases) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 它能做什么
+## 功能
 
 - **自动领取阅读奖励**：选择奖励档位和奖品后，程序会在奖励达成后自动领取同款奖励。
 - **自动完成阅读挑战**：每天按指定时间、时长和书单执行阅读任务；支持随机书单、手动立即执行和异常后续跑。

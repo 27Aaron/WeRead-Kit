@@ -1,6 +1,19 @@
 # 更新日志
 
-本项目所有重要变更都会记录在此文件中。
+## [v0.1.5] - 2026-09-14
+
+### 新功能
+
+- 阅读挑战页新增「官方挑战赛进度」面板:双圆环展示打卡天数与累计时长进度,附挑战规则、起止日期和全站参赛数据;未报名时自动隐藏
+
+### 修复
+
+- 阅读会话心跳报会话过期时,自动重新桥接并刷新凭据后原地重试——不再直接中止会话;连续 3 次恢复失败才终止并推送通知
+
+### 优化
+
+- 全站 UI 细节打磨:统一面板/对话框/列表的间距与圆角体系,新增键盘焦点描边,完善宽屏、笔记本、平板、手机的响应式适配
+- README 面向使用者重写:安装方式、推荐使用流程与重要行为说明
 
 ## [v0.1.4] - 2026-09-14
 
@@ -81,6 +94,7 @@
 - 多平台二进制发布(linux/darwin/windows × amd64/arm64)、Docker 多架构镜像、Nix flake 开发环境
 - MIT 许可
 
+[v0.1.5]: https://github.com/27Aaron/wxread/releases/tag/v0.1.5
 [v0.1.4]: https://github.com/27Aaron/wxread/releases/tag/v0.1.4
 [v0.1.3]: https://github.com/27Aaron/wxread/releases/tag/v0.1.3
 [v0.1.2]: https://github.com/27Aaron/wxread/releases/tag/v0.1.2
