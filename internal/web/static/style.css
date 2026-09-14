@@ -331,6 +331,17 @@ main {
   color: var(--accent);
 }
 
+/* 面板栏右侧的补充说明(如“本周已读 1 小时”),数字部分用强调色。 */
+.panel-note {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.panel-note b {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .panel-foot {
   display: flex;
   align-items: center;
@@ -1586,4 +1597,208 @@ main {
   margin: 0 0 20px;
   font-size: 12px;
   color: var(--text-dim);
+}
+
+/* ---------- 我的阅读 ---------- */
+
+/* 面板纵向排列,统一 16px 间距,避免面板贴在一起。 */
+#view-reading {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reading-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.reading-stats .stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 4px 0 2px;
+  color: var(--text);
+}
+
+.stat-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reward-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 12px;
+  padding: 14px;
+}
+
+/* 加载中/加载失败等占位文案横跨整行,居中展示,不要挤在第一列里。 */
+.reward-grid .empty,
+.book-grid .empty {
+  grid-column: 1 / -1;
+}
+
+.reward-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.reward-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reward-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* 档位状态徽章:所有状态统一样式,靠文字区分(领取/已领取/差 X 分钟)。 */
+.award-badge {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  color: var(--text-dim);
+  background: var(--surface-2);
+}
+
+.reward-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* 进度行:进度条占满剩余宽度,右侧标注当前进度。 */
+.reward-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reward-progress {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.reward-progress i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.reward-progress-label {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* 双按钮:书币 / 体验卡。claimable 可立即领取(实心);selected 为已保存的
+   每周设置(仅描边带色);claimed 本周已领取。两个按钮任何时候都可点击。 */
+.reward-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 7px;
+}
+
+.reward-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 7px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.reward-btn.plain {
+  color: var(--text-dim);
+}
+
+.reward-btn.plain:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+/* 已保存的每周设置:只有描边带强调色。 */
+.reward-btn.selected {
+  border-color: var(--accent);
+}
+
+.reward-btn.selected:hover {
+  border-color: var(--accent-strong);
+}
+
+.reward-btn.claimed {
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+/* 本周已领取 + 当前设置选中:灰底打勾的同时保留描边色。 */
+.reward-btn.claimed.selected {
+  border-color: var(--accent);
+}
+
+.reward-btn.claimable {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.reward-btn.claimable:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.reward-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.reading-rules {
+  margin: 0;
+  padding: 14px 18px 14px 32px;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.9;
 }
