@@ -6,9 +6,9 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"net/http"
-	"io"
 	"os"
 	"time"
 
@@ -23,9 +23,9 @@ var staticFiles embed.FS
 
 // Server 是 Web UI 的 HTTP 服务。
 type Server struct {
-	db     *sql.DB
-	client *weread.Client
-	logins *loginManager
+	db                 *sql.DB
+	client             *weread.Client
+	logins             *loginManager
 	username, password string
 }
 
@@ -70,22 +70,64 @@ func (s *Server) Handler() http.Handler {
 
 func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Get("https://api.github.com/repos/27Aaron/wxread/releases/latest")
-	if err != nil { writeJSON(w, http.StatusOK, map[string]any{"current_version": Version, "has_update": false}); return }
-	defer resp.Body.Close(); body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20)); var rel struct{ TagName string `json:"tag_name"`; Name string `json:"name"`; Body string `json:"body"`; HTMLURL string `json:"html_url"`; PublishedAt string `json:"published_at"` }; if json.Unmarshal(body, &rel) != nil { writeJSON(w, 200, map[string]any{"current_version": Version, "has_update": false}); return }
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"current_version": Version, "has_update": false})
+		return
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	var rel struct {
+		TagName     string `json:"tag_name"`
+		Name        string `json:"name"`
+		Body        string `json:"body"`
+		HTMLURL     string `json:"html_url"`
+		PublishedAt string `json:"published_at"`
+	}
+	if json.Unmarshal(body, &rel) != nil {
+		writeJSON(w, 200, map[string]any{"current_version": Version, "has_update": false})
+		return
+	}
 	writeJSON(w, 200, map[string]any{"current_version": Version, "latest_version": rel.TagName, "has_update": rel.TagName != "" && rel.TagName != "v"+Version, "name": rel.Name, "body": rel.Body, "html_url": rel.HTMLURL, "published_at": rel.PublishedAt})
 }
 
-func (s *Server) auth(next http.Handler) http.Handler { return http.HandlerFunc(func(w http.ResponseWriter,r *http.Request) { if r.URL.Path == "/login" || r.URL.Path == "/favicon.png" || r.URL.Path == "/api/version" { next.ServeHTTP(w,r); return }; if s.username=="" && s.password=="" { next.ServeHTTP(w,r); return }; c,_:=r.Cookie("wxread_session"); if c==nil || c.Value!="ok" { http.Redirect(w,r,"/login",http.StatusFound); return }; next.ServeHTTP(w,r) }) }
+func (s *Server) auth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" || r.URL.Path == "/favicon.png" || r.URL.Path == "/api/version" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if s.username == "" && s.password == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		c, _ := r.Cookie("wxread_session")
+		if c == nil || c.Value != "ok" {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
- w.Header().Set("content-type", "text/html; charset=utf-8")
- errMsg := ""
- if r.URL.Query().Get("error") == "1" { errMsg = `<div class="error" role="alert">账号或密码错误，请重试</div>` }
- html := `<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width"><title>登录 · 微信读书</title><style>
+	w.Header().Set("content-type", "text/html; charset=utf-8")
+	errMsg := ""
+	if r.URL.Query().Get("error") == "1" {
+		errMsg = `<div class="error" role="alert">账号或密码错误，请重试</div>`
+	}
+	html := `<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width"><title>登录 · 微信读书</title><style>
  :root{color-scheme:light;--bg:#f5f2ec;--card:#fff;--text:#29251f;--muted:#817a70;--line:#ddd6ca;--accent:#d99743;--accent2:#bc7629}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,sans-serif}.card{width:min(100%,390px);padding:40px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 16px 45px #4c3b2418}.brand{text-align:center;margin-bottom:28px}.brand img{width:54px;height:54px;border-radius:14px}.brand h1{font-size:22px;margin:14px 0 6px}.brand p{color:var(--muted);margin:0;font-size:13px}label{display:block;font-size:13px;font-weight:600;margin:16px 0 7px}input{display:block;width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:9px;background:transparent;color:inherit;font:inherit}input:focus{outline:2px solid #d9974366;border-color:var(--accent)}button{width:100%;margin-top:24px;padding:12px;border:0;border-radius:9px;background:var(--accent);color:#fff;font:600 15px inherit;cursor:pointer}button:hover{background:var(--accent2)}.error{padding:10px 12px;border-radius:8px;background:#c94d3514;color:#b43d2c;font-size:13px;margin-bottom:12px}@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#171513;--card:#25211d;--text:#f2eee8;--muted:#aaa196;--line:#494139}.card{box-shadow:0 16px 45px #0005}.error{background:#e06b581f;color:#ff9b89}}
  </style><main class="card"><div class="brand"><img src="/favicon.png" alt=""><h1>欢迎回来</h1><p>登录后管理你的微信读书账号</p></div>` + errMsg + `<form method="post"><label for="username">账号</label><input id="username" name="username" autocomplete="username" placeholder="请输入登录账号" required><label for="password">密码</label><input id="password" name="password" type="password" autocomplete="current-password" placeholder="请输入登录密码" required><button type="submit">登录</button></form></main></html>`
- w.Write([]byte(html))
+	w.Write([]byte(html))
 }
-func (s *Server) handleLoginPost(w http.ResponseWriter,r *http.Request) { if r.ParseForm()==nil && r.Form.Get("username")==s.username && r.Form.Get("password")==s.password { http.SetCookie(w,&http.Cookie{Name:"wxread_session",Value:"ok",Path:"/",HttpOnly:true,SameSite:http.SameSiteLaxMode}); http.Redirect(w,r,"/",http.StatusFound); return }; store.AddLog(s.db, "warn", "auth", "", "Web 登录失败"); http.Redirect(w,r,"/login?error=1",http.StatusFound) }
+func (s *Server) handleLoginPost(w http.ResponseWriter, r *http.Request) {
+	if r.ParseForm() == nil && r.Form.Get("username") == s.username && r.Form.Get("password") == s.password {
+		http.SetCookie(w, &http.Cookie{Name: "wxread_session", Value: "ok", Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode})
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	store.AddLog(s.db, "warn", "auth", "", "Web 登录失败")
+	http.Redirect(w, r, "/login?error=1", http.StatusFound)
+}
 
 // noStore 为所有静态资源响应附加禁用缓存的头。
 func noStore(next http.Handler) http.Handler {

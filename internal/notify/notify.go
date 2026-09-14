@@ -14,10 +14,10 @@ import (
 
 // 支持的渠道类型标识。
 const (
-	TypeBark      = "bark"
-	TypeTelegram  = "telegram"
+	TypeBark       = "bark"
+	TypeTelegram   = "telegram"
 	TypeServerChan = "serverchan"
-	TypePushPlus  = "pushplus"
+	TypePushPlus   = "pushplus"
 )
 
 // RequiredParams 返回各渠道必填的参数名,用于保存前校验。
