@@ -64,7 +64,8 @@ func ListLogs(db *sql.DB, vid, level string, limit int) ([]*LogEntry, error) {
 	if limit <= 0 || limit > LogMaxRows {
 		limit = 200
 	}
-	query := `SELECT l.id, l.ts, l.level, l.source, l.vid, COALESCE(a.name, '') AS name, l.message
+	// 展示名优先取备注(可能为用户手动设置,也可能由昵称自动填充),昵称兜底。
+	query := `SELECT l.id, l.ts, l.level, l.source, l.vid, COALESCE(NULLIF(a.remark, ''), a.name, '') AS name, l.message
 		FROM weread_log l
 		LEFT JOIN weread_account a ON a.vid = l.vid
 		WHERE 1=1`
