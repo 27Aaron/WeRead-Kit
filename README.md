@@ -1,8 +1,10 @@
-# wxread
-
 一个面向个人使用的微信读书自动化工具：在本地保存账号状态，按计划完成阅读任务，自动领取可用奖励，并把结果推送到你常用的通知渠道。
 
 [![Release](https://img.shields.io/github/v/release/27Aaron/wxread)](https://github.com/27Aaron/wxread/releases) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+## 界面预览
+
+<img src="assets/reading-rewards.webp" width="49%" alt="我的阅读"> <img src="assets/reading-challenge.webp" width="49%" alt="阅读挑战">
 
 ## 功能
 
@@ -10,6 +12,8 @@
 - **自动完成阅读挑战**：每天按指定时间、时长和书单执行阅读任务；支持随机书单、手动立即执行和异常后续跑。
 - **多渠道推送**：支持 Bark、Telegram、Server酱和 PushPlus，在阅读完成、中断或失败时通知你。
 - **本地账号管理**：微信扫码登录，账号状态和配置保存在本机 SQLite 数据库中。
+- **多用户**：支持同时管理多个微信读书账号，各账号的阅读挑战与奖励预约独立配置、互不影响。
+- **登录密码保护**：设置账号密码后，Web 控制台需登录访问；登录会话 7 天有效，自带 CSRF 防护。
 - **可观测的运行日志**：按账号和级别查看调度、登录续期、阅读上报和推送结果。
 - **轻量 Web 控制台**：支持浅色/深色主题、响应式布局和可选登录保护。
 
