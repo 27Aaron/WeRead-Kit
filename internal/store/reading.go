@@ -3,7 +3,9 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -27,7 +29,7 @@ const readingSchema = `
 CREATE TABLE IF NOT EXISTS weread_reading (
   vid           TEXT PRIMARY KEY,
   enabled       INTEGER NOT NULL DEFAULT 0,
-  book_ids      TEXT NOT NULL DEFAULT '[]',
+  book_ids      TEXT NOT NULL DEFAULT '',
   minutes       INTEGER NOT NULL DEFAULT 30,
   run_at        TEXT NOT NULL DEFAULT '03:00',
   last_run_date TEXT NOT NULL DEFAULT '',
@@ -152,45 +154,39 @@ func SaveReadingRunState(db *sql.DB, vid, runDate, status string, progress *RunP
 		ON CONFLICT(vid) DO UPDATE SET
 			last_run_date = excluded.last_run_date,
 			last_run_at = excluded.last_run_at,
-			last_status = excluded.last_status`,
+			last_status = excluded.last_status,
+ run_book_id = '', run_done = 0, run_total = 0`,
 		vid, runDate, now, status)
 	return err
 }
 
 // ResumeTask 返回当日未完成会话的续跑参数;没有可续跑的返回 ok=false。
 func (c *ReadingConfig) ResumeTask() (bookID string, done, total int, ok bool) {
-	if c.RunTotal <= 0 || c.RunDone >= c.RunTotal || c.RunBookID == "" {
+	if c.LastRunDate != time.Now().Format("2006-01-02") || c.RunDone < 0 || c.RunTotal <= 0 || c.RunDone >= c.RunTotal || c.RunBookID == "" {
 		return "", 0, 0, false
 	}
 	return c.RunBookID, c.RunDone, c.RunTotal, true
 }
 
 func splitBookIDs(s string) []string {
-	out := []string{}
-	current := ""
-	for _, ch := range s {
-		if ch == ',' {
-			if current != "" {
-				out = append(out, current)
-			}
-			current = ""
-			continue
+	ids := []string{}
+	if strings.HasPrefix(strings.TrimSpace(s), "[") {
+		if json.Unmarshal([]byte(s), &ids) != nil {
+			return []string{}
 		}
-		current += string(ch)
+	} else {
+		ids = strings.Split(s, ",")
 	}
-	if current != "" {
-		out = append(out, current)
+	out := []string{}
+	seen := map[string]bool{}
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id != "" && !seen[id] {
+			out = append(out, id)
+			seen[id] = true
+		}
 	}
 	return out
 }
 
-func joinBookIDs(ids []string) string {
-	out := ""
-	for i, id := range ids {
-		if i > 0 {
-			out += ","
-		}
-		out += id
-	}
-	return out
-}
+func joinBookIDs(ids []string) string { return strings.Join(ids, ",") }
