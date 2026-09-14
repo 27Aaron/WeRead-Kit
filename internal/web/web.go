@@ -40,7 +40,7 @@ type Server struct {
 func New(db *sql.DB) *Server {
 	client := weread.NewClient()
 	ctx, cancel := context.WithCancel(context.Background())
-	key, err := newSessionID()
+	key, err := loadOrCreateSessionKey(db)
 	if err != nil {
 		panic(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"net/http"
@@ -14,6 +15,23 @@ import (
 )
 
 const webSessionTTL = 7 * 24 * time.Hour
+
+// sessionKeySetting 是会话签名密钥在 weread_setting 表中的键名。
+// 密钥跨重启持久,进程重启不再使已登录浏览器失效;
+// 与凭据同库存放,信任域一致,换库文件导致全部会话失效属预期。
+const sessionKeySetting = "web_session_key"
+
+// loadOrCreateSessionKey 取回持久化的会话签名密钥;首次运行时生成并落库。
+func loadOrCreateSessionKey(db *sql.DB) (string, error) {
+	key, err := store.GetSetting(db, sessionKeySetting)
+	if !errors.Is(err, store.ErrNotFound) {
+		return key, err
+	}
+	if key, err = newSessionID(); err != nil {
+		return "", err
+	}
+	return key, store.SetSetting(db, sessionKeySetting, key)
+}
 
 func (s *Server) sessionToken(expires int64) string {
 	stamp := strconv.FormatInt(expires, 10)
