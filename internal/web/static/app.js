@@ -655,6 +655,7 @@ async function openChallenge() {
   if (!accounts.length) {
     // 一个账号都没有:隐藏整个配置面板,只显示引导
     $("#challenge-panel").classList.add("hidden");
+    $("#official-challenge").classList.add("hidden");
     $("#challenge-empty").classList.remove("hidden");
     challengeAlias = null;
     return;
@@ -662,6 +663,7 @@ async function openChallenge() {
   $("#challenge-panel").classList.remove("hidden");
   $("#challenge-empty").classList.add("hidden");
   $("#challenge-banner").classList.remove("hidden");
+  $("#official-challenge").classList.remove("hidden");
   if (!accounts.some((a) => a.vid === challengeAlias)) challengeAlias = accounts[0].vid;
   for (const a of accounts) {
     const opt = document.createElement("option");
@@ -683,6 +685,75 @@ async function loadChallenge() {
   } catch (err) {
     $("#challenge-books").innerHTML = `<p class="empty">加载失败:${escapeHtml(err.message)}</p>`;
   }
+  loadOfficialChallenge();
+}
+
+/* ---------- 官方挑战赛进度 ---------- */
+
+async function loadOfficialChallenge() {
+  if (!challengeAlias) return;
+  const body = $("#official-challenge-body");
+  const status = $("#official-challenge-status");
+  body.innerHTML = '<p class="empty">正在加载…</p>';
+  status.textContent = "—";
+  try {
+    const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge`);
+    renderOfficialChallenge(d.challenge || {});
+  } catch (err) {
+    status.textContent = "—";
+    body.innerHTML = `<p class="empty">加载失败:${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderOfficialChallenge(c) {
+  const body = $("#official-challenge-body");
+  const status = $("#official-challenge-status");
+  const panel = $("#official-challenge");
+  if (!c.id || !c.status) {
+    // 未参加官方挑战赛:整个面板不展示。
+    panel.classList.add("hidden");
+    return;
+  }
+  panel.classList.remove("hidden");
+  status.textContent = c.status === 1 ? "进行中" : c.status === 2 ? "已完成" : "已结束";
+  const ch = c.challenge || {};
+  const signedDays = (c.readDateList || []).length;
+  const dayPct = Math.min(100, (signedDays / (ch.targetDay || 1)) * 100);
+  const timePct = Math.min(100, ((c.readTime || 0) / (ch.targetTime || 1)) * 100);
+  const now = c.currentTime || Math.floor(Date.now() / 1000);
+  const remainDays = c.endTime ? Math.max(0, Math.ceil((c.endTime - now) / 86400)) : 0;
+
+  const R = 52;
+  const circ = (2 * Math.PI * R).toFixed(1);
+  const ring = (pct, value, unit, label, target) => `
+    <div class="challenge-metric">
+      <div class="challenge-ring" role="img" aria-label="${label} ${value} ${unit},目标 ${target} ${unit},完成 ${Math.round(pct)}%">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="ring-track" cx="60" cy="60" r="${R}"></circle>
+          <circle class="ring-fill" cx="60" cy="60" r="${R}" stroke-dasharray="${circ}"
+            stroke-dashoffset="${(circ * (1 - pct / 100)).toFixed(1)}"${pct <= 0 ? ' style="opacity:0"' : ''}></circle>
+        </svg>
+        <div class="ring-center"><b>${value}<small>${unit}</small></b><span>${Math.round(pct)}% 已完成</span></div>
+      </div>
+      <div class="challenge-metric-label">${label}<span>目标 ${target} ${unit}</span></div>
+    </div>`;
+
+  body.innerHTML = `
+    <div class="challenge-rings">
+      ${ring(dayPct, signedDays, "天", "累计打卡", ch.targetDay)}
+      ${ring(timePct, ((c.readTime || 0) / 3600).toFixed(1), "小时", "阅读时长", ch.targetTime / 3600)}
+    </div>
+    <div class="challenge-info">
+      <div class="challenge-period">
+        <span>挑战周期</span>
+        <div><b>${ch.challengeDay} 天<span class="challenge-remaining">剩余 ${remainDays} 天</span></b>
+          <p>${fmtDay(c.startTime)} — ${fmtDay(c.endTime)}</p></div>
+      </div>
+      <div><span>达标条件</span><b>累计阅读 ${fmtDuration(ch.targetTime)} · 打卡 ${ch.targetDay} 天</b></div>
+      <div><span>报名费用</span><b>¥${(ch.price / 100).toFixed(0)}<small>报名即得体验卡 ${ch.initRewardCard} 天</small></b></div>
+      <div><span>达标奖励</span><b>体验卡 ${ch.reachRewardCard} 天 或 书币 ${ch.reachRewardCoin} 个</b></div>
+      <div><span>全站数据</span><b>${c.challengingCnt ?? 0} 人参赛 · ${c.succCnt ?? 0} 人成功</b></div>
+    </div>`;
 }
 
 function renderChallenge(d) {
