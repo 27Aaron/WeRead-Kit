@@ -37,7 +37,15 @@ jobs:
       - name: Update package hashes
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: nix/update.sh
+        run: |
+          if [[ -n "${{ inputs.tag }}" ]]; then
+            nix/update.sh "${{ inputs.tag }}"
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            # tag 触发时 Release 可能尚未发布完,直接用推送的 tag 本身。
+            nix/update.sh "${{ github.ref_name }}"
+          else
+            nix/update.sh
+          fi
 
       - name: Resolve updated version
         id: version
