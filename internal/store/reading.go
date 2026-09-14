@@ -169,12 +169,14 @@ func (c *ReadingConfig) ResumeTask() (bookID string, done, total int, ok bool) {
 }
 
 func splitBookIDs(s string) []string {
-	ids := []string{}
+	var ids []string
 	if strings.HasPrefix(strings.TrimSpace(s), "[") {
+		// 旧版存过 JSON 数组;解析失败时(如以 [ 开头的普通 ID)回落逗号分隔,不丢数据。
 		if json.Unmarshal([]byte(s), &ids) != nil {
-			return []string{}
+			ids = nil
 		}
-	} else {
+	}
+	if ids == nil {
 		ids = strings.Split(s, ",")
 	}
 	out := []string{}

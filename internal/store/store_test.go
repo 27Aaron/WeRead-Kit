@@ -63,6 +63,40 @@ func TestSaveRejectsIncomplete(t *testing.T) {
 	}
 }
 
+// TestDeletePurgesLogs 回归:删除账号须连带清理其历史日志,其他账号日志不受影响。
+func TestDeletePurgesLogs(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer db.Close()
+
+	for _, vid := range []string{"v1", "v2"} {
+		if err := Save(db, &Credential{Vid: vid, RefreshToken: "rt", DeviceID: "dev"}); err != nil {
+			t.Fatalf("Save %s: %v", vid, err)
+		}
+		AddLog(db, "info", "farm", vid, "log of "+vid)
+	}
+
+	if err := Delete(db, "v1"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	logs, err := ListLogs(db, "v1", "", 100)
+	if err != nil {
+		t.Fatalf("ListLogs v1: %v", err)
+	}
+	if len(logs) != 0 {
+		t.Fatalf("logs of deleted account not purged: got %d entries", len(logs))
+	}
+	logs, err = ListLogs(db, "v2", "", 100)
+	if err != nil {
+		t.Fatalf("ListLogs v2: %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("logs of other account affected: got %d entries, want 1", len(logs))
+	}
+}
+
 // TestOpenRelativePath 回归:相对路径经 url.URL 构造 DSN 时,
 // 首段会被当成 URI authority(file://data/...),驱动报 invalid uri authority。
 func TestOpenRelativePath(t *testing.T) {
