@@ -40,7 +40,13 @@ func Open(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("创建数据目录失败: %w", err)
 	}
 	// modernc.org/sqlite 的 DSN 通过 _pragma 传连接级编译指令。
-	dsn := (&url.URL{Scheme: "file", Path: path}).String() + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
+	// 相对路径必须先转绝对:否则 url.URL 会把首段当成 URI authority(file://data/...),
+	// 驱动直接报 invalid uri authority。
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("解析数据库路径失败: %w", err)
+	}
+	dsn := (&url.URL{Scheme: "file", Path: abs}).String() + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("打开数据库失败: %w", err)
