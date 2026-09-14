@@ -4,16 +4,30 @@
   fetchFromGitHub,
 }: let
   hashes = builtins.fromJSON (builtins.readFile ./hashes.json);
+
+  # 构建只需要 Go 源码与模块定义;文档、截图、CI 配置等一律排除,
+  # 避免无关资源变动导致源码目录与构建产物变化。
+  root = fetchFromGitHub {
+    owner = "27Aaron";
+    repo = "wxread";
+    tag = "v${hashes.version}";
+    hash = hashes.srcHash;
+  };
 in
   buildGoModule {
     pname = "wxread";
     version = hashes.version;
 
-    src = fetchFromGitHub {
-      owner = "27Aaron";
-      repo = "wxread";
-      tag = "v${hashes.version}";
-      hash = hashes.srcHash;
+    src = lib.cleanSourceWith {
+      src = root;
+      filter =
+        path: type: let
+          relPath = lib.removePrefix (toString root) path;
+        in
+          relPath == ""
+          || builtins.match "/(cmd|internal)(/.*)?" relPath != null
+          || builtins.match "/go\\.(mod|sum)" relPath != null
+          || relPath == "/LICENSE";
     };
 
     env.CGO_ENABLED = "0";

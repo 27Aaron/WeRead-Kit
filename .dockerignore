@@ -25,3 +25,13 @@ Thumbs.db
 # 文档与本地辅助文件
 README*
 *.log
+
+# Nix 打包与文档资源
+nix
+flake.nix
+flake.lock
+CHANGELOG.md
+compose.yaml
+assets
+result
+result-*
