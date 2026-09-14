@@ -26,7 +26,7 @@ in
     ];
 
     meta = with lib; {
-      description = "WeRead account management and automated reading";
+      description = "WeRead account management and reading challenge";
       homepage = "https://github.com/27Aaron/wxread";
       license = licenses.mit;
       mainProgram = "wxread";

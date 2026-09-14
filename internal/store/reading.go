@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// ReadingConfig 是单个账号的自动阅读配置。
+// ReadingConfig 是单个账号的挑战赛配置。
 type ReadingConfig struct {
 	Vid       string `json:"vid"`
 	Enabled   bool   `json:"enabled"`
@@ -94,7 +94,7 @@ func SaveReadingConfig(db *sql.DB, cfg *ReadingConfig) error {
 	return err
 }
 
-// ListEnabledReadingConfigs 列出所有启用了自动阅读的账号,供调度器扫描。
+// ListEnabledReadingConfigs 列出所有启用了挑战赛的账号,供调度器扫描。
 func ListEnabledReadingConfigs(db *sql.DB) ([]*ReadingConfig, error) {
 	rows, err := db.Query(`
 		SELECT vid, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status,
