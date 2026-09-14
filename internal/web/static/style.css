@@ -999,7 +999,7 @@ main {
   white-space: nowrap;
 }
 
-/* ---------- 挑战赛 ---------- */
+/* ---------- 阅读挑战 ---------- */
 .banner {
   display: flex;
   align-items: center;
@@ -1573,7 +1573,7 @@ main {
   }
 }
 
-/* 挑战赛页:无账号时的引导空态 */
+/* 阅读挑战页:无账号时的引导空态 */
 #challenge-empty {
   background: var(--surface);
   border: 1px solid var(--border);
