@@ -1,5 +1,5 @@
 {
-  description = "Development environment for wxread";
+  description = "wxread - WeRead account management and automated reading";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -17,26 +17,47 @@
 
     forAllSystems = nixpkgs.lib.genAttrs systems;
   in {
-    devShells = forAllSystems (system: let
-      pkgs = import nixpkgs {
-        inherit system;
-      };
-    in {
-      default = pkgs.mkShell {
-        packages = with pkgs; [
-          # Go backend
-          go
-          gopls
-          golangci-lint
+    packages = forAllSystems (
+      system: let
+        pkgs = import nixpkgs {
+          inherit system;
+        };
+      in rec {
+        wxread = pkgs.callPackage ./nix/wxread.nix {};
+        default = wxread;
+      }
+    );
 
-          # Frontend tooling
-          nodejs
-          pnpm
-
-          # Local development utilities
-          sqlite
-        ];
+    apps = forAllSystems (system: rec {
+      wxread = {
+        type = "app";
+        program = "${self.packages.${system}.wxread}/bin/wxread";
       };
+      default = wxread;
     });
+
+    devShells = forAllSystems (
+      system: let
+        pkgs = import nixpkgs {
+          inherit system;
+        };
+      in {
+        default = pkgs.mkShell {
+          packages = with pkgs; [
+            # Go backend
+            go
+            gopls
+            golangci-lint
+
+            # Frontend tooling
+            nodejs
+            pnpm
+
+            # Local development utilities
+            sqlite
+          ];
+        };
+      }
+    );
   };
 }
