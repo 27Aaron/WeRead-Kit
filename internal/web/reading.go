@@ -62,13 +62,13 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	running, paused := farmState(vid)
+	running := farmRunning(vid)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"vid": cfg.Vid, "enabled": cfg.Enabled, "book_ids": cfg.BookIDs,
 		"minutes": cfg.Minutes, "run_at": cfg.RunAt,
 		"last_run_date": cfg.LastRunDate, "last_run_at": cfg.LastRunAt, "last_status": cfg.LastStatus,
 		"run_book_id": cfg.RunBookID, "run_done": cfg.RunDone, "run_total": cfg.RunTotal,
-		"running": running, "paused": paused,
+		"running": running,
 	})
 }
 
@@ -107,7 +107,7 @@ func (s *Server) handleReadingRun(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"started": true, "resumed": task.Done > 0})
 }
 
-// farmSessions 记录每个账号进行中的阅读会话句柄(取消函数 + 暂停控制)。
+// farmSessions 记录每个账号进行中的阅读会话句柄(取消函数 + 停止标记)。
 var farmSessions = struct {
 	sync.Mutex
 	m map[string]*farmSessionHandle
@@ -118,14 +118,11 @@ type farmSessionHandle struct {
 	ctrl   *weread.FarmControl
 }
 
-func farmState(vid string) (running, paused bool) {
+func farmRunning(vid string) bool {
 	farmSessions.Lock()
 	defer farmSessions.Unlock()
-	h, ok := farmSessions.m[vid]
-	if !ok {
-		return false, false
-	}
-	return true, h.ctrl.IsPaused()
+	_, ok := farmSessions.m[vid]
+	return ok
 }
 
 func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Credentials) bool {
@@ -224,31 +221,6 @@ func (s *Server) ResumeInterrupted() {
 		s.logf("info", "farm", cfg.Vid, "续跑上次未完成的阅读会话(已完成 %.1f/%.1f 分钟)", float64(done)*0.5, float64(total)*0.5)
 		s.startFarm(cfg.Vid, weread.FarmTask{BookID: bookID, Done: done, Total: total}, toWeread(c))
 	}
-}
-
-// handleReadingPause 暂停/继续进行中的阅读会话。
-// 已暂停时调用即继续;暂停不影响当日执行标记,继续后刷完剩余时长。
-func (s *Server) handleReadingPause(w http.ResponseWriter, r *http.Request) {
-	vid := r.PathValue("vid")
-	farmSessions.Lock()
-	h, ok := farmSessions.m[vid]
-	farmSessions.Unlock()
-	if !ok {
-		writeErr(w, http.StatusConflict, errors.New("没有进行中的阅读会话"))
-		return
-	}
-	today := time.Now().Format("2006-01-02")
-	var paused bool
-	if h.ctrl.IsPaused() {
-		h.ctrl.Resume()
-		_ = store.SaveReadingRunState(s.db, vid, today, "阅读中…", nil)
-		paused = false
-	} else {
-		h.ctrl.Pause()
-		_ = store.SaveReadingRunState(s.db, vid, today, "已暂停(点「继续阅读」恢复)", nil)
-		paused = true
-	}
-	writeJSON(w, http.StatusOK, map[string]bool{"running": true, "paused": paused})
 }
 
 // handleReadingStop 终止进行中的阅读会话。已上报的时长服务端已记账,不会回滚;

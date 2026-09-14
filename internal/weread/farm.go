@@ -15,87 +15,29 @@ const (
 	farmMaxConsecutiveFails = 3  // 连续失败上限,超过则中止会话
 )
 
-// FarmControl 允许外部暂停/继续/停止一场进行中的阅读会话。
+// FarmControl 允许外部标记停止一场进行中的阅读会话。
 // 零值不可用,须经 NewFarmControl 创建;可安全并发调用。
+// 停止的实际退出由会话 ctx 取消驱动,这里只负责区分「用户停止」与「异常中断」。
 type FarmControl struct {
 	mu      sync.Mutex
-	paused  bool
 	stopped bool
-	wake    chan struct{}
 }
 
 func NewFarmControl() *FarmControl {
-	return &FarmControl{wake: make(chan struct{})}
+	return &FarmControl{}
 }
 
-func (fc *FarmControl) changed() {
-	close(fc.wake)
-	fc.wake = make(chan struct{})
-}
-
-// Pause 暂停心跳;已停止的会话不可再暂停。
-func (fc *FarmControl) Pause() {
-	fc.mu.Lock()
-	defer fc.mu.Unlock()
-	if !fc.paused && !fc.stopped {
-		fc.paused = true
-		fc.changed()
-	}
-}
-
-// Resume 恢复暂停中的会话。
-func (fc *FarmControl) Resume() {
-	fc.mu.Lock()
-	defer fc.mu.Unlock()
-	if fc.paused {
-		fc.paused = false
-		fc.changed()
-	}
-}
-
-// Stop 终止会话:暂停等待立即退出,心跳间隔的 sleep 经由 ctx 取消。
+// Stop 标记会话为用户主动停止。
 func (fc *FarmControl) Stop() {
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
-	if !fc.stopped {
-		fc.stopped = true
-		fc.paused = false
-		fc.changed()
-	}
-}
-
-func (fc *FarmControl) IsPaused() bool {
-	fc.mu.Lock()
-	defer fc.mu.Unlock()
-	return fc.paused
+	fc.stopped = true
 }
 
 func (fc *FarmControl) Stopped() bool {
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
 	return fc.stopped
-}
-
-// WaitWhilePaused 阻塞直到恢复/停止/ctx 取消。
-func (fc *FarmControl) WaitWhilePaused(ctx context.Context) error {
-	for {
-		fc.mu.Lock()
-		if fc.stopped {
-			fc.mu.Unlock()
-			return context.Canceled
-		}
-		if !fc.paused {
-			fc.mu.Unlock()
-			return nil
-		}
-		wake := fc.wake
-		fc.mu.Unlock()
-		select {
-		case <-wake:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
 }
 
 // FarmResult 是一次阅读会话的结果汇总。
@@ -137,7 +79,7 @@ func NewFarmTask(bookIDs []string, minutes int) FarmTask {
 // FarmSession 执行一次阅读会话:从 bookIDs 随机选一本,阅读 minutes 分钟。
 // 会话中途 Cookie 失效会自动续期(重新桥接;必要时刷新移动端凭据)继续刷。
 // 返回的 next 非 nil 表示移动端凭据已轮换,调用方必须持久化。
-// ctrl 可为 nil(如 CLI 场景);非 nil 时支持暂停/继续/停止。
+// ctrl 可为 nil(如 CLI 场景);非 nil 时可由外部标记停止。
 func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmTask, onProgress FarmProgress, ctrl *FarmControl) (*FarmResult, *Credentials, error) {
 	if task.BookID == "" {
 		return nil, nil, errors.New("未选择要阅读的书籍")
@@ -176,12 +118,6 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 	consecutiveFails := 0
 
 	for beat := task.Done; beat < task.Total; beat++ {
-		if ctrl != nil {
-			if err := ctrl.WaitWhilePaused(ctx); err != nil {
-				result.Err = "已停止"
-				return result, active, nil
-			}
-		}
 		if beat > task.Done {
 			if err := sleepCtx(ctx, farmHeartbeatSeconds*time.Second); err != nil {
 				result.Err = "已取消"
