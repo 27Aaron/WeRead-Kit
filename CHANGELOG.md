@@ -1,5 +1,25 @@
 # 更新日志
 
+## [v0.1.6] - 2026-09-14
+
+### 破坏性变更
+
+- 项目更名:**wxread → WeRead-Kit**(仓库、Go module、Nix 包、镜像、文档全部同步)
+- 环境变量前缀:`WXREAD_*` → `WEREAD_*`
+- 默认数据库文件:`data/wxread.db` → `data/weread.db`;compose 卷、登录 cookie、主题存储键同步更名
+- 不做旧数据自动迁移:升级后直接重建(重新扫码添加账号)
+
+### 新功能
+
+- 新增 `GET /healthz` 与 `GET /readyz` 健康检查端点(绕过登录鉴权,readyz 会探测数据库)
+- 容器以非 root 用户 `weread` 运行,镜像补充 `tzdata` 与 `wget`
+- CI 发布流程新增 checks 关卡(`go test -race` + `go vet`),通过后才构建容器镜像
+
+### 修复
+
+- 启动时校验 `WEREAD_USERNAME` / `WEREAD_PASSWORD` 必须同时设置或同时留空,配置错误快速失败
+- 数据库连接启用 `PRAGMA foreign_keys = ON`
+
 ## [v0.1.5] - 2026-09-14
 
 ### 新功能
