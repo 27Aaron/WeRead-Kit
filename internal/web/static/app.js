@@ -1,7 +1,7 @@
 /* wxread Web UI:账号管理、扫码登录、挑战赛、日志与推送设置。
    无框架,原生 fetch;图标来自 lucide.js 提供的 SVG 路径数据。 */
 
-const ICONS = {"search": "<path d=\"m21 21-4.34-4.34\" /> <circle cx=\"11\" cy=\"11\" r=\"8\" />", "chevron-down": "<path d=\"m6 9 6 6 6-6\" />", "x": "<path d=\"M18 6 6 18\" /> <path d=\"m6 6 12 12\" />", "refresh-cw": "<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\" /> <path d=\"M21 3v5h-5\" /> <path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\" /> <path d=\"M8 16H3v5\" />", "book-open": "<path d=\"M12 5v16\" /> <path d=\"M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z\" />", "circle-check": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"m16 9-5.5 5.5L8 12\" />", "settings-2": "<path d=\"M14 17H5\" /> <path d=\"M19 7h-9\" /> <circle cx=\"17\" cy=\"17\" r=\"3\" /> <circle cx=\"7\" cy=\"7\" r=\"3\" />", "plus": "<path d=\"M5 12h14\" /> <path d=\"M12 5v14\" />", "check": "<path d=\"M20 6 9 17l-5-5\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "square": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" />", "play": "<path d=\"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z\" />", "send": "<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\" /> <path d=\"m21.854 2.147-10.94 10.939\" />", "trash": "<path d=\"M10 11v6\" /> <path d=\"M14 11v6\" /> <path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\" /> <path d=\"M3 6h18\" /> <path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\" />", "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\" /> <path d=\"M12 2v2\" /> <path d=\"M12 20v2\" /> <path d=\"m4.93 4.93 1.41 1.41\" /> <path d=\"m17.66 17.66 1.41 1.41\" /> <path d=\"M2 12h2\" /> <path d=\"M20 12h2\" /> <path d=\"m6.34 17.66-1.41 1.41\" /> <path d=\"m19.07 4.93-1.41 1.41\" />", "scroll-text": "<path d=\"M15 12h-5\" /> <path d=\"M15 8h-5\" /> <path d=\"M19 17V5a2 2 0 0 0-2-2H4\" /> <path d=\"M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3\" />", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 6v6l4 2\" />", "user":'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
+const ICONS = {"search": "<path d=\"m21 21-4.34-4.34\" /> <circle cx=\"11\" cy=\"11\" r=\"8\" />", "gift": "<rect x=\"3\" y=\"8\" width=\"18\" height=\"4\" rx=\"1\" /><path d=\"M12 8v13\" /><path d=\"M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7\" /><path d=\"M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5\" />", "chevron-down": "<path d=\"m6 9 6 6 6-6\" />", "x": "<path d=\"M18 6 6 18\" /> <path d=\"m6 6 12 12\" />", "refresh-cw": "<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\" /> <path d=\"M21 3v5h-5\" /> <path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\" /> <path d=\"M8 16H3v5\" />", "book-open": "<path d=\"M12 5v16\" /> <path d=\"M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z\" />", "circle-check": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"m16 9-5.5 5.5L8 12\" />", "settings-2": "<path d=\"M14 17H5\" /> <path d=\"M19 7h-9\" /> <circle cx=\"17\" cy=\"17\" r=\"3\" /> <circle cx=\"7\" cy=\"7\" r=\"3\" />", "plus": "<path d=\"M5 12h14\" /> <path d=\"M12 5v14\" />", "check": "<path d=\"M20 6 9 17l-5-5\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "square": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" />", "play": "<path d=\"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z\" />", "send": "<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\" /> <path d=\"m21.854 2.147-10.94 10.939\" />", "trash": "<path d=\"M10 11v6\" /> <path d=\"M14 11v6\" /> <path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\" /> <path d=\"M3 6h18\" /> <path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\" />", "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\" /> <path d=\"M12 2v2\" /> <path d=\"M12 20v2\" /> <path d=\"m4.93 4.93 1.41 1.41\" /> <path d=\"m17.66 17.66 1.41 1.41\" /> <path d=\"M2 12h2\" /> <path d=\"M20 12h2\" /> <path d=\"m6.34 17.66-1.41 1.41\" /> <path d=\"m19.07 4.93-1.41 1.41\" />", "scroll-text": "<path d=\"M15 12h-5\" /> <path d=\"M15 8h-5\" /> <path d=\"M19 17V5a2 2 0 0 0-2-2H4\" /> <path d=\"M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3\" />", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 6v6l4 2\" />", "user":'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
   "user": '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
   "users-round": "<path d=\"M18 21a8 8 0 0 0-16 0\" /> <circle cx=\"10\" cy=\"8\" r=\"5\" /> <path d=\"M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3\" />", "pause": "<rect x=\"14\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\" /> <rect x=\"5\" y=\"3\" width=\"5\" height=\"18\" rx=\"1\" />", "monitor": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\" /> <line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\" /> <line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\" />", "minus": "<path d=\"M5 12h14\" />", "moon": "<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />", "menu": "<path d=\"M4 6h16\" /> <path d=\"M4 12h16\" /> <path d=\"M4 18h16\" />", "alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 20h16a2 2 0 0 0 1.73-2\" /> <path d=\"M12 9v4\" /> <path d=\"M12 17h.01\" />", "info": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 16v-4\" /> <path d=\"M12 8h.01\" />"};
 
@@ -66,7 +66,7 @@ let currentView = "accounts";
 
 function setView(view) {
   currentView = view;
-  for (const name of ["accounts", "challenge", "logs", "settings"]) {
+  for (const name of ["accounts", "reading", "challenge", "logs", "settings"]) {
     $("#view-" + name).classList.toggle("hidden", view !== name);
   }
   $$(".nav-item").forEach((el) => {
@@ -172,6 +172,7 @@ $$(".nav-item").forEach((el) => {
     closeMobileNav();
     const view = el.dataset.view;
     setView(view);
+    if (view === "reading") openReading();
     if (view === "challenge") openChallenge();
     if (view === "logs") openLogs();
     if (view === "settings") loadPushChannels();
@@ -850,6 +851,273 @@ async function stopChallenge() {
 
 $("#challenge-run").addEventListener("click", () => (challengeRunning ? stopChallenge() : runChallengeNow()));
 $("#challenge-goto-accounts").addEventListener("click", () => {
+  setView("accounts");
+  loadAccounts();
+});
+
+/* ---------- 我的阅读(周阅读奖励) ---------- */
+
+let readingAlias = null;
+let readingData = null;
+let readingCard = null;
+let readingPrefs = {};
+let weeklyRequest = 0;
+
+async function openReading() {
+  setView("reading");
+  const accounts = allAccounts.length ? allAccounts : await api("/api/accounts").catch(() => []);
+  const sel = $("#reading-account");
+  sel.textContent = "";
+  if (!accounts.length) {
+    $("#reading-empty").classList.remove("hidden");
+    $$("#view-reading .panel, #reading-stats").forEach((el) => el.classList.add("hidden"));
+    readingAlias = null;
+    return;
+  }
+  $("#reading-empty").classList.add("hidden");
+  $$("#view-reading .panel, #reading-stats").forEach((el) => el.classList.remove("hidden"));
+  if (!accounts.some((a) => a.vid === readingAlias)) readingAlias = accounts[0].vid;
+  for (const a of accounts) {
+    const opt = document.createElement("option");
+    opt.value = a.vid;
+    opt.textContent = displayName(a);
+    sel.append(opt);
+  }
+  sel.value = readingAlias;
+  await loadWeekly();
+}
+
+function resetWeeklyUI() {
+  // 加载前清空全部动态区域:切换账号后不能残留上一账号的数据。
+  readingData = null;
+  readingCard = null;
+  readingPrefs = {};
+  for (const id of ["reading-stat-time", "reading-stat-week-detail", "reading-stat-days",
+    "reading-stat-month", "reading-stat-month-detail", "reading-stat-card", "reading-stat-card-sub"]) {
+    $("#" + id).textContent = "—";
+  }
+  $("#reading-time-progress-label").textContent = "";
+  $("#reading-day-progress-label").textContent = "";
+  $("#reading-rules").textContent = "";
+}
+
+async function loadWeekly() {
+  if (!readingAlias) return;
+  const request = ++weeklyRequest;
+  resetWeeklyUI();
+  $("#reading-time-awards").innerHTML = '<p class="empty">正在加载…</p>';
+  $("#reading-day-awards").innerHTML = '<p class="empty">正在加载…</p>';
+  try {
+    const d = await api(`/api/accounts/${encodeURIComponent(readingAlias)}/weekly`);
+    if (request !== weeklyRequest) return;
+    readingData = d.weekly || {};
+    readingCard = d.card || null;
+    readingPrefs = d.prefs || {};
+    renderWeekly();
+  } catch (err) {
+    if (request !== weeklyRequest) return;
+    const msg = `加载失败:${escapeHtml(err.message)}`;
+    $("#reading-time-awards").innerHTML = `<p class="empty">${msg}</p>`;
+    $("#reading-day-awards").innerHTML = `<p class="empty">${msg}</p>`;
+  }
+}
+
+// 秒数 → 「X 小时 Y 分钟」;不足 1 分钟按秒展示。
+function fmtDuration(sec) {
+  sec = Math.max(0, Math.floor(sec || 0));
+  if (sec === 0) return "0 分钟";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h > 0) return m > 0 ? `${h} 小时 ${m} 分钟` : `${h} 小时`;
+  return m > 0 ? `${m} 分钟` : `${sec} 秒`;
+}
+
+// 「读 30 分钟」「读 1 小时」「读 2 天」→ 秒数 / 天数,用于进度条。
+function parseLevelGoal(desc) {
+  const sec = desc && desc.match(/读 (\d+) 分钟/);
+  if (sec) return { seconds: Number(sec[1]) * 60 };
+  const hour = desc && desc.match(/读 (\d+) 小时/);
+  if (hour) return { seconds: Number(hour[1]) * 3600 };
+  const day = desc && desc.match(/读 (\d+) 天/);
+  if (day) return { days: Number(day[1]) };
+  return {};
+}
+
+// 奖品描述:优先用档位的 awardChoices 自行拼接(统一叫体验卡),
+// 没有明细时退回服务端原文并把"无限卡"替换为"体验卡"。
+function choicesDesc(a) {
+  const choices = a.awardChoices || [];
+  if (choices.length) {
+    return "可得 " + choices
+      .map((c) => (c.choiceType === 1 ? `体验卡 ${c.awardNum} 天` : `书币 ${c.awardNum} 个`))
+      .join(" 或 ");
+  }
+  return String(a.awardChoicesDesc || "").replaceAll("无限卡", "体验卡");
+}
+
+function weeklyCard(a, weekly, prefs) {
+  const goal = parseLevelGoal(a.awardLevelDesc);
+  const claimed = a.awardStatus === 2;
+  const claimable = a.awardStatus === 1;
+  const locked = a.awardStatus === 0;
+  const prefChoice = Number(prefs[a.awardLevelId]) || 0;
+
+  const card = document.createElement("div");
+  card.className = "reward-card";
+
+  const top = document.createElement("div");
+  top.className = "reward-top";
+  top.innerHTML = `<span class="reward-title">${escapeHtml(a.awardLevelDesc || "阅读奖励")}</span>`;
+  const badge = document.createElement("span");
+  badge.className = "award-badge";
+  badge.textContent = a.awardStatusDesc || (claimed ? "已领取" : claimable ? "可领取" : "未达成");
+  top.append(badge);
+  card.append(top);
+
+  const desc = document.createElement("div");
+  desc.className = "reward-desc";
+  desc.textContent = choicesDesc(a);
+  card.append(desc);
+
+  // 进度条:时长奖励按本周秒数,天数奖励按本周天数;右侧标注当前进度。
+  // 达成/已领取的档位进度条保持 100% 展示。
+  if (goal.seconds || goal.days) {
+    const done = goal.seconds ? weekly.readingTime : weekly.readingDay;
+    const need = goal.seconds || goal.days;
+    const pct = Math.min(100, Math.round((done / need) * 100));
+    let label = goal.seconds
+      ? `${Math.floor(done / 60)} / ${need / 60} 分钟`
+      : `${done} / ${need} 天`;
+    if (goal.seconds && need >= 3600) {
+      // 小时档位用小时计("1 / 3 小时"),分钟档位用分钟计。
+      label = `${Math.round((done / 3600) * 10) / 10} / ${need / 3600} 小时`;
+    }
+    const row = document.createElement("div");
+    row.className = "reward-progress-row";
+    row.innerHTML = `<div class="reward-progress"><i style="width:${pct}%"></i></div>`;
+    const tag = document.createElement("span");
+    tag.className = "reward-progress-label";
+    tag.textContent = label;
+    row.append(tag);
+    card.append(row);
+  }
+
+  // 双按钮:书币 / 体验卡。任何时候都可点击 —— 点击保存每周的自动领取设置,
+  // 设置写入数据库;若当前正好可领取,保存后立即领取一次。选中项以描边色标识。
+  const actions = document.createElement("div");
+  actions.className = "reward-actions";
+  for (const c of a.awardChoices || []) {
+    const isCard = c.choiceType === 1;
+    const name = isCard ? "体验卡" : "书币";
+    const val = `${c.awardNum}${isCard ? " 天" : " 个"}`;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "reward-btn";
+    btn.title = `设为每周自动领取:${name} ${val}`;
+    if (claimable) {
+      btn.classList.add("claimable");
+      btn.textContent = `${name} ${val}`;
+    } else {
+      // 选中描边由保存的设置决定,与本周是否领取过无关:已领取的档位换选另
+      // 一种后,描边移动到新选项上,表示下周起自动领取它。
+      const selected = prefChoice === c.choiceType;
+      const claimedThisWeek = claimed && a.awardChooseType === c.choiceType;
+      btn.classList.add(selected ? "selected" : "plain");
+      if (claimedThisWeek) {
+        btn.classList.add("claimed");
+        btn.textContent = `✓ ${name} ${val}`;
+      } else {
+        btn.textContent = `${name} ${val}`;
+      }
+    }
+    btn.addEventListener("click", () => saveRewardChoice(a, c, btn));
+    actions.append(btn);
+  }
+  card.append(actions);
+  return card;
+}
+
+function renderWeekly() {
+  const w = readingData || {};
+  $("#reading-stat-time").textContent = fmtDuration(w.readingTime);
+  const weekDetail = w.weekReadDaysDetail || { readDays: [] };
+  const weekParts = (weekDetail.readDays || [])
+    .filter((s) => s > 0)
+    .map((s) => fmtDuration(s));
+  $("#reading-stat-week-detail").textContent =
+    weekParts.length ? weekParts.join(" · ") : "本周还没有阅读记录";
+  $("#reading-stat-days").textContent = `${w.readingDay ?? 0} 天`;
+  $("#reading-stat-month").textContent = fmtDuration((w.monthReadDaysDetail || {}).readTimes);
+  const monthDays = ((w.monthReadDaysDetail || {}).readDays || []).filter((s) => s > 0).length;
+  $("#reading-stat-month-detail").textContent = `本月有 ${monthDays} 天读过`;
+  // 无限卡剩余天数以详情缓存的会员卡信息为准(官方 memberCardSummary 接口),
+  // weekly 里的 infiniteCard 字段不反映真实余额,仅作兜底。
+  const mc = readingCard || {};
+  const ic = w.infiniteCard || {};
+  if (mc.has) {
+    $("#reading-stat-card").textContent = `${mc.days} 天`;
+    $("#reading-stat-card-sub").textContent = `${fmtDay(mc.expired_at)} 到期`;
+  } else if (ic.day > 0) {
+    $("#reading-stat-card").textContent = `${ic.day} 天`;
+    $("#reading-stat-card-sub").textContent = ic.paying ? "付费会员" : ic.cardType === "novice" ? "新手卡" : "免费体验";
+  } else {
+    $("#reading-stat-card").textContent = "无";
+    $("#reading-stat-card-sub").textContent = "还没有可用的体验卡";
+  }
+
+  // 时长奖励按档位秒数从小到大排序,天数奖励同理。
+  const byGoal = (a, b) => {
+    const ga = parseLevelGoal(a.awardLevelDesc) || {};
+    const gb = parseLevelGoal(b.awardLevelDesc) || {};
+    return (ga.seconds || (ga.days || 0) * 86400) - (gb.seconds || (gb.days || 0) * 86400);
+  };
+  const timeGrid = $("#reading-time-awards");
+  timeGrid.textContent = "";
+  for (const a of [...(w.readtimeAwards || [])].sort(byGoal)) timeGrid.append(weeklyCard(a, w, readingPrefs));
+  $("#reading-time-progress-label").innerHTML = `本周已读 <b>${escapeHtml(fmtDuration(w.readingTime))}</b>`;
+
+  const dayGrid = $("#reading-day-awards");
+  dayGrid.textContent = "";
+  for (const a of [...(w.readdayAwards || [])].sort(byGoal)) dayGrid.append(weeklyCard(a, w, readingPrefs));
+  $("#reading-day-progress-label").innerHTML = `本周已读 <b>${w.readingDay ?? 0} 天</b>`;
+
+  const rules = $("#reading-rules");
+  rules.textContent = "";
+  for (const rule of w.rewardRules || []) {
+    const li = document.createElement("li");
+    li.textContent = rule;
+    rules.append(li);
+  }
+}
+
+/* ---------- 奖品选择(保存每周设置,由调度器自动领取) ---------- */
+
+function choiceLabel(choiceType, num) {
+  return choiceType === 1 ? `体验卡 ${num} 天` : `书币 ${num} 个`;
+}
+
+async function saveRewardChoice(a, c, btn) {
+  btn.disabled = true;
+  try {
+    const p = await api(`/api/accounts/${encodeURIComponent(readingAlias)}/weekly/pref`, {
+      method: "POST",
+      body: JSON.stringify({ award_level_id: a.awardLevelId, choice_type: c.choiceType }),
+    });
+    readingPrefs = p.prefs || {};
+    toast(`设置已保存:将自动领取${choiceLabel(c.choiceType, c.awardNum)}`, "ok");
+    renderWeekly();
+  } catch (err) {
+    toast(`设置保存失败:${err.message}`, "error");
+    btn.disabled = false;
+  }
+}
+
+$("#reading-account").addEventListener("change", (e) => {
+  readingAlias = e.target.value;
+  loadWeekly();
+});
+$("#reading-reload").addEventListener("click", loadWeekly);
+$("#reading-goto-accounts").addEventListener("click", () => {
   setView("accounts");
   loadAccounts();
 });

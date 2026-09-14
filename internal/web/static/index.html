@@ -27,6 +27,9 @@
       <a class="nav-item active" href="#accounts" data-view="accounts">
         <span class="nav-icon" data-icon="users-round"></span>我的账号
       </a>
+      <a class="nav-item" href="#reading" data-view="reading">
+        <span class="nav-icon" data-icon="gift"></span>我的阅读
+      </a>
       <a class="nav-item" href="#challenge" data-view="challenge">
         <span class="nav-icon" data-icon="book-open"></span>挑战赛
       </a>
@@ -74,6 +77,74 @@
             <h3 id="empty-title">从连接第一个账号开始</h3>
             <p id="empty-desc">用微信扫一扫,即可把阅读账号添加到这里。</p>
           </div>
+        </div>
+      </section>
+
+      <!-- 我的阅读 -->
+      <section id="view-reading" class="view hidden">
+        <div class="page-head">
+          <div class="page-head-copy">
+            <h1 class="page-title">我的阅读</h1>
+          </div>
+          <div class="page-actions">
+            <label class="field">账号
+              <select id="reading-account" class="select"></select>
+            </label>
+            <button id="reading-reload" class="btn"><span class="nav-icon" data-icon="refresh-cw"></span>刷新</button>
+          </div>
+        </div>
+
+        <div id="reading-stats" class="reading-stats">
+          <div class="stat">
+            <div class="stat-label">本周阅读时长</div>
+            <div class="stat-value" id="reading-stat-time">—</div>
+            <div class="stat-sub" id="reading-stat-week-detail">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">本周阅读天数</div>
+            <div class="stat-value" id="reading-stat-days">—</div>
+            <div class="stat-sub">当日阅读 ≥ 1 分钟记为 1 天</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">本月阅读时长</div>
+            <div class="stat-value" id="reading-stat-month">—</div>
+            <div class="stat-sub" id="reading-stat-month-detail">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">无限卡</div>
+            <div class="stat-value" id="reading-stat-card">—</div>
+            <div class="stat-sub" id="reading-stat-card-sub">—</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-bar">
+            <span class="panel-title">阅读时长奖励</span>
+            <span class="panel-note" id="reading-time-progress-label">—</span>
+          </div>
+          <div id="reading-time-awards" class="reward-grid"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-bar">
+            <span class="panel-title">阅读天数奖励</span>
+            <span class="panel-note" id="reading-day-progress-label">—</span>
+          </div>
+          <div id="reading-day-awards" class="reward-grid"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-bar">
+            <span class="panel-title">活动规则</span>
+          </div>
+          <ul id="reading-rules" class="reading-rules"></ul>
+        </div>
+
+        <div id="reading-empty" class="empty hidden">
+          <span class="nav-icon" data-icon="gift"></span>
+          <h3>还没有账号</h3>
+          <p>先到「我的账号」扫码添加一个,再回来看阅读奖励。</p>
+          <button id="reading-goto-accounts" class="btn primary">去添加账号</button>
         </div>
       </section>
 
