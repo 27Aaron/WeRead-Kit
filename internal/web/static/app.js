@@ -8,6 +8,11 @@ const ICONS = {"search": "<path d=\"m21 21-4.34-4.34\" /> <circle cx=\"11\" cy=\
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
+async function checkAppVersion() {
+  try { const v = await fetch('/api/version').then(r => r.json()); const el = $('#app-version'); if (!el) return; el.textContent = `v${v.current_version || '0.0.9'}`; if (v.has_update) { el.classList.add('has-update'); const pop = $('#version-popover'); pop.innerHTML = `<strong>发现新版本</strong><p>最新版本：${v.latest_version}</p>${v.html_url ? `<a href="${v.html_url}" target="_blank" rel="noreferrer">查看详情 →</a>` : ''}`; el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); pop.classList.toggle('hidden'); }); document.addEventListener('click', (e) => { if (!el.contains(e.target) && !pop.contains(e.target)) pop.classList.add('hidden'); }); } } catch (_) {}
+}
+setTimeout(checkAppVersion, 300);
+
 /* ---------- 通用工具 ---------- */
 
 function iconSvg(name) {

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io/fs"
 	"net/http"
+	"io"
 	"os"
 	"time"
 
@@ -41,6 +42,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	// 静态资源禁用浏览器缓存:改版后强刷不再是必要操作(本地应用,无性能顾虑)。
 	mux.HandleFunc("GET /login", s.handleLoginPage)
+	mux.HandleFunc("GET /api/version", s.handleVersion)
 	mux.HandleFunc("POST /login", s.handleLoginPost)
 	mux.Handle("GET /", s.auth(noStore(http.FileServerFS(sub))))
 	mux.HandleFunc("GET /api/accounts", s.handleListAccounts)
@@ -67,7 +69,14 @@ func (s *Server) Handler() http.Handler {
 	return s.auth(mux)
 }
 
-func (s *Server) auth(next http.Handler) http.Handler { return http.HandlerFunc(func(w http.ResponseWriter,r *http.Request) { if r.URL.Path == "/login" || r.URL.Path == "/favicon.png" { next.ServeHTTP(w,r); return }; if s.username=="" && s.password=="" { next.ServeHTTP(w,r); return }; c,_:=r.Cookie("wxread_session"); if c==nil || c.Value!="ok" { http.Redirect(w,r,"/login",http.StatusFound); return }; next.ServeHTTP(w,r) }) }
+func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
+	resp, err := http.Get("https://api.github.com/repos/27Aaron/wxread/releases/latest")
+	if err != nil { writeJSON(w, http.StatusOK, map[string]any{"current_version": Version, "has_update": false}); return }
+	defer resp.Body.Close(); body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20)); var rel struct{ TagName string `json:"tag_name"`; Name string `json:"name"`; Body string `json:"body"`; HTMLURL string `json:"html_url"`; PublishedAt string `json:"published_at"` }; if json.Unmarshal(body, &rel) != nil { writeJSON(w, 200, map[string]any{"current_version": Version, "has_update": false}); return }
+	writeJSON(w, 200, map[string]any{"current_version": Version, "latest_version": rel.TagName, "has_update": rel.TagName != "" && rel.TagName != "v"+Version, "name": rel.Name, "body": rel.Body, "html_url": rel.HTMLURL, "published_at": rel.PublishedAt})
+}
+
+func (s *Server) auth(next http.Handler) http.Handler { return http.HandlerFunc(func(w http.ResponseWriter,r *http.Request) { if r.URL.Path == "/login" || r.URL.Path == "/favicon.png" || r.URL.Path == "/api/version" { next.ServeHTTP(w,r); return }; if s.username=="" && s.password=="" { next.ServeHTTP(w,r); return }; c,_:=r.Cookie("wxread_session"); if c==nil || c.Value!="ok" { http.Redirect(w,r,"/login",http.StatusFound); return }; next.ServeHTTP(w,r) }) }
 func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
  w.Header().Set("content-type", "text/html; charset=utf-8")
  errMsg := ""
