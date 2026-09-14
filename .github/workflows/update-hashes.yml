@@ -129,6 +129,8 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.UPDATE_PR_TOKEN || github.token }}
+          # tag 触发时检出的是 detached commit,必须显式指定 base 才能开 PR。
+          base: main
           author: "Aaron's Bot <155336205+3ayonara@users.noreply.github.com>"
           committer: "Aaron's Bot <155336205+3ayonara@users.noreply.github.com>"
           branch: automation/update-hashes
