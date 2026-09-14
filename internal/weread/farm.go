@@ -125,6 +125,14 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 			}
 		}
 		hasSync, err := c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+		// 心跳直接报会话过期(-2012):重新桥接(必要时刷新移动端凭据)后原地重试,
+		// 与下面"未记账"路径共用连续失败上限,连续恢复失败仍会中止并推送。
+		if errors.Is(err, ErrSessionExpired) {
+			cookie, active, err = c.renewSession(ctx, active, cookie)
+			if err == nil {
+				hasSync, err = c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+			}
+		}
 		if err == nil && !hasSync {
 			// 无 synckey = 阅读同步状态未对齐,先调 chapterInfos 修复(参考实现的
 			// fix_no_synckey 步骤),再原地重试本次心跳。
