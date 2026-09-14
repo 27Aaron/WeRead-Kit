@@ -3,38 +3,37 @@
 [![Release](https://img.shields.io/github/v/release/27Aaron/wxread)](https://github.com/27Aaron/wxread/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-微信读书账号管理与挑战赛工具,内置 Web UI。本地优先:账号凭据只存在你自己的机器上。
-
 ## 功能特性
 
-- **账号管理** —— 微信扫码添加账号;凭据存储于本地 SQLite(文件权限 `0600`),refreshToken 自动轮换续期
-- **挑战赛** —— 以 30 秒心跳模拟真实阅读上报;支持每日定时调度、断点续跑、指定书单(1 本固定阅读 / 多本随机阅读其中一本)
-- **推送通知** —— 支持 Bark、Telegram、Server酱、PushPlus;阅读完成 / 中断 / 失败自动推送
-- **Web UI** —— 暖纸色主题,深浅色自适应,窄屏响应式布局;运行日志自动刷新
-- **版本检查** —— 内置新版本检测与提醒
+- **账号管理**:微信扫码添加账号;凭据存储于本地 SQLite,自动轮换续期
+- **挑战赛**:以 30 秒心跳模拟真实阅读上报;支持每日定时调度、断点续跑、指定书单
+- **推送通知**:支持 Bark、Telegram、Server酱、PushPlus;
+- **Web UI**:暖纸色主题,深浅色自适应,窄屏响应式布局;运行日志自动刷新
+- **登录鉴权**:可选的账号密码保护,签名 cookie 7 天有效,带 CSRF 防护
 
 ## 快速开始
 
-### 下载二进制
-
-从 [Releases](https://github.com/27Aaron/wxread/releases) 下载对应平台的二进制(linux / darwin / windows × amd64 / arm64),解压后直接运行:
-
-```bash
-chmod +x wxread-<你的平台>
-./wxread-<你的平台>
-```
-
-### Docker
+### docker run
 
 ```bash
 docker run -d --name wxread \
   -p 8080:8080 \
+  --stop-signal SIGINT \
   -e WXREAD_HOST=0.0.0.0 \
   -v wxread-data:/data \
   ghcr.io/27aaron/wxread:latest
 ```
 
-多架构镜像(`linux/amd64`、`linux/arm64`)发布于 `ghcr.io/27aaron/wxread`,`latest` 跟随最新发布。
+> `--stop-signal SIGINT` 让容器停止时走应用的优雅退出路径;不配也能用,但停止会退化成等超时后强杀。
+
+### 下载二进制
+
+从 [Releases](https://github.com/27Aaron/wxread/releases) 下载对应平台的二进制文件
+
+```bash
+chmod +x wxread-<平台>
+./wxread-<平台>
+```
 
 ### 源码构建
 
@@ -64,7 +63,7 @@ nix profile install github:27Aaron/wxread  # 安装到 profile
 
 ## 使用教程
 
-启动后浏览器打开 `http://127.0.0.1:8080`,按下面顺序操作:
+启动后浏览器打开 `http://127.0.0.1:8080`。若配置了 `WXREAD_USERNAME` / `WXREAD_PASSWORD`,会先跳转到登录页(登录会话 7 天有效,服务重启不失效);未配置则直接进入。
 
 ### 1. 添加账号
 
@@ -75,14 +74,16 @@ nix profile install github:27Aaron/wxread  # 安装到 profile
 进入「挑战赛」页:
 
 1. **选择书籍**(必选):至少勾选 1 本;选 1 本固定阅读,选多本时随机阅读其中一本
-2. 点击「**保存配置**」——不选书无法保存
+2. 点击「**保存配置**」,不选书无法保存
 3. 按需调整「每天自动参与挑战赛」开关、开始时间(默认 03:00)和每天时长(默认 30 分钟)
 
 ### 3. 立即执行 / 停止
 
-点击「**立即执行**」立刻开始一场阅读会话(不打扰每日调度);会话进行中按钮会变成红色的「**停止阅读**」,点击即可终止。已上报的时长不会回滚,当日调度视为已完成。
+点击「**立即执行**」立刻开始一场阅读会话(不打扰每日调度);会话进行中按钮会变成红色的「**停止阅读**」,点击即可终止。已上报的时长不会回滚。
 
-> 会话每 30 秒记 0.5 分钟,页面会实时显示进度(如「阅读中 6.5/30 分钟」)。服务重启后会自动从断点续跑。
+> 会话每 30 秒记 0.5 分钟,页面会实时显示进度(如「阅读中 6.5/30 分钟」)。
+>
+> 断点续跑规则:**用户主动停止 = 当日视为结束**,再点「立即执行」会开一场全新的会话;**进程重启 / 异常退出 = 下次启动自动续跑**当日未完成的会话。
 
 ### 4. 查看运行日志
 
@@ -96,17 +97,27 @@ nix profile install github:27Aaron/wxread  # 安装到 profile
 
 日志出现「会话已过期」时,程序会自动尝试续期;若频繁失败,到「我的账号」对该账号「刷新数据」,仍不行就删除账号重新扫码登录。
 
+## 数据与备份
+
+所有状态都存在一个 SQLite 文件里(默认 `data/wxread.db`,容器部署为 `./data/`):
+
+- 包含:账号凭据、阅读配置、运行日志、Web 会话签名密钥
+- 数据库文件自动收紧权限为 `0600`
+- 备份 = 备份该目录;应用运行时持续写入,定期备份前建议先停服务
+
 ## 配置
 
 复制 `.env.example` 为 `.env`,或直接设置环境变量:
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `WXREAD_HOST` | `127.0.0.1` | 监听地址 |
+| `WXREAD_HOST` | `127.0.0.1` | 监听地址(容器内需设为 `0.0.0.0`) |
 | `WXREAD_PORT` | `8080` | 监听端口 |
 | `WXREAD_DB` | `data/wxread.db` | SQLite 数据库路径 |
-| `WXREAD_USERNAME` | 空 | Web 登录账号(设置后启用登录鉴权) |
+| `WXREAD_USERNAME` | 空 | Web 登录账号,与密码**同时配置**才启用登录鉴权 |
 | `WXREAD_PASSWORD` | 空 | Web 登录密码 |
+
+启用鉴权后,未登录访问页面会跳转登录页、访问 API 返回 401。
 
 ## 开发
 
@@ -114,13 +125,8 @@ nix profile install github:27Aaron/wxread  # 安装到 profile
 nix develop          # 进入开发环境(go / golangci-lint / nodejs 等)
 go build ./...       # 构建
 go test ./...        # 测试
+gofmt -l .           # 格式检查
 ```
-
-仓库自动化(维护者向):
-
-- 推送 `v*` 标签 → 构建全平台二进制与多架构镜像并发布 Release
-- tag 推送同时触发 `nix/hashes.json` 的版本与哈希更新 PR
-- 每日定时刷新 flake.lock
 
 ## 免责声明
 
