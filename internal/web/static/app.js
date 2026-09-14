@@ -639,6 +639,7 @@ $("#detail-reload").addEventListener("click", () => showDetails(detailAccount, t
 let challengeAlias = null;
 let challengeBooks = [];
 const challengePicked = new Set();
+let challengeRunning = false;
 let challengeRunTimer = null;
 
 async function openChallenge() {
@@ -702,7 +703,7 @@ function renderChallenge(d) {
     runatInput.value = runatValue;
   }
   $("#challenge-minutes-input").value = cfg.minutes || 30;
-  updateChallengeButtons(!!cfg.running, !!cfg.paused);
+  updateChallengeButtons(!!cfg.running);
   $("#challenge-laststatus").textContent = cfg.last_status
     ? `上次执行(${cfg.last_run_date || "—"}):${cfg.last_status}`
     : "尚未执行过";
@@ -750,14 +751,14 @@ function renderChallenge(d) {
   }
 }
 
-function updateChallengeButtons(running, paused) {
-  $("#challenge-run").disabled = running;
-  const pauseBtn = $("#challenge-pause");
-  const stopBtn = $("#challenge-stop");
-  pauseBtn.classList.toggle("hidden", !running);
-  stopBtn.classList.toggle("hidden", !running);
-  pauseBtn.textContent = paused ? "继续阅读" : "暂停";
-  pauseBtn.disabled = false;
+// 「立即执行」与「停止阅读」是同一个按钮:按会话状态切换文案、图标与配色。
+function updateChallengeButtons(running) {
+  challengeRunning = !!running;
+  const btn = $("#challenge-run");
+  btn.classList.toggle("danger", challengeRunning);
+  btn.innerHTML = challengeRunning
+    ? `<span class="nav-icon">${iconSvg("square")}</span>停止阅读`
+    : `<span class="nav-icon">${iconSvg("play")}</span>立即执行`;
 }
 
 $("#challenge-account").addEventListener("change", (e) => {
@@ -803,66 +804,39 @@ async function runChallengeNow() {
     btn.disabled = false;
     return;
   }
+  btn.disabled = false;
+  updateChallengeButtons(true);
   let polls = 0;
   if (challengeRunTimer) clearInterval(challengeRunTimer);
   challengeRunTimer = setInterval(async () => {
     polls++;
     try {
       const cfg = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`);
-      updateChallengeButtons(!!cfg.running, !!cfg.paused);
-      // 会话是否结束以 running 为准:暂停中会话仍在,轮询不能停。
+      updateChallengeButtons(!!cfg.running);
+      // 会话是否结束以 running 为准;结束后按钮回到「立即执行」。
       if (!cfg.running) {
         $("#challenge-laststatus").textContent = cfg.last_status || "已结束";
         clearInterval(challengeRunTimer);
-        btn.disabled = false;
         return;
       }
       $("#challenge-laststatus").textContent = cfg.last_status || "阅读中…";
     } catch { /* 单次轮询失败忽略 */ }
-    if (polls > 360) {
-      clearInterval(challengeRunTimer);
-      btn.disabled = false;
-    }
+    if (polls > 360) clearInterval(challengeRunTimer);
   }, 5000);
-}
-
-async function toggleChallengePause() {
-  if (!challengeAlias) return;
-  const btn = $("#challenge-pause");
-  btn.disabled = true;
-  const action = btn.textContent === "暂停" ? "pause" : "resume";
-  try {
-    const data = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/pause`, {
-      method: "POST",
-      body: JSON.stringify({ action }),
-    });
-    updateChallengeButtons(true, data.paused);
-    $("#challenge-laststatus").textContent = data.paused
-      ? "已暂停(剩余时长保留,点「继续阅读」恢复)"
-      : "阅读中…";
-  } catch (err) {
-    toast(`操作失败:${err.message}`, "error");
-  }
-  btn.disabled = false;
 }
 
 async function stopChallenge() {
   if (!challengeAlias) return;
   if (!confirm("确定停止本次阅读会话?已上报的时长会保留,当日不再重跑。")) return;
-  const btn = $("#challenge-stop");
-  btn.disabled = true;
   try {
     await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/stop`, { method: "POST" });
     $("#challenge-laststatus").textContent = "正在停止…";
   } catch (err) {
     toast(`停止失败:${err.message}`, "error");
-    btn.disabled = false;
   }
 }
 
-$("#challenge-run").addEventListener("click", runChallengeNow);
-$("#challenge-pause").addEventListener("click", toggleChallengePause);
-$("#challenge-stop").addEventListener("click", stopChallenge);
+$("#challenge-run").addEventListener("click", () => (challengeRunning ? stopChallenge() : runChallengeNow()));
 $("#challenge-goto-accounts").addEventListener("click", () => {
   setView("accounts");
   loadAccounts();
