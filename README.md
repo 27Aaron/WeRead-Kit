@@ -19,7 +19,7 @@
 
 ## 快速开始
 
-启动后浏览器打开 <http://127.0.0.1:8080>，账号数据默认写入当前目录的 `data/wxread.db`。
+启动后浏览器打开 <http://127.0.0.1:8080>，账号数据默认写入当前目录的 `data/weread.db`。
 
 ### Docker
 
@@ -27,8 +27,8 @@
 docker run -d --name weread-kit \
   -p 8080:8080 \
   --stop-signal SIGINT \
-  -e WXREAD_HOST=0.0.0.0 \
-  -v wxread-data:/data \
+  -e WEREAD_HOST=0.0.0.0 \
+  -v weread-data:/data \
   ghcr.io/27aaron/weread-kit:latest
 ```
 
@@ -61,7 +61,7 @@ nix profile install github:27Aaron/WeRead-Kit
 
 ```nix
 {
-  inputs.wxread.url = "github:27Aaron/WeRead-Kit";
+  inputs.weread-kit.url = "github:27Aaron/WeRead-Kit";
 }
 ```
 
@@ -89,7 +89,7 @@ go build -o weread-kit ./cmd/weread-kit && ./weread-kit
 - 阅读任务每 30 秒上报一次，页面会显示当前进度。
 - 用户主动停止任务后，当天不会自动续跑；程序崩溃、重启或异常退出则会在下次启动时恢复。
 - 会话过期时程序会自动尝试续期。持续失败时，在账号页刷新数据，必要时重新扫码。
-- 数据默认保存在 `data/wxread.db`；备份时请同时备份整个 `data/` 目录，并建议先停止服务。
+- 数据默认保存在 `data/weread.db`；备份时请同时备份整个 `data/` 目录，并建议先停止服务。
 
 ## 配置
 
@@ -97,11 +97,11 @@ go build -o weread-kit ./cmd/weread-kit && ./weread-kit
 
 | 变量 | 默认值 | 用途 |
 | --- | --- | --- |
-| `WXREAD_HOST` | `127.0.0.1` | 监听地址；容器中使用 `0.0.0.0` |
-| `WXREAD_PORT` | `8080` | Web 端口 |
-| `WXREAD_DB` | `data/wxread.db` | SQLite 数据库路径 |
-| `WXREAD_USERNAME` | 空 | Web 登录账号；需与密码同时设置 |
-| `WXREAD_PASSWORD` | 空 | Web 登录密码 |
+| `WEREAD_HOST` | `127.0.0.1` | 监听地址；容器中使用 `0.0.0.0` |
+| `WEREAD_PORT` | `8080` | Web 端口 |
+| `WEREAD_DB` | `data/weread.db` | SQLite 数据库路径 |
+| `WEREAD_USERNAME` | 空 | Web 登录账号；需与密码同时设置 |
+| `WEREAD_PASSWORD` | 空 | Web 登录密码 |
 
 ## 开发
 

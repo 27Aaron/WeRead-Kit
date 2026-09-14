@@ -100,7 +100,7 @@ func TestDeletePurgesLogs(t *testing.T) {
 // TestOpenRelativePath 回归:相对路径经 url.URL 构造 DSN 时,
 // 首段会被当成 URI authority(file://data/...),驱动报 invalid uri authority。
 func TestOpenRelativePath(t *testing.T) {
-	dir := "wxread-testdata-relative"
+	dir := "weread-kit-testdata-relative"
 	defer os.RemoveAll(dir)
 	db, err := Open(filepath.Join(dir, "test.db"))
 	if err != nil {

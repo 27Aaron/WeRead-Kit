@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS weread_account (
   created_at    INTEGER NOT NULL
 );`
 
-// DefaultPath 返回默认数据库路径:当前目录下的 data/wxread.db,
+// DefaultPath 返回默认数据库路径:当前目录下的 data/weread.db,
 // 即在项目根目录运行时落在 <项目根>/data/ 下。相对路径,随工作目录走。
 func DefaultPath() (string, error) {
-	return filepath.Join("data", "wxread.db"), nil
+	return filepath.Join("data", "weread.db"), nil
 }
 
 // Open 打开(必要时创建)数据库并执行迁移。

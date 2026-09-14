@@ -187,7 +187,7 @@ $("#theme-toggle").addEventListener("click", () => {
   const dark = document.documentElement.dataset.theme === "dark";
   const next = dark ? "light" : "dark";
   document.documentElement.dataset.theme = next;
-  localStorage.setItem("wxread-theme", next);
+  localStorage.setItem("weread-theme", next);
   syncThemeUI();
 });
 

@@ -10,7 +10,7 @@
   <script>
     // 启动前先确定主题,避免亮暗闪烁;优先取用户手动选择,其次跟随系统。
     document.documentElement.dataset.theme =
-      localStorage.getItem("wxread-theme") ||
+      localStorage.getItem("weread-theme") ||
       (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   </script>
   <link rel="stylesheet" href="https://gw.alipayobjects.com/os/k/jinkai/style.css" crossorigin="anonymous" />

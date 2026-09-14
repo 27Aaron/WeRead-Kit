@@ -52,7 +52,7 @@ func (s *Server) auth(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		c, err := r.Cookie("wxread_session")
+		c, err := r.Cookie("weread_session")
 		if err != nil || !s.validSession(c.Value) {
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				writeErr(w, http.StatusUnauthorized, errors.New("登录已过期，请重新登录"))
@@ -70,7 +70,7 @@ func (s *Server) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 		subtle.ConstantTimeCompare([]byte(r.Form.Get("username")), []byte(s.username)) == 1 &&
 		subtle.ConstantTimeCompare([]byte(r.Form.Get("password")), []byte(s.password)) == 1 {
 		expires := time.Now().Add(webSessionTTL)
-		http.SetCookie(w, &http.Cookie{Name: "wxread_session", Value: s.sessionToken(expires.Unix()), Path: "/", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode, Expires: expires, MaxAge: int(webSessionTTL.Seconds())})
+		http.SetCookie(w, &http.Cookie{Name: "weread_session", Value: s.sessionToken(expires.Unix()), Path: "/", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode, Expires: expires, MaxAge: int(webSessionTTL.Seconds())})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}

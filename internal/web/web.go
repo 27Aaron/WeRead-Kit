@@ -44,7 +44,7 @@ func New(db *sql.DB) *Server {
 	if err != nil {
 		panic(err)
 	}
-	return &Server{ctx: ctx, cancel: cancel, sessionKey: []byte(key), farms: map[string]*farmSessionHandle{}, db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WXREAD_USERNAME"), password: os.Getenv("WXREAD_PASSWORD")}
+	return &Server{ctx: ctx, cancel: cancel, sessionKey: []byte(key), farms: map[string]*farmSessionHandle{}, db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WEREAD_USERNAME"), password: os.Getenv("WEREAD_PASSWORD")}
 }
 
 func (s *Server) Handler() http.Handler {
