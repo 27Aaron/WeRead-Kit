@@ -239,5 +239,9 @@ func Delete(db *sql.DB, vid string) error {
 	if _, err := tx.Exec(`DELETE FROM weread_reading WHERE vid = ?`, vid); err != nil {
 		return err
 	}
+	// 历史日志一并清理,避免日志页残留已删除账号的条目。
+	if _, err := tx.Exec(`DELETE FROM weread_log WHERE vid = ?`, vid); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
