@@ -1,19 +1,21 @@
 # wxread
 
-[![Release](https://img.shields.io/github/v/release/27Aaron/wxread)](https://github.com/27Aaron/wxread/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+一个面向个人使用的微信读书自动化工具：在本地保存账号状态，按计划完成阅读任务，自动领取可用奖励，并把结果推送到你常用的通知渠道。
 
-## 功能特性
+[![Release](https://img.shields.io/github/v/release/27Aaron/wxread)](https://github.com/27Aaron/wxread/releases) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-- **账号管理**:微信扫码添加账号;凭据存储于本地 SQLite,自动轮换续期
-- **阅读挑战**:以 30 秒心跳模拟真实阅读上报;支持每日定时调度、断点续跑、指定书单
-- **推送通知**:支持 Bark、Telegram、Server酱、PushPlus;
-- **Web UI**:暖纸色主题,深浅色自适应,窄屏响应式布局;运行日志自动刷新
-- **登录鉴权**:可选的账号密码保护,签名 cookie 7 天有效,带 CSRF 防护
+## 它能做什么
+
+- **自动领取阅读奖励**：选择奖励档位和奖品后，程序会在奖励达成后自动领取同款奖励。
+- **自动完成阅读挑战**：每天按指定时间、时长和书单执行阅读任务；支持随机书单、手动立即执行和异常后续跑。
+- **多渠道推送**：支持 Bark、Telegram、Server酱和 PushPlus，在阅读完成、中断或失败时通知你。
+- **本地账号管理**：微信扫码登录，账号状态和配置保存在本机 SQLite 数据库中。
+- **可观测的运行日志**：按账号和级别查看调度、登录续期、阅读上报和推送结果。
+- **轻量 Web 控制台**：支持浅色/深色主题、响应式布局和可选登录保护。
 
 ## 快速开始
 
-### docker run
+### Docker
 
 ```bash
 docker run -d --name wxread \
@@ -24,34 +26,21 @@ docker run -d --name wxread \
   ghcr.io/27aaron/wxread:latest
 ```
 
-> `--stop-signal SIGINT` 让容器停止时走应用的优雅退出路径;不配也能用,但停止会退化成等超时后强杀。
-
-### 下载二进制
-
-从 [Releases](https://github.com/27Aaron/wxread/releases) 下载对应平台的二进制文件
-
-```bash
-chmod +x wxread-<平台>
-./wxread-<平台>
-```
-
-### 源码构建
-
-```bash
-go build -o wxread ./cmd/wxread
-./wxread
-```
-
-需要 Go 1.26+,或使用仓库自带的 Nix 开发环境:`nix develop`。
+打开 <http://127.0.0.1:8080>，进入「我的账号」并扫码登录。
 
 ### Nix
 
+如果你使用 Nix，可以直接运行或安装 flake 提供的程序：
+
 ```bash
-nix run github:27Aaron/wxread              # 直接运行
-nix profile install github:27Aaron/wxread  # 安装到 profile
+# 不安装到系统，直接运行
+nix run github:27Aaron/wxread
+
+# 安装到当前 profile
+nix profile install github:27Aaron/wxread
 ```
 
-也可以作为 flake input 引入你自己的 flake:
+也可以将项目作为 flake input 使用：
 
 ```nix
 {
@@ -59,79 +48,72 @@ nix profile install github:27Aaron/wxread  # 安装到 profile
 }
 ```
 
-随后通过 `wxread.packages.<system>.default` 引用。
+启动后打开 <http://127.0.0.1:8080>。数据库默认写入当前目录的 `data/wxread.db`。
 
-## 使用教程
+### 下载二进制
 
-启动后浏览器打开 `http://127.0.0.1:8080`。若配置了 `WXREAD_USERNAME` / `WXREAD_PASSWORD`,会先跳转到登录页(登录会话 7 天有效,服务重启不失效);未配置则直接进入。
+从 [Releases](https://github.com/27Aaron/wxread/releases) 下载对应平台版本：
 
-### 1. 添加账号
+```bash
+chmod +x wxread-<平台>
+./wxread-<平台>
+```
 
-进入「我的账号」→ 点击「添加账户」→ 生成二维码后**打开微信扫一扫**,并在手机上确认登录。登录成功后账号出现在列表中,凭据自动保存在本地。
+### 从源码运行
 
-### 2. 配置阅读挑战
+```bash
+go run ./cmd/wxread
+# 或
+go build -o wxread ./cmd/wxread && ./wxread
+```
 
-进入「阅读挑战」页:
+需要 Go 1.26+；也可以使用仓库提供的 `nix develop` 环境进行开发。
 
-1. **选择书籍**(必选):至少勾选 1 本;选 1 本固定阅读,选多本时随机阅读其中一本
-2. 点击「**保存配置**」,不选书无法保存
-3. 按需调整「每天自动参与阅读挑战」开关、开始时间(默认 03:00)和每天时长(默认 30 分钟)
+## 推荐使用流程
 
-### 3. 立即执行 / 停止
+1. **添加账号**：进入「我的账号」→「添加账户」→ 微信扫码确认。
+2. **设置阅读挑战**：进入「阅读挑战」，选择至少一本书，设置每天开始时间和阅读时长，然后保存配置。
+3. **打开自动执行**：开启「每天自动参与阅读挑战」。程序会按计划执行，异常退出后会在下次启动时继续未完成任务。
+4. **预约奖励**：进入「我的阅读」，选择达成奖励后，后续每周会自动领取同款奖励。
+5. **配置通知**：在「推送设置」填写渠道参数并发送测试消息。
+6. **检查日志**：遇到异常时先按账号和级别筛选「运行日志」。
 
-点击「**立即执行**」立刻开始一场阅读会话(不打扰每日调度);会话进行中按钮会变成红色的「**停止阅读**」,点击即可终止。已上报的时长不会回滚。
+## 重要行为说明
 
-> 会话每 30 秒记 0.5 分钟,页面会实时显示进度(如「阅读中 6.5/30 分钟」)。
->
-> 断点续跑规则:**用户主动停止 = 当日视为结束**,再点「立即执行」会开一场全新的会话;**进程重启 / 异常退出 = 下次启动自动续跑**当日未完成的会话。
-
-### 4. 查看运行日志
-
-「运行日志」页每 10 秒自动刷新,可按账号、级别过滤。心跳上报失败、凭据轮换、调度器跳过等事件都会记录在这里。
-
-### 5. 推送通知(可选)
-
-「推送设置」页配置 Bark / Telegram / Server酱 / PushPlus 渠道并可发送测试消息。阅读会话完成、中断、失败时会自动推送结果。
-
-### 6. 凭据过期怎么办
-
-日志出现「会话已过期」时,程序会自动尝试续期;若频繁失败,到「我的账号」对该账号「刷新数据」,仍不行就删除账号重新扫码登录。
-
-## 数据与备份
-
-所有状态都存在一个 SQLite 文件里(默认 `data/wxread.db`,容器部署为 `./data/`):
-
-- 包含:账号凭据、阅读配置、运行日志、Web 会话签名密钥
-- 数据库文件自动收紧权限为 `0600`
-- 备份 = 备份该目录;应用运行时持续写入,定期备份前建议先停服务
+- 阅读任务每 30 秒上报一次，页面会显示当前进度。
+- 用户主动停止任务后，当天不会自动续跑；程序崩溃、重启或异常退出则会在下次启动时恢复。
+- 会话过期时程序会自动尝试续期。持续失败时，在账号页刷新数据，必要时重新扫码。
+- 数据默认保存在 `data/wxread.db`；备份时请同时备份整个 `data/` 目录，并建议先停止服务。
 
 ## 配置
 
-复制 `.env.example` 为 `.env`,或直接设置环境变量:
+复制 `.env.example` 为 `.env`，或直接设置环境变量：
 
-| 变量 | 默认值 | 说明 |
+| 变量 | 默认值 | 用途 |
 | --- | --- | --- |
-| `WXREAD_HOST` | `127.0.0.1` | 监听地址(容器内需设为 `0.0.0.0`) |
-| `WXREAD_PORT` | `8080` | 监听端口 |
+| `WXREAD_HOST` | `127.0.0.1` | 监听地址；容器中使用 `0.0.0.0` |
+| `WXREAD_PORT` | `8080` | Web 端口 |
 | `WXREAD_DB` | `data/wxread.db` | SQLite 数据库路径 |
-| `WXREAD_USERNAME` | 空 | Web 登录账号,与密码**同时配置**才启用登录鉴权 |
+| `WXREAD_USERNAME` | 空 | Web 登录账号；需与密码同时设置 |
 | `WXREAD_PASSWORD` | 空 | Web 登录密码 |
-
-启用鉴权后,未登录访问页面会跳转登录页、访问 API 返回 401。
 
 ## 开发
 
 ```bash
-nix develop          # 进入开发环境(go / golangci-lint / nodejs 等)
-go build ./...       # 构建
-go test ./...        # 测试
-gofmt -l .           # 格式检查
+nix develop
+go test ./...
+go build ./...
+gofmt -l .
 ```
 
-## 免责声明
+## 更新记录
 
-本项目仅供个人学习与研究,请勿用于商业用途。使用本项目产生的任何问题由使用者自行承担,请尊重微信读书的用户协议,合理控制使用强度。
+- [查看版本更新记录](CHANGELOG.md)
 
 ## 参考
 
 - [findmover/wxread](https://github.com/findmover/wxread)
+
+## 免责声明
+
+本项目仅供个人学习和研究。请遵守微信读书的用户协议，合理控制使用频率。因使用本项目产生的账号、数据或其他问题由使用者自行承担。

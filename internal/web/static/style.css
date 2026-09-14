@@ -262,11 +262,13 @@ main {
   display: none;
 }
 
-.view { width: 100%; }
+.view {
+  width: 100%;
+}
 
 /* 所有页面沿用同一内容坐标，面板与页面标题严格对齐 */
-.view > .panel,
-.view > .banner {
+.view>.panel,
+.view>.banner {
   width: 100%;
 }
 
@@ -359,7 +361,9 @@ main {
 }
 
 /* 将阅读操作区与书籍列表拉开，保持底部留白均衡 */
-#challenge-panel > .panel-foot { margin-top: 0; }
+#challenge-panel>.panel-foot {
+  margin-top: 0;
+}
 
 #challenge-panel {
   display: flex;
@@ -626,16 +630,94 @@ main {
   flex-direction: column;
 }
 
-.brand-text { position: relative; display: inline-flex; flex-direction: column; gap: 0; line-height: 1.05; }
-.brand-version { margin-top: 1px; font-size: 12px; font-weight: 500; color: var(--text-dim); letter-spacing: .04em; }
-.brand-version { border: 0; background: transparent; cursor: pointer; text-align: left; padding: 0; }
-.brand-version.has-update { color: var(--accent); }
-.brand-version.has-update::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 5px; vertical-align: 2px; border-radius: 50%; background: #ef4444; animation: version-pulse 1.6s ease-in-out infinite; }
-@keyframes version-pulse { 0%,100% { box-shadow: 0 0 0 0 #ef444466; } 50% { box-shadow: 0 0 0 5px #ef444400; } }
-.version-popover { position: absolute; z-index: 20; left: 0; top: 100%; margin-top: 8px; width: max-content; min-width: 145px; max-width: 160px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); font-size: 12px; line-height: 1.5; }
-.version-popover strong { display: block; color: var(--text); margin-bottom: 4px; }
-.version-popover p { margin: 0 0 8px; color: var(--text-dim); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-.version-popover a { color: var(--accent); }
+.brand-text {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.05;
+}
+
+.brand-version {
+  margin-top: 1px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  letter-spacing: .04em;
+}
+
+.brand-version {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+
+.brand-version.has-update {
+  color: var(--accent);
+}
+
+.brand-version.has-update::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 5px;
+  vertical-align: 2px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: version-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes version-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 #ef444466;
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px #ef444400;
+  }
+}
+
+.version-popover {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  top: 100%;
+  margin-top: 8px;
+  width: max-content;
+  min-width: 145px;
+  max-width: 160px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.version-popover strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.version-popover p {
+  margin: 0 0 8px;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.version-popover a {
+  color: var(--accent);
+}
 
 .account-row {
   display: grid;
@@ -1107,9 +1189,25 @@ main {
   align-content: start;
 }
 
-.book-meta { padding-top: 6px; line-height: 1.35; }
-.book-title { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.book-author { color: var(--text-dim); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book-meta {
+  padding-top: 6px;
+  line-height: 1.35;
+}
+
+.book-title {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.book-author {
+  color: var(--text-dim);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .book-card {
   position: relative;
@@ -1202,7 +1300,7 @@ main {
   scrollbar-width: thin;
 }
 
-#view-logs > .panel {
+#view-logs>.panel {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 125px);
@@ -1925,13 +2023,13 @@ main {
   line-height: 1.6;
 }
 
-.challenge-info > div {
+.challenge-info>div {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   gap: 16px;
 }
 
-.challenge-info > div > span {
+.challenge-info>div>span {
   color: var(--text-dim);
 }
 
@@ -1999,7 +2097,301 @@ main {
     font-size: 22px;
   }
 
-  .challenge-info > div {
+  .challenge-info>div {
     gap: 12px;
   }
+}
+
+/* ---------- 全站细节规范 ---------- */
+:root {
+  --content-max: 1120px;
+  --space-page-x: clamp(18px, 4vw, 42px);
+  --space-page-y: clamp(22px, 4vw, 38px);
+  --control-h: 36px;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  min-width: 320px;
+}
+
+main {
+  max-width: var(--content-max);
+  padding: var(--space-page-y) var(--space-page-x) 48px;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.view>.panel,
+.view>.banner {
+  margin: 0;
+}
+
+.page-head {
+  height: auto;
+  min-height: 42px;
+  margin: 0 0 2px;
+}
+
+.page-title {
+  font-size: clamp(20px, 2vw, 24px);
+  letter-spacing: 0;
+}
+
+.page-actions,
+.logs-toolbar {
+  gap: 8px;
+  align-items: center;
+}
+
+.panel {
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(42, 38, 32, .055);
+}
+
+.panel-bar {
+  min-height: 52px;
+  padding: 14px 20px;
+}
+
+.btn,
+.select {
+  min-height: var(--control-h);
+}
+
+.btn {
+  border-radius: var(--radius-sm);
+  padding-inline: 14px;
+}
+
+.select {
+  border-radius: var(--radius-sm);
+  padding-block: 8px;
+}
+
+.empty {
+  padding: 56px 24px;
+}
+
+.reading-stats {
+  gap: 12px;
+}
+
+.reading-stats .stat {
+  border-radius: var(--radius);
+  padding: 18px 20px;
+}
+
+.reward-grid {
+  gap: 12px;
+  padding: 18px 20px 22px;
+}
+
+.push-list {
+  gap: 16px;
+}
+
+.push-card {
+  border-radius: var(--radius);
+  padding: 18px 20px;
+}
+
+@media (max-width: 780px) {
+  main {
+    padding: 22px 16px 36px;
+  }
+
+  .view {
+    gap: 16px;
+  }
+
+  .page-head {
+    align-items: flex-start;
+  }
+
+  .page-actions {
+    flex-wrap: wrap;
+  }
+
+  .panel-bar {
+    padding-inline: 16px;
+  }
+
+  .reward-grid {
+    padding-inline: 16px;
+  }
+}
+
+/* ---------- 细节收口：列表、日志与表单 ---------- */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+input,
+select,
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#challenge-panel {
+  height: auto;
+  min-height: 0;
+}
+
+#challenge-panel .book-grid {
+  flex: initial;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+#view-logs>.panel {
+  height: auto;
+  max-height: calc(100vh - 160px);
+  min-height: 420px;
+}
+
+#view-logs .logs-list {
+  min-height: 320px;
+}
+
+.log-row {
+  min-height: 48px;
+  height: auto;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.log-msg {
+  line-height: 1.45;
+}
+
+.account-row {
+  min-height: 78px;
+}
+
+.account-row .ops {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.dialog {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .22);
+}
+
+.dialog::backdrop {
+  background: rgba(20, 18, 15, .48);
+  backdrop-filter: blur(3px);
+}
+
+.dialog-body {
+  padding: 28px;
+}
+
+.dialog-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+@media (max-width: 780px) {
+  .account-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 10px 12px;
+    padding: 14px 16px;
+  }
+
+  .account-row .account-meta {
+    grid-column: 2;
+  }
+
+  .account-row .ops {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  #view-logs>.panel {
+    min-height: 0;
+    max-height: none;
+  }
+
+  #view-logs .logs-list {
+    min-height: 240px;
+  }
+
+  .logs-toolbar {
+    width: 100%;
+  }
+
+  .logs-toolbar .select {
+    flex: 1 1 120px;
+    min-width: 0;
+  }
+
+  #challenge-panel .book-grid {
+    max-height: none;
+  }
+
+  .dialog-body {
+    padding: 22px 18px;
+  }
+}
+/* ---------- 屏幕尺寸适配 ---------- */
+/* 宽屏保持阅读宽度，避免内容被无限拉长 */
+@media (min-width: 1280px) {
+  main { max-width: 1180px; }
+  .workspace { margin-left: 210px; }
+}
+
+/* 笔记本宽度：压缩列表列间距，保留操作空间 */
+@media (min-width: 781px) and (max-width: 1100px) {
+  main { padding-inline: 24px; }
+  .account-row { grid-template-columns: 42px minmax(160px, 1fr) minmax(100px, .7fr) auto; gap: 10px; padding-inline: 16px; }
+  .logs-header, .log-row { padding-inline: 18px; gap: 12px; }
+  .challenge-info { padding-left: 18px; }
+}
+
+/* 平板与手机：操作区纵向堆叠，避免按钮被挤压 */
+@media (max-width: 640px) {
+  .page-head { align-items: flex-start; }
+  .page-head-copy { flex: 1 1 100%; }
+  .page-actions { width: 100%; }
+  .page-actions > .btn { flex: 1 1 auto; }
+  .page-head > .field { width: 100%; justify-content: space-between; }
+  .page-head > .field .select { flex: 1; max-width: 70%; }
+  .panel-bar { flex-wrap: wrap; }
+  .panel-bar .search { width: 100%; }
+  .panel-bar .search input { flex: 1; width: auto; }
+  .banner { flex-wrap: wrap; gap: 10px 18px; }
+  .config-row { align-items: stretch; flex-direction: column; gap: 14px; }
+  .field-inline { justify-content: space-between; }
+  .field-inline .select, .field-inline input { flex: 1; max-width: 60%; }
+}
+
+/* 极窄屏：所有内容使用单列并减少装饰性空间 */
+@media (max-width: 380px) {
+  main { padding-inline: 12px; }
+  .panel-bar, .panel-foot { padding-inline: 14px; }
+  .challenge-rings { gap: 8px; }
+  .challenge-ring { max-width: 122px; }
+  .challenge-metric-label { font-size: 12px; }
+  .btn { padding-inline: 10px; }
+  .dialog-body { padding-inline: 14px; }
 }
