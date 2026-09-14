@@ -48,7 +48,7 @@ func (s *Server) validSession(token string) bool {
 
 func (s *Server) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/login" || r.URL.Path == "/favicon.png" || (s.username == "" && s.password == "") {
+		if r.URL.Path == "/login" || r.URL.Path == "/favicon.png" || r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || (s.username == "" && s.password == "") {
 			next.ServeHTTP(w, r)
 			return
 		}

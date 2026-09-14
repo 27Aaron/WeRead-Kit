@@ -316,7 +316,7 @@ function renderAccounts() {
     const sub = document.createElement("div");
     sub.className = "account-sub";
     // 网页扫码的账号别名即 vid,此时只显示 ID;别名不同(CLI 创建)才额外标注。
-    sub.textContent = a.vid === a.vid ? `ID ${a.vid}` : `ID ${a.vid} · 别名 ${a.vid}`;
+    sub.textContent = `ID ${a.vid}`;
     sub.title = `本地别名 ${a.vid}(CLI --alias 用)`;
     info.append(name, sub);
     row.append(avatar, info);

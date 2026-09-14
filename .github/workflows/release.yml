@@ -10,6 +10,16 @@ permissions:
   packages: write
 
 jobs:
+  checks:
+    name: Test and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - run: go test -race ./...
+      - run: go vet ./...
   binaries:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
     runs-on: ubuntu-latest
@@ -46,6 +56,7 @@ jobs:
   container:
     name: Build multi-arch container
     runs-on: ubuntu-latest
+    needs: checks
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-qemu-action@v4

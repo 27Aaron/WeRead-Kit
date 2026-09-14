@@ -52,6 +52,10 @@ func Open(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("打开数据库失败: %w", err)
 	}
 	db.SetMaxOpenConns(1)
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("启用外键约束失败: %w", err)
+	}
 	if err := db.Ping(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("连接数据库失败: %w", err)

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS weread_reading (
   run_total INTEGER NOT NULL DEFAULT 0
 );
 
--- 运行日志:滚动保留 60 天 / 2 万条
+-- 运行日志:滚动保留 30 天 / 2 万条
 CREATE TABLE IF NOT EXISTS weread_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ts INTEGER NOT NULL,

@@ -10,12 +10,13 @@ services:
       WEREAD_HOST: 0.0.0.0
       WEREAD_PORT: 8080
       WEREAD_DB: /data/weread.db
+      TZ: ${TZ:-Asia/Shanghai}
       WEREAD_USERNAME: ${WEREAD_USERNAME:-}
       WEREAD_PASSWORD: ${WEREAD_PASSWORD:-}
     volumes:
       - ./data:/data
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/login"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/readyz"]
       interval: 30s
       timeout: 5s
       retries: 3

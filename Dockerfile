@@ -13,8 +13,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -trimpath -ldflags="-s -w" -o /weread-kit ./cmd/weread-kit
 
 FROM alpine:3.22
-RUN apk add --no-cache ca-certificates && mkdir -p /data
+RUN apk add --no-cache ca-certificates wget tzdata && addgroup -S weread && adduser -S -G weread weread && mkdir -p /data && chown weread:weread /data
 COPY --from=build /weread-kit /usr/local/bin/weread-kit
+USER weread
 EXPOSE 8080
 VOLUME ["/data"]
 ENTRYPOINT ["/usr/local/bin/weread-kit"]

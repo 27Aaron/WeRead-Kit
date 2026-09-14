@@ -32,6 +32,9 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+	if (os.Getenv("WEREAD_USERNAME") == "") != (os.Getenv("WEREAD_PASSWORD") == "") {
+		panic("WEREAD_USERNAME 和 WEREAD_PASSWORD 必须同时设置或同时留空")
+	}
 	addr := host + ":" + port
 	db, err := store.Open(dbPath)
 	if err != nil {
