@@ -1,6 +1,6 @@
 # WeRead-Kit
 
-[![Release](https://img.shields.io/github/v/release/27Aaron/wxread)](https://github.com/27Aaron/wxread/releases) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/27Aaron/WeRead-Kit)](https://github.com/27Aaron/WeRead-Kit/releases) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## 界面预览
 
@@ -38,7 +38,7 @@ docker run -d --name weread-kit \
 
 ### 下载二进制
 
-从 [Releases](https://github.com/27Aaron/wxread/releases) 下载对应平台版本：
+从 [Releases](https://github.com/27Aaron/WeRead-Kit/releases) 下载对应平台版本：
 
 ```bash
 chmod +x weread-kit-<平台>
