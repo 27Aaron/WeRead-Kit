@@ -639,6 +639,7 @@ $("#detail-reload").addEventListener("click", () => showDetails(detailAccount, t
 let challengeAlias = null;
 let challengeBooks = [];
 const challengePicked = new Set();
+let challengeSavedBooks = [];
 let challengeRunning = false;
 let challengeRunTimer = null;
 
@@ -684,7 +685,8 @@ function renderChallenge(d) {
   challengeBooks = Array.isArray(d.books) ? d.books : [];
   const cfg = d.reading || {};
   challengePicked.clear();
-  for (const id of cfg.book_ids || []) challengePicked.add(id);
+  challengeSavedBooks = Array.isArray(cfg.book_ids) ? cfg.book_ids : [];
+  for (const id of challengeSavedBooks) challengePicked.add(id);
 
   $("#challenge-state").textContent = cfg.enabled ? "已开启" : "未开启";
   $("#challenge-banner").classList.toggle("on", !!cfg.enabled);
@@ -768,6 +770,10 @@ $("#challenge-account").addEventListener("change", (e) => {
 
 $("#challenge-save").addEventListener("click", async () => {
   if (!challengeAlias) return;
+  if (!challengePicked.size) {
+    toast("请至少选择一本书籍再保存", "error");
+    return;
+  }
   const btn = $("#challenge-save");
   btn.disabled = true;
   try {
@@ -781,6 +787,7 @@ $("#challenge-save").addEventListener("click", async () => {
       }),
     });
     $("#challenge-state").textContent = $("#challenge-enabled").checked ? "已开启" : "未开启";
+    challengeSavedBooks = Array.from(challengePicked);
     $("#challenge-banner").classList.toggle("on", $("#challenge-enabled").checked);
     $("#challenge-banner").classList.toggle("off", !$("#challenge-enabled").checked);
     $("#challenge-runat").textContent = $("#challenge-runat-input").value || "03:00";
@@ -794,6 +801,10 @@ $("#challenge-save").addEventListener("click", async () => {
 
 async function runChallengeNow() {
   if (!challengeAlias) return;
+  if (!challengeSavedBooks.length) {
+    toast("请先选择要阅读的书籍,并点「保存配置」", "error");
+    return;
+  }
   const btn = $("#challenge-run");
   btn.disabled = true;
   try {
