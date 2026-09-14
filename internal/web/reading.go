@@ -45,6 +45,10 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadRequest, errors.New("阅读时长需在 1~480 分钟之间"))
 			return
 		}
+		if len(body.BookIDs) == 0 {
+			writeErr(w, http.StatusBadRequest, errors.New("请至少选择一本书籍"))
+			return
+		}
 		if err := store.SaveReadingConfig(s.db, &store.ReadingConfig{
 			Vid:   vid,
 			Enabled: body.Enabled,
@@ -270,6 +274,10 @@ func (s *Server) tickFarm(ctx context.Context) {
 			continue
 		}
 		if nowHM < cfg.RunAt {
+			continue
+		}
+		if len(cfg.BookIDs) == 0 {
+			s.logf("warn", "farm", cfg.Vid, "配置未选择书籍,跳过今日调度")
 			continue
 		}
 		c, err := store.Load(s.db, cfg.Vid)
