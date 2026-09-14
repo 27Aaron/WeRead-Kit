@@ -1822,27 +1822,39 @@ main {
 
 /* ---------- 官方挑战赛进度 ---------- */
 
+/* Use panel width, including when the sidebar reduces available space. */
+#official-challenge {
+  container-type: inline-size;
+}
+
 .official-challenge-body {
-  padding: 16px 20px;
-  display: flex;
+  padding: 28px;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px 28px;
+  gap: 28px;
 }
 
 .challenge-rings {
-  display: flex;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.challenge-metric {
+  min-width: 0;
+  text-align: center;
 }
 
 .challenge-ring {
   position: relative;
-  width: 104px;
-  height: 104px;
+  width: min(100%, 140px);
+  aspect-ratio: 1;
+  margin: 0 auto;
 }
 
 .challenge-ring svg {
+  display: block;
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);
@@ -1851,15 +1863,14 @@ main {
 .challenge-ring .ring-track {
   fill: none;
   stroke: var(--surface-2);
-  stroke-width: 9;
+  stroke-width: 7;
 }
 
 .challenge-ring .ring-fill {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 9;
+  stroke-width: 7;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.5s ease;
 }
 
 .ring-center {
@@ -1869,40 +1880,126 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 .ring-center b {
-  font-size: 15px;
-  color: var(--text);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.ring-center small {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .ring-center span {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-dim);
 }
 
+.challenge-metric-label {
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.challenge-metric-label span {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 400;
+}
+
 .challenge-info {
-  flex: 0 1 460px;
-  min-width: 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  min-width: 0;
+  padding-left: 28px;
+  border-left: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
   font-size: 13px;
+  line-height: 1.6;
 }
 
 .challenge-info > div {
-  display: flex;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 16px;
 }
 
-.challenge-info span {
-  flex-shrink: 0;
-  width: 60px;
+.challenge-info > div > span {
   color: var(--text-dim);
 }
 
 .challenge-info b {
   color: var(--text);
   font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.challenge-info small,
+.challenge-period p {
+  display: block;
+  margin: 3px 0 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.challenge-period {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.challenge-period b {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+}
+
+.challenge-remaining {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+@container (max-width: 680px) {
+  .official-challenge-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding: 24px;
+  }
+
+  .challenge-rings {
+    width: min(100%, 360px);
+    justify-self: center;
+  }
+
+  .challenge-info {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    padding: 20px 0 0;
+  }
+}
+
+@container (max-width: 360px) {
+  .official-challenge-body {
+    padding: 20px 16px;
+  }
+
+  .challenge-rings {
+    gap: 16px;
+  }
+
+  .ring-center b {
+    font-size: 22px;
+  }
+
+  .challenge-info > div {
+    gap: 12px;
+  }
 }

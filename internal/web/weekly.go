@@ -22,7 +22,9 @@ const weeklyClaimPrefKey = "weekly_claim_pref:"
 // GET /api/accounts/{vid}/weekly
 func (s *Server) handleWeeklyRewards(w http.ResponseWriter, r *http.Request) {
 	vid := r.PathValue("vid")
-	data, c, err := s.weeklyCall(r.Context(), vid, 0, 0, 0)
+	data, c, err := s.weeklyCall(r.Context(), vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+		return s.client.WeeklyExchange(r.Context(), creds, 0, 0, 0)
+	})
 	if err != nil {
 		writeWeeklyErr(w, err)
 		return
@@ -54,7 +56,9 @@ func (s *Server) handleWeeklyClaim(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, errors.New("参数无效:需要 award_level_id 与 choice_type(1=体验卡,2=书币)"))
 		return
 	}
-	data, _, err := s.weeklyCall(r.Context(), vid, body.AwardLevelID, body.ChoiceType, 1)
+	data, _, err := s.weeklyCall(r.Context(), vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+		return s.client.WeeklyExchange(r.Context(), creds, body.AwardLevelID, body.ChoiceType, 1)
+	})
 	if err != nil {
 		writeWeeklyErr(w, err)
 		return
@@ -162,7 +166,9 @@ func (s *Server) autoClaimOnce(ctx context.Context) {
 		if len(prefs) == 0 {
 			continue
 		}
-		data, _, err := s.weeklyCall(ctx, acc.Vid, 0, 0, 0)
+		data, _, err := s.weeklyCall(ctx, acc.Vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+			return s.client.WeeklyExchange(ctx, creds, 0, 0, 0)
+		})
 		if err != nil {
 			continue // 查询失败(凭据失效等)静默跳过,下轮再试
 		}
@@ -179,7 +185,9 @@ func (s *Server) autoClaimOnce(ctx context.Context) {
 			if !ok {
 				continue
 			}
-			if _, _, err := s.weeklyCall(ctx, acc.Vid, a.AwardLevelID, choice, 1); err != nil {
+			if _, _, err := s.weeklyCall(ctx, acc.Vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+				return s.client.WeeklyExchange(ctx, creds, a.AwardLevelID, choice, 1)
+			}); err != nil {
 				s.logf("warn", "reading", acc.Vid, "自动领取失败(%s): %v", a.AwardLevelDesc, err)
 				continue
 			}
@@ -195,9 +203,9 @@ func weeklyChoiceName(choice int) string {
 	return "书币"
 }
 
-// weeklyCall 调用 weekly/exchange;会话过期时自动续期、落库并重试一次。
-// 返回原始响应与加载到的账号(含详情缓存,供计算体验卡剩余状态)。
-func (s *Server) weeklyCall(ctx context.Context, vid string, awardLevelID, awardChooseType, isExchangeAward int) (json.RawMessage, *store.Credential, error) {
+// weeklyCall 加载账号凭据执行 op;会话过期时自动续期、落库并重试一次。
+// 返回原始响应与加载到的账号(含详情缓存,供计算无限卡剩余状态)。
+func (s *Server) weeklyCall(ctx context.Context, vid string, op func(*weread.Credentials) (json.RawMessage, error)) (json.RawMessage, *store.Credential, error) {
 	c, err := store.Load(s.db, vid)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, nil, err
@@ -206,7 +214,7 @@ func (s *Server) weeklyCall(ctx context.Context, vid string, awardLevelID, award
 		return nil, nil, err
 	}
 	creds := toWeread(c)
-	data, err := s.client.WeeklyExchange(ctx, creds, awardLevelID, awardChooseType, isExchangeAward)
+	data, err := op(creds)
 	if errors.Is(err, weread.ErrSessionExpired) {
 		next, rerr := s.client.Refresh(ctx, creds)
 		if rerr != nil {
@@ -218,7 +226,7 @@ func (s *Server) weeklyCall(ctx context.Context, vid string, awardLevelID, award
 		if c, err = store.Load(s.db, vid); err != nil {
 			return nil, nil, err
 		}
-		data, err = s.client.WeeklyExchange(ctx, next, awardLevelID, awardChooseType, isExchangeAward)
+		data, err = op(next)
 	}
 	if err != nil {
 		return nil, nil, err
@@ -228,8 +236,8 @@ func (s *Server) weeklyCall(ctx context.Context, vid string, awardLevelID, award
 
 // weeklyCardView 是体验卡的剩余状态,由详情缓存的会员卡信息计算。
 type weeklyCardView struct {
-	Has       bool  `json:"has"`         // 是否有未过期的体验卡
-	Days      int   `json:"days"`        // 剩余整天数(向下取整)
+	Has       bool  `json:"has"`  // 是否有未过期的体验卡
+	Days      int   `json:"days"` // 剩余整天数(向下取整)
 	RemainSec int64 `json:"remain_seconds"`
 	ExpiredAt int64 `json:"expired_at"` // 到期时间戳(秒)
 }
@@ -252,6 +260,23 @@ func memberCardView(raw string) weeklyCardView {
 		RemainSec: mc.RemainTime,
 		ExpiredAt: mc.ExpiredTime,
 	}
+}
+
+// handleChallengeDetail 返回指定账号的官方挑战赛进度详情。
+// GET /api/accounts/{vid}/challenge
+func (s *Server) handleChallengeDetail(w http.ResponseWriter, r *http.Request) {
+	vid := r.PathValue("vid")
+	data, _, err := s.weeklyCall(r.Context(), vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+		return s.client.ChallengeDetail(r.Context(), creds)
+	})
+	if err != nil {
+		writeWeeklyErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"vid":       vid,
+		"challenge": json.RawMessage(data),
+	})
 }
 
 func writeWeeklyErr(w http.ResponseWriter, err error) {
