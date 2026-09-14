@@ -156,11 +156,9 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 		}()
 
 		result, next, err := s.client.FarmSession(sessCtx, creds, task, func(done, total int, msg string) {
-			// 断点每次心跳都落库;日志按分钟记(每 2 次心跳一条),与记账粒度一致。
-			_ = store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("阅读中 %d/%d 分钟", done/2, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total})
-			if done%2 == 0 {
-				s.logf("info", "farm", vid, "阅读中 %d/%d 分钟", done/2, total/2)
-			}
+			// 断点与日志每次心跳(30 秒)记一条,粒度 0.5 分钟。
+			_ = store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("阅读中 %.1f/%d 分钟", float64(done)*0.5, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total})
+			s.logf("info", "farm", vid, "阅读中 %.1f/%d 分钟", float64(done)*0.5, total/2)
 		}, ctrl)
 		if next != nil {
 			// 会话中途轮换了移动端凭据,落库,否则会丢会话。
