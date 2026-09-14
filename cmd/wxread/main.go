@@ -39,6 +39,7 @@ func main() {
 	}
 	defer db.Close()
 	app := web.New(db)
+	defer app.Close()
 	app.StartFarmScheduler(ctx)
 	app.ResumeInterrupted()
 	store.AddLog(db, "info", "serve", "", "Web 服务已启动,监听 "+addr)

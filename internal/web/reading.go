@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"wxread/internal/store"
@@ -66,7 +65,7 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	running := farmRunning(vid)
+	running := s.farmRunning(vid)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"vid": cfg.Vid, "enabled": cfg.Enabled, "book_ids": cfg.BookIDs,
 		"minutes": cfg.Minutes, "run_at": cfg.RunAt,
@@ -111,35 +110,30 @@ func (s *Server) handleReadingRun(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"started": true, "resumed": task.Done > 0})
 }
 
-// farmSessions 记录每个账号进行中的阅读会话句柄(取消函数 + 停止标记)。
-var farmSessions = struct {
-	sync.Mutex
-	m map[string]*farmSessionHandle
-}{m: map[string]*farmSessionHandle{}}
-
 type farmSessionHandle struct {
 	cancel context.CancelFunc
 	ctrl   *weread.FarmControl
 }
 
-func farmRunning(vid string) bool {
-	farmSessions.Lock()
-	defer farmSessions.Unlock()
-	_, ok := farmSessions.m[vid]
+func (s *Server) farmRunning(vid string) bool {
+	s.farmMu.Lock()
+	defer s.farmMu.Unlock()
+	_, ok := s.farms[vid]
 	return ok
 }
 
 func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Credentials) bool {
-	farmSessions.Lock()
-	if _, running := farmSessions.m[vid]; running {
-		farmSessions.Unlock()
+	s.farmMu.Lock()
+	if _, running := s.farms[vid]; running || s.closing {
+		s.farmMu.Unlock()
 		return false
 	}
 	ctrl := weread.NewFarmControl()
 	// 会话 ctx 与句柄共享同一个 cancel:「停止」按钮调用它即可终止整场会话。
-	sessCtx, cancel := context.WithTimeout(context.Background(), time.Duration(task.Total-task.Done+10)*time.Minute)
-	farmSessions.m[vid] = &farmSessionHandle{cancel: cancel, ctrl: ctrl}
-	farmSessions.Unlock()
+	sessCtx, cancel := context.WithTimeout(s.ctx, time.Duration(task.Total-task.Done+10)*time.Minute)
+	s.farms[vid] = &farmSessionHandle{cancel: cancel, ctrl: ctrl}
+	s.farmWG.Add(1)
+	s.farmMu.Unlock()
 
 	today := time.Now().Format("2006-01-02")
 	// 书名前置到各类日志与状态文案里,日志页一眼可见当前刷的是哪本书。
@@ -150,10 +144,11 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 		book, float64(task.Total)*0.5, resumeNote(task.Done))
 
 	go func() {
+		defer s.farmWG.Done()
 		defer func() {
-			farmSessions.Lock()
-			delete(farmSessions.m, vid)
-			farmSessions.Unlock()
+			s.farmMu.Lock()
+			delete(s.farms, vid)
+			s.farmMu.Unlock()
 			cancel()
 		}()
 
@@ -189,6 +184,9 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 		case result.Err != "":
 			status = fmt.Sprintf("%s中断(已记 %s):%s", book, minutesText, result.Err)
 			level = "warn"
+		}
+		if s.ctx.Err() != nil && !ctrl.Stopped() {
+			return
 		}
 		_ = store.SaveReadingRunState(s.db, vid, today, status, nil)
 		s.logf(level, "farm", vid, "%s", status)
@@ -232,9 +230,9 @@ func (s *Server) ResumeInterrupted() {
 // 当日调度视为已完成,明天到点再跑。
 func (s *Server) handleReadingStop(w http.ResponseWriter, r *http.Request) {
 	vid := r.PathValue("vid")
-	farmSessions.Lock()
-	h, ok := farmSessions.m[vid]
-	farmSessions.Unlock()
+	s.farmMu.Lock()
+	h, ok := s.farms[vid]
+	s.farmMu.Unlock()
 	if !ok {
 		writeErr(w, http.StatusConflict, errors.New("没有进行中的阅读会话"))
 		return
@@ -268,9 +266,13 @@ func (s *Server) tickFarm(ctx context.Context) {
 		s.logf("error", "farm", "", "读取配置失败: %v", err)
 		return
 	}
-	today := time.Now().Format("2006-01-02")
-	nowHM := time.Now().Format("15:04")
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	nowHM := now.Format("15:04")
 	for _, cfg := range cfgs {
+		if ctx.Err() != nil {
+			return
+		}
 		if cfg.LastRunDate == today {
 			continue
 		}
@@ -301,4 +303,13 @@ func resumeNote(done int) string {
 		return fmt.Sprintf("(续跑,已完成 %.1f 分钟)", float64(done)*0.5)
 	}
 	return ""
+}
+
+// Close 先结束后台阅读会话，保留断点后再允许调用方关闭数据库。
+func (s *Server) Close() {
+	s.farmMu.Lock()
+	s.closing = true
+	s.cancel()
+	s.farmMu.Unlock()
+	s.farmWG.Wait()
 }

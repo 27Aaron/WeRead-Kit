@@ -2,6 +2,7 @@
 package web
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/skip2/go-qrcode"
@@ -27,15 +29,22 @@ type Server struct {
 	logins             *loginManager
 	username, password string
 	sessionKey         []byte
+	farmMu             sync.Mutex
+	farms              map[string]*farmSessionHandle
+	farmWG             sync.WaitGroup
+	closing            bool
+	ctx                context.Context
+	cancel             context.CancelFunc
 }
 
 func New(db *sql.DB) *Server {
 	client := weread.NewClient()
+	ctx, cancel := context.WithCancel(context.Background())
 	key, err := newSessionID()
 	if err != nil {
 		panic(err)
 	}
-	return &Server{sessionKey: []byte(key), db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WXREAD_USERNAME"), password: os.Getenv("WXREAD_PASSWORD")}
+	return &Server{ctx: ctx, cancel: cancel, sessionKey: []byte(key), farms: map[string]*farmSessionHandle{}, db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WXREAD_USERNAME"), password: os.Getenv("WXREAD_PASSWORD")}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -144,6 +153,12 @@ func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
+	s.farmMu.Lock()
+	defer s.farmMu.Unlock()
+	if _, running := s.farms[r.PathValue("vid")]; running {
+		writeErr(w, http.StatusConflict, errors.New("请先停止阅读，再删除账号"))
+		return
+	}
 	err := store.Delete(s.db, r.PathValue("vid"))
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, err)
