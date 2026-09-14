@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"wxread/internal/store"
-	"wxread/internal/weread"
+	"github.com/27Aaron/weread-kit/internal/store"
+	"github.com/27Aaron/weread-kit/internal/weread"
 )
 
 type readingConfigBody struct {

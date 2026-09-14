@@ -70,7 +70,7 @@ jobs:
         if: steps.detect.outputs.changed == 'true'
         run: |
           set -o errexit
-          nix build .#wxread --no-link
+          nix build .#weread-kit --no-link
           nix flake check --no-build --all-systems --no-write-lock-file
           git diff --check
 
@@ -116,7 +116,7 @@ jobs:
           commit-message: |
             build(deps): refresh flake lock
 
-            Refresh pinned flake inputs after the wxread package build and
+            Refresh pinned flake inputs after the weread-kit package build and
             flake evaluation checks pass.
 
             Co-authored-by: Aaron <85681241+27Aaron@users.noreply.github.com>
@@ -125,7 +125,7 @@ jobs:
             Refresh the dependency revisions and hashes in `flake.lock`.
 
             Validation completed on Ubuntu 24.04:
-            - `nix build .#wxread --no-link`
+            - `nix build .#weread-kit --no-link`
             - `nix flake check --no-build --all-systems --no-write-lock-file` (evaluation only)
             - `git diff --check`
 

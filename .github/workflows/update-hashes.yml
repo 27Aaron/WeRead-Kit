@@ -89,7 +89,7 @@ jobs:
         if: steps.detect.outputs.changed == 'true'
         run: |
           set -o errexit
-          nix build .#wxread --no-link
+          nix build .#weread-kit --no-link
           nix flake check --no-build --all-systems --no-write-lock-file
           git diff --check
 
@@ -147,7 +147,7 @@ jobs:
             `version`, `srcHash`, and `vendorHash` in `nix/hashes.json`.
 
             Validation completed on Ubuntu 24.04:
-            - `nix build .#wxread --no-link`
+            - `nix build .#weread-kit --no-link`
             - `nix flake check --no-build --all-systems --no-write-lock-file` (evaluation only)
             - `git diff --check`
 

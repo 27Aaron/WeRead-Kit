@@ -15,8 +15,8 @@ import (
 
 	"github.com/skip2/go-qrcode"
 
-	"wxread/internal/store"
-	"wxread/internal/weread"
+	"github.com/27Aaron/weread-kit/internal/store"
+	"github.com/27Aaron/weread-kit/internal/weread"
 )
 
 //go:embed static
@@ -44,7 +44,7 @@ func New(db *sql.DB) *Server {
 	if err != nil {
 		panic(err)
 	}
-	return &Server{ctx: ctx, cancel: cancel, sessionKey: []byte(key), farms: map[string]*farmSessionHandle{}, db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WXREAD_USERNAME"), password: os.Getenv("WXREAD_PASSWORD")}
+	return &Server{ctx: ctx, cancel: cancel, sessionKey: []byte(key), farms: map[string]*farmSessionHandle{}, db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WEREAD_USERNAME"), password: os.Getenv("WEREAD_PASSWORD")}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -56,6 +56,8 @@ func (s *Server) Handler() http.Handler {
 	// 静态资源禁用浏览器缓存:改版后强刷不再是必要操作(本地应用,无性能顾虑)。
 	mux.HandleFunc("GET /login", s.handleLoginPage)
 	mux.HandleFunc("GET /api/version", s.handleVersion)
+	mux.HandleFunc("GET /healthz", s.handleHealth)
+	mux.HandleFunc("GET /readyz", s.handleReady)
 	mux.HandleFunc("POST /login", s.handleLoginPost)
 	mux.Handle("GET /", http.FileServerFS(sub))
 	mux.HandleFunc("GET /api/accounts", s.handleListAccounts)
@@ -101,6 +103,9 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 func noStore(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("cache-control", "no-store")
+		w.Header().Set("x-content-type-options", "nosniff")
+		w.Header().Set("x-frame-options", "DENY")
+		w.Header().Set("referrer-policy", "same-origin")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -113,6 +118,17 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeErr(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, map[string]string{"error": err.Error()})
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+	if err := s.db.PingContext(r.Context()); err != nil {
+		writeErr(w, http.StatusServiceUnavailable, errors.New("数据库不可用"))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
 type accountView struct {

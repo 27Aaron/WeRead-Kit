@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"wxread/internal/store"
+	"github.com/27Aaron/weread-kit/internal/store"
 )
 
 // TestSessionToken 验证签名 cookie 的签发与校验:有效放行,篡改/过期/垃圾值拒绝。
@@ -63,7 +63,7 @@ func TestAuthMiddleware(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(&http.Cookie{Name: "wxread_session", Value: s.sessionToken(time.Now().Add(time.Hour).Unix())})
+	req.AddCookie(&http.Cookie{Name: "weread_session", Value: s.sessionToken(time.Now().Add(time.Hour).Unix())})
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -100,7 +100,7 @@ func TestHandleLoginPost(t *testing.T) {
 		t.Fatalf("valid login: want 303 -> /, got %d -> %q", rec.Code, rec.Header().Get("Location"))
 	}
 	cookies := rec.Result().Cookies()
-	if len(cookies) != 1 || cookies[0].Name != "wxread_session" || cookies[0].Value == "" || cookies[0].Value == "ok" {
+	if len(cookies) != 1 || cookies[0].Name != "weread_session" || cookies[0].Value == "" || cookies[0].Value == "ok" {
 		t.Fatalf("valid login: unexpected cookie %+v", cookies)
 	}
 

@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS weread_account (
   created_at    INTEGER NOT NULL
 );`
 
-// DefaultPath 返回默认数据库路径:当前目录下的 data/wxread.db,
+// DefaultPath 返回默认数据库路径:当前目录下的 data/weread.db,
 // 即在项目根目录运行时落在 <项目根>/data/ 下。相对路径,随工作目录走。
 func DefaultPath() (string, error) {
-	return filepath.Join("data", "wxread.db"), nil
+	return filepath.Join("data", "weread.db"), nil
 }
 
 // Open 打开(必要时创建)数据库并执行迁移。
@@ -52,6 +52,10 @@ func Open(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("打开数据库失败: %w", err)
 	}
 	db.SetMaxOpenConns(1)
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("启用外键约束失败: %w", err)
+	}
 	if err := db.Ping(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("连接数据库失败: %w", err)

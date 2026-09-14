@@ -49,7 +49,7 @@ func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
 	out := map[string]any{"current_version": Version, "has_update": false, "check_failed": true}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/27Aaron/wxread/releases/latest", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/27Aaron/WeRead-Kit/releases/latest", nil)
 	if err != nil {
 		writeJSON(w, 200, out)
 		return

@@ -1,4 +1,4 @@
-module wxread
+module github.com/27Aaron/weread-kit
 
 go 1.26.7
 

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"wxread/internal/store"
+	"github.com/27Aaron/weread-kit/internal/store"
 )
 
 // logf 是 Server 内所有组件写日志的统一入口:同时落库与打 stdout。

@@ -5,7 +5,7 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_dir"
 
 hashes_file="nix/hashes.json"
-repo="27Aaron/wxread"
+repo="27Aaron/WeRead-Kit"
 
 original_hashes=$(cat "$hashes_file")
 restore_on_error() { printf '%s\n' "$original_hashes" >"$hashes_file"; }
@@ -54,7 +54,7 @@ write_hashes "$version" "$src_hash" "$vendor_old"
 # vendorHash：先尝试旧哈希；发生哈希不匹配时，提取 got 值并重试。
 # 无匹配时 grep 返回 1，使用 || true 保留后续错误诊断。
 for attempt in 1 2 3; do
-  if build_out=$(nix build .#wxread.goModules --no-link 2>&1); then
+  if build_out=$(nix build .#weread-kit.goModules --no-link 2>&1); then
     break
   fi
   got=$(printf '%s\n' "$build_out" |
@@ -72,5 +72,5 @@ for attempt in 1 2 3; do
   fi
 done
 
-nix build .#wxread --no-link
+nix build .#weread-kit --no-link
 echo "已更新 hashes.json 至版本 ${version}，包构建通过"

@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"wxread/internal/store"
-	"wxread/internal/weread"
+	"github.com/27Aaron/weread-kit/internal/store"
+	"github.com/27Aaron/weread-kit/internal/weread"
 )
 
 // sessionTTL 是登录会话在内存中的保留时长:覆盖 5 分钟扫码窗口,
