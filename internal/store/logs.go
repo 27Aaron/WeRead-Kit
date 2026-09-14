@@ -71,7 +71,7 @@ func ListLogs(db *sql.DB, vid, level string, limit int) ([]*LogEntry, error) {
 		WHERE 1=1`
 	var args []any
 	if vid != "" {
-		query += ` AND vid = ?`
+		query += ` AND l.vid = ?`
 		args = append(args, vid)
 	}
 	if level != "" {
