@@ -860,6 +860,7 @@ async function stopChallenge() {
   }
 }
 
+$("#challenge-run").addEventListener("click", runChallengeNow);
 $("#challenge-pause").addEventListener("click", toggleChallengePause);
 $("#challenge-stop").addEventListener("click", stopChallenge);
 $("#challenge-goto-accounts").addEventListener("click", () => {
