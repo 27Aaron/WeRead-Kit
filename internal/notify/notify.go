@@ -4,6 +4,7 @@ package notify
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -66,6 +67,9 @@ func postJSON(ctx context.Context, rawURL string, payload any) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("推送服务返回 HTTP %d", resp.StatusCode)
+	}
 	return io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 }
 
@@ -80,6 +84,9 @@ func postForm(ctx context.Context, rawURL string, form url.Values) ([]byte, erro
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("推送服务返回 HTTP %d", resp.StatusCode)
+	}
 	return io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 }
 
@@ -120,7 +127,10 @@ func sendBark(ctx context.Context, p map[string]string, title, body string) erro
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 	}
-	if err := json.Unmarshal(data, &resp); err == nil && resp.Code != 200 {
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return errors.New("推送服务响应格式无效")
+	}
+	if resp.Code != 200 {
 		return fmt.Errorf("bark 返回错误: %s", resp.Message)
 	}
 	return nil
@@ -145,7 +155,10 @@ func sendTelegram(ctx context.Context, p map[string]string, title, body string) 
 		OK          bool   `json:"ok"`
 		Description string `json:"description"`
 	}
-	if err := json.Unmarshal(data, &resp); err == nil && !resp.OK {
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return errors.New("推送服务响应格式无效")
+	}
+	if !resp.OK {
 		return fmt.Errorf("telegram 返回错误: %s", resp.Description)
 	}
 	return nil
@@ -168,7 +181,10 @@ func sendServerChan(ctx context.Context, p map[string]string, title, body string
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 	}
-	if err := json.Unmarshal(data, &resp); err == nil && resp.Code != 0 {
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return errors.New("推送服务响应格式无效")
+	}
+	if resp.Code != 0 {
 		return fmt.Errorf("serverchan 返回错误: %s", resp.Message)
 	}
 	return nil
@@ -193,7 +209,10 @@ func sendPushPlus(ctx context.Context, p map[string]string, title, body string) 
 		Code int    `json:"code"`
 		Msg  string `json:"msg"`
 	}
-	if err := json.Unmarshal(data, &resp); err == nil && resp.Code != 200 {
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return errors.New("推送服务响应格式无效")
+	}
+	if resp.Code != 200 {
 		return fmt.Errorf("pushplus 返回错误: %s", resp.Msg)
 	}
 	return nil
