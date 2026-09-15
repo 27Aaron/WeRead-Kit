@@ -1,6 +1,6 @@
 # WeRead-Kit
 
-[![Release](https://img.shields.io/github/v/release/27Aaron/WeRead-Kit)](https://github.com/27Aaron/WeRead-Kit/releases) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/27Aaron/WeRead-Kit/actions/workflows/release.yml/badge.svg)](https://github.com/27Aaron/WeRead-Kit/actions/workflows/release.yml) [![Release](https://img.shields.io/github/v/release/27Aaron/WeRead-Kit)](https://github.com/27Aaron/WeRead-Kit/releases) [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2F27Aaron%2FWeRead--Kit-2496ED?logo=docker&logoColor=white)](https://github.com/27Aaron/WeRead-Kit/pkgs/container/weread-kit) [![Go Version](https://img.shields.io/github/go-mod/go-version/27Aaron/WeRead-Kit?logo=go)](https://go.dev/)
 
 ## 界面预览
 
@@ -33,8 +33,6 @@ docker run -d --name weread-kit \
 ```
 
 > `--stop-signal SIGINT` 让容器停止时走应用的优雅退出路径，避免超时后被强杀。
-
-> 容器以非 root 用户运行;启动时入口脚本会自动修复数据目录的属主,兼容 root 属主的绑定挂载,无需手动 chown。
 
 仓库也自带 `compose.yaml`，克隆后直接 `docker compose up -d` 即可。
 
@@ -126,4 +124,3 @@ gofmt -l .
 ## 免责声明
 
 本项目仅供个人学习和研究。请遵守微信读书的用户协议，合理控制使用频率。因使用本项目产生的账号、数据或其他问题由使用者自行承担。
-
