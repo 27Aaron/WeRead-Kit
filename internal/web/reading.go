@@ -172,7 +172,7 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 			_ = store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total})
 			s.logf("info", "farm", vid, "正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2)
 		}, ctrl)
-		if next != nil {
+		if next != nil && (next != creds || next.AccessToken != creds.AccessToken || next.RefreshToken != creds.RefreshToken || next.DeviceID != creds.DeviceID || next.Vid != creds.Vid) {
 			// 会话中途轮换了移动端凭据,落库,否则会丢会话。
 			updated := &store.Credential{
 				Vid:          next.Vid,
