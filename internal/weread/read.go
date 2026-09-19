@@ -158,6 +158,9 @@ func (c *Client) readHeartbeat(ctx context.Context, cookie, bookID string, chapt
 	if err != nil {
 		return false, fmt.Errorf("阅读上报失败: %w", err)
 	}
+	if status == http.StatusUnauthorized {
+		return false, ErrSessionExpired
+	}
 	if status != http.StatusOK {
 		return false, fmt.Errorf("阅读上报失败: HTTP %d", status)
 	}
@@ -195,6 +198,9 @@ func (c *Client) ChapterUIDs(ctx context.Context, cookie, bookID string) ([]int,
 	}, body)
 	if err != nil {
 		return nil, err
+	}
+	if status == http.StatusUnauthorized {
+		return nil, ErrSessionExpired
 	}
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("章节信息失败: HTTP %d", status)

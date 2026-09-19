@@ -50,11 +50,46 @@ func saveProfile(db *sql.DB, c *store.Credential, raw json.RawMessage) error {
 func syncProfile(ctx context.Context, db *sql.DB, client *weread.Client, c *store.Credential) error {
 	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
-	cookie, err := client.WebCookie(ctx, toWeread(c))
+	creds := toWeread(c)
+	bridge := func() (string, error) {
+		cookie, err := client.WebCookie(ctx, creds)
+		if err != nil {
+			return "", err
+		}
+		return cookie, nil
+	}
+	refresh := func() error {
+		next, err := client.Refresh(ctx, creds)
+		if err != nil {
+			return err
+		}
+		if err := store.Save(db, toStore(c.Vid, next)); err != nil {
+			return err
+		}
+		creds = next
+		c.AccessToken = next.AccessToken
+		c.RefreshToken = next.RefreshToken
+		c.DeviceID = next.DeviceID
+		return nil
+	}
+	cookie, err := bridge()
+	if errors.Is(err, weread.ErrSessionExpired) {
+		if err = refresh(); err == nil {
+			cookie, err = bridge()
+		}
+	}
 	if err != nil {
 		return err
 	}
 	raw, err := client.WebUserInfo(ctx, cookie, c.Vid)
+	if errors.Is(err, weread.ErrSessionExpired) {
+		if err = refresh(); err == nil {
+			cookie, err = bridge()
+			if err == nil {
+				raw, err = client.WebUserInfo(ctx, cookie, c.Vid)
+			}
+		}
+	}
 	if err != nil {
 		return err
 	}
