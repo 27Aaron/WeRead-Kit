@@ -132,6 +132,15 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 			if err == nil {
 				hasSync, err = c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
 			}
+			// /web/login/session/init 可能接受已过期的移动端凭据,返回格式正确但
+			// 实际不可用的 Cookie。重新桥接后的第一次心跳若仍提示会话过期,
+			// 必须先刷新移动端凭据,再重新桥接并重试。
+			if errors.Is(err, ErrSessionExpired) {
+				cookie, active, err = c.refreshAndBridge(ctx, active)
+				if err == nil {
+					hasSync, err = c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+				}
+			}
 		}
 		if err == nil && !hasSync {
 			// 无 synckey = 阅读同步状态未对齐,先调 chapterInfos 修复(参考实现的
@@ -145,6 +154,12 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 			cookie, active, err = c.renewSession(ctx, active, cookie)
 			if err == nil {
 				hasSync, err = c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+			}
+			if errors.Is(err, ErrSessionExpired) {
+				cookie, active, err = c.refreshAndBridge(ctx, active)
+				if err == nil {
+					hasSync, err = c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+				}
 			}
 		}
 		counted := err == nil && hasSync
@@ -224,4 +239,18 @@ func (c *Client) webSession(ctx context.Context, creds *Credentials) (string, *C
 // renewSession 心跳中途会话失效时:重新桥接;桥接不动就刷新移动端凭据再桥接。
 func (c *Client) renewSession(ctx context.Context, active *Credentials, _ string) (string, *Credentials, error) {
 	return c.webSession(ctx, active)
+}
+
+// refreshAndBridge 刷新移动端凭据,并立即用新凭据建立网页会话。
+// 当桥接接口本身返回成功,但后续鉴权请求拒绝所得 Cookie 时使用。
+func (c *Client) refreshAndBridge(ctx context.Context, active *Credentials) (string, *Credentials, error) {
+	next, err := c.Refresh(ctx, active)
+	if err != nil {
+		return "", active, fmt.Errorf("凭据过期且续期失败: %w", err)
+	}
+	cookie, err := c.WebCookie(ctx, next)
+	if err != nil {
+		return "", next, fmt.Errorf("续期后桥接仍失败: %w", err)
+	}
+	return cookie, next, nil
 }
