@@ -14,6 +14,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -48,6 +49,18 @@ type Credentials struct {
 // Client 是协议客户端,可注入自定义 *http.Client 便于测试。
 type Client struct {
 	HTTP *http.Client
+
+	refreshMu sync.Mutex
+	refreshes map[string]*refreshCall
+}
+
+// refreshCall 表示同一账号正在进行的一次凭据刷新。
+// 多个请求同时发现会话过期时,后到的请求复用前一个请求的结果,避免重复消费 refreshToken。
+type refreshCall struct {
+	source *Credentials
+	done   chan struct{}
+	next   *Credentials
+	err    error
 }
 
 func NewClient() *Client {
@@ -55,7 +68,7 @@ func NewClient() *Client {
 		Timeout: 70 * time.Second,
 		// 协议里出现重定向都按异常处理,不跟随。
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-	}}
+	}, refreshes: make(map[string]*refreshCall)}
 }
 
 func versionHeaders() map[string]string {
