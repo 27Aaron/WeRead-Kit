@@ -1,5 +1,19 @@
 # 更新日志
 
+## [v0.1.9] - 2026-09-20
+
+### 修复
+
+- 强化阅读会话恢复与续期流程,降低 Cookie 失效导致任务中断的概率
+- SQLite 迁移改为事务执行,并补充数据库升级与阅读状态回归测试
+- 修复发布流程中 Docker 构建记录被混入 Release 产物的问题
+
+### 优化
+
+- 完善控制台无障碍支持:键盘操作、ARIA 属性、焦点管理和移动端日志展示
+- 新版本提示支持重试、当前版本说明和安全的发布链接
+- 前端版本号统一从 Go 服务端读取,发布时无需重复修改前端文件
+
 ## [v0.1.8] - 2026-09-20
 
 ### 修复
@@ -151,7 +165,11 @@
 - 多平台二进制发布(linux/darwin/windows × amd64/arm64)、Docker 多架构镜像、Nix flake 开发环境
 - MIT 许可
 
-[v0.1.5]: https://github.com/27Aaron/wxread/releases/tag/v0.1.5
+[v0.1.9]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.1.9
+[v0.1.8]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.1.8
+[v0.1.7]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.1.7
+[v0.1.6]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.1.6
+[v0.1.5]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.1.5
 [v0.1.4]: https://github.com/27Aaron/wxread/releases/tag/v0.1.4
 [v0.1.3]: https://github.com/27Aaron/wxread/releases/tag/v0.1.3
 [v0.1.2]: https://github.com/27Aaron/wxread/releases/tag/v0.1.2
