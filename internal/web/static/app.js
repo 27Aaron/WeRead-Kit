@@ -1198,15 +1198,46 @@ function weeklyCard(a, weekly, prefs) {
   return card;
 }
 
+// 把本周每日阅读秒数渲染成迷你柱状图:柱高是当天时长,柱下标注星期,
+// 今天用强调色标出;悬停显示具体时长。readDays 为周一到周日 7 项。
+function renderWeekBars(root, readDays) {
+  const labels = ["一", "二", "三", "四", "五", "六", "日"];
+  const days = readDays.slice(-labels.length);
+  const offset = labels.length - days.length;
+  root.textContent = "";
+  root.removeAttribute("role");
+  root.removeAttribute("aria-label");
+  if (!days.length || days.every((s) => !s)) {
+    root.textContent = "本周还没有阅读记录";
+    return;
+  }
+  const max = Math.max(...days, 1);
+  // 仅当拿到完整一周时才能把下标当作星期;今天是周几(0=周一)。
+  const today = days.length === labels.length ? (new Date().getDay() + 6) % 7 : -1;
+  const bars = document.createElement("div");
+  bars.className = "week-bars";
+  root.append(bars);
+  root.setAttribute("role", "img");
+  root.setAttribute("aria-label",
+    "本周每日阅读:" + days.map((s, i) => `周${labels[offset + i]} ${s > 0 ? fmtDuration(s) : "没有阅读"}`).join(","));
+  days.forEach((sec, i) => {
+    const col = document.createElement("span");
+    col.className = "week-bar";
+    if (i === today) col.classList.add("today");
+    col.title = `周${labels[offset + i]} · ${sec > 0 ? fmtDuration(sec) : "没有阅读"}`;
+    const bar = document.createElement("i");
+    bar.style.height = (sec > 0 ? Math.max(3, Math.round((sec / max) * 28)) : 2) + "px";
+    const name = document.createElement("b");
+    name.textContent = labels[offset + i];
+    col.append(bar, name);
+    bars.append(col);
+  });
+}
+
 function renderWeekly() {
   const w = readingData || {};
   $("#reading-stat-time").textContent = fmtDuration(w.readingTime);
-  const weekDetail = w.weekReadDaysDetail || { readDays: [] };
-  const weekParts = (weekDetail.readDays || [])
-    .filter((s) => s > 0)
-    .map((s) => fmtDuration(s));
-  $("#reading-stat-week-detail").textContent =
-    weekParts.length ? weekParts.join(" · ") : "本周还没有阅读记录";
+  renderWeekBars($("#reading-stat-week-detail"), (w.weekReadDaysDetail || {}).readDays || []);
   $("#reading-stat-days").textContent = `${w.readingDay ?? 0} 天`;
   $("#reading-stat-month").textContent = fmtDuration((w.monthReadDaysDetail || {}).readTimes);
   const monthDays = ((w.monthReadDaysDetail || {}).readDays || []).filter((s) => s > 0).length;
