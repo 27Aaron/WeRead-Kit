@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS weread_reading (
   run_done INTEGER NOT NULL DEFAULT 0,
   run_total INTEGER NOT NULL DEFAULT 0
 );
+CREATE INDEX IF NOT EXISTS idx_weread_reading_enabled
+  ON weread_reading (enabled);
 
 -- 运行日志:滚动保留 30 天 / 2 万条
 CREATE TABLE IF NOT EXISTS weread_log (
@@ -43,6 +45,7 @@ CREATE TABLE IF NOT EXISTS weread_log (
   message TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_weread_log_ts ON weread_log (ts DESC);
+CREATE INDEX IF NOT EXISTS idx_weread_log_vid_id ON weread_log (vid, id DESC);
 
 -- 推送渠道:每个渠道一行(type ∈ bark / telegram / serverchan / pushplus)
 CREATE TABLE IF NOT EXISTS weread_push_channel (

@@ -10,12 +10,78 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 const (
 	webBaseURL   = "https://weread.qq.com"
 	webUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
+
+// RenewWebCookie 续期现有网页会话。成功时合并服务端返回的 Set-Cookie，
+// 保留未被轮换的 wr_vid/wr_rt。
+func (c *Client) RenewWebCookie(ctx context.Context, cookie string) (string, error) {
+	if cookie == "" {
+		return "", fmt.Errorf("网页 Cookie 为空")
+	}
+	body, err := json.Marshal(map[string]any{"rq": "%2Fweb%2Fbook%2Fread", "ql": false})
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webBaseURL+"/web/login/renewal", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("content-type", "application/json; charset=UTF-8")
+	req.Header.Set("User-Agent", webUserAgent)
+	req.Header.Set("Origin", webBaseURL)
+	req.Header.Set("Referer", webBaseURL+"/")
+	req.Header.Set("Cookie", cookie)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("续期网页会话失败: %w", err)
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", ErrSessionExpired
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("续期网页会话失败: HTTP %d", resp.StatusCode)
+	}
+	if err := checkBusinessCode(data); err != nil {
+		return "", err
+	}
+	return mergeWebCookies(cookie, resp.Cookies()), nil
+}
+
+func mergeWebCookies(cookie string, updates []*http.Cookie) string {
+	values := map[string]string{}
+	for _, part := range strings.Split(cookie, ";") {
+		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
+		if len(kv) == 2 {
+			values[kv[0]] = kv[1]
+		}
+	}
+	for _, ck := range updates {
+		if ck != nil && (ck.Name == "wr_vid" || ck.Name == "wr_skey" || ck.Name == "wr_rt") {
+			values[ck.Name] = ck.Value
+		}
+	}
+	out := ""
+	for _, name := range []string{"wr_vid", "wr_skey", "wr_rt"} {
+		if v := values[name]; v != "" {
+			if out != "" {
+				out += "; "
+			}
+			out += name + "=" + v
+		}
+	}
+	return out
+}
 
 // WebCookie 用移动端凭据调 /web/login/session/init 换取网页会话。
 // 服务端通过 set-cookie 下发 wr_vid / wr_skey / wr_rt,拼成 Cookie 串返回。

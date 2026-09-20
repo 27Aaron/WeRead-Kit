@@ -73,10 +73,34 @@ func TestReadEndpointsMapUnauthorizedToSessionExpired(t *testing.T) {
 		}, nil
 	})
 	ctx := context.Background()
-	if _, err := client.readHeartbeat(ctx, "cookie", "book", 1, 0, 0, 30); err != ErrSessionExpired {
+	if _, err := client.readHeartbeat(ctx, "cookie", &ReaderSession{Token: "reader-token"}, "book", 1, 0, 0, 30); err != ErrSessionExpired {
 		t.Fatalf("readHeartbeat error = %v, want ErrSessionExpired", err)
 	}
 	if _, err := client.ChapterUIDs(ctx, "cookie", "book"); err != ErrSessionExpired {
 		t.Fatalf("ChapterUIDs error = %v, want ErrSessionExpired", err)
+	}
+}
+
+func TestRenewWebCookieMergesRotatedCookie(t *testing.T) {
+	client := NewClient()
+	client.HTTP.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/web/login/renewal" {
+			t.Fatalf("path = %s", r.URL.Path)
+		}
+		if got := r.Header.Get("Cookie"); got != "wr_vid=v1; wr_skey=old; wr_rt=rt1" {
+			t.Fatalf("cookie = %q", got)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"succ":1}`)),
+			Header:     http.Header{"Set-Cookie": []string{"wr_skey=new; Path=/"}},
+		}, nil
+	})
+	cookie, err := client.RenewWebCookie(context.Background(), "wr_vid=v1; wr_skey=old; wr_rt=rt1")
+	if err != nil {
+		t.Fatalf("RenewWebCookie: %v", err)
+	}
+	if cookie != "wr_vid=v1; wr_skey=new; wr_rt=rt1" {
+		t.Fatalf("cookie = %q", cookie)
 	}
 }

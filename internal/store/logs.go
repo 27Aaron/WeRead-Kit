@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS weread_log (
   message TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_weread_log_ts ON weread_log (ts DESC);
+CREATE INDEX IF NOT EXISTS idx_weread_log_vid_id ON weread_log (vid, id DESC);
 `
 
 // AddLog 写入一条日志(尽力而为:日志失败不影响主流程),并按保留条数淘汰最旧的。

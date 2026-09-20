@@ -115,6 +115,17 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 	chapterUID := chapters[chapterPos]
 	offset := randIntn(600)
 	percent := 0
+	reader, err := c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
+	if err != nil {
+		cookie, active, err = c.renewSession(ctx, active, cookie)
+		if err == nil {
+			reader, err = c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
+		}
+		if err != nil {
+			result.Err = err.Error()
+			return result, active, err
+		}
+	}
 	consecutiveFails := 0
 
 	for result.Done < task.Total {
@@ -124,13 +135,16 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 				return result, active, nil
 			}
 		}
-		hasSync, err := c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+		hasSync, err := c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
 		// 心跳直接报会话过期(-2012):重新桥接(必要时刷新移动端凭据)后原地重试,
 		// 与下面"未记账"路径共用连续失败上限,连续恢复失败仍会中止并推送。
 		if errors.Is(err, ErrSessionExpired) {
 			cookie, active, err = c.renewSession(ctx, active, cookie)
 			if err == nil {
-				hasSync, err = c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+				reader, err = c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
+				if err == nil {
+					hasSync, err = c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+				}
 			}
 			// /web/login/session/init 可能接受已过期的移动端凭据,返回格式正确但
 			// 实际不可用的 Cookie。重新桥接后的第一次心跳若仍提示会话过期,
@@ -138,7 +152,10 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 			if errors.Is(err, ErrSessionExpired) {
 				cookie, active, err = c.refreshAndBridge(ctx, active)
 				if err == nil {
-					hasSync, err = c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+					reader, err = c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
+					if err == nil {
+						hasSync, err = c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+					}
 				}
 			}
 		}
@@ -146,19 +163,25 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 			// 无 synckey = 阅读同步状态未对齐,先调 chapterInfos 修复(参考实现的
 			// fix_no_synckey 步骤),再原地重试本次心跳。
 			if _, cerr := c.ChapterUIDs(ctx, cookie, result.BookID); cerr == nil {
-				hasSync, err = c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+				hasSync, err = c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
 			}
 		}
 		if err == nil && !hasSync {
 			// 修复后仍未记账:视为会话失效,续期后原地重试本次心跳。
 			cookie, active, err = c.renewSession(ctx, active, cookie)
 			if err == nil {
-				hasSync, err = c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+				reader, err = c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
+				if err == nil {
+					hasSync, err = c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+				}
 			}
 			if errors.Is(err, ErrSessionExpired) {
 				cookie, active, err = c.refreshAndBridge(ctx, active)
 				if err == nil {
-					hasSync, err = c.readHeartbeat(ctx, cookie, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+					reader, err = c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
+					if err == nil {
+						hasSync, err = c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+					}
 				}
 			}
 		}
@@ -237,7 +260,12 @@ func (c *Client) webSession(ctx context.Context, creds *Credentials) (string, *C
 }
 
 // renewSession 心跳中途会话失效时:重新桥接;桥接不动就刷新移动端凭据再桥接。
-func (c *Client) renewSession(ctx context.Context, active *Credentials, _ string) (string, *Credentials, error) {
+func (c *Client) renewSession(ctx context.Context, active *Credentials, cookie string) (string, *Credentials, error) {
+	if cookie != "" {
+		if renewed, err := c.RenewWebCookie(ctx, cookie); err == nil {
+			return renewed, active, nil
+		}
+	}
 	return c.webSession(ctx, active)
 }
 
