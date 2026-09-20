@@ -1,5 +1,5 @@
-/* weread-kit Web UI:账号管理、扫码登录、阅读挑战、日志与推送设置。
-   无框架,原生 fetch;图标来自 lucide.js 提供的 SVG 路径数据。 */
+/* weread-kit Web UI：账号管理、扫码登录、阅读挑战、日志与推送设置。
+   无框架，原生 fetch；图标来自 lucide.js 提供的 SVG 路径数据。 */
 
 const ICONS = {"search": "<path d=\"m21 21-4.34-4.34\" /> <circle cx=\"11\" cy=\"11\" r=\"8\" />", "gift": "<rect x=\"3\" y=\"8\" width=\"18\" height=\"4\" rx=\"1\" /><path d=\"M12 8v13\" /><path d=\"M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7\" /><path d=\"M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5\" />", "chevron-down": "<path d=\"m6 9 6 6 6-6\" />", "x": "<path d=\"M18 6 6 18\" /> <path d=\"m6 6 12 12\" />", "refresh-cw": "<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\" /> <path d=\"M21 3v5h-5\" /> <path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\" /> <path d=\"M8 16H3v5\" />", "book-open": "<path d=\"M12 5v16\" /> <path d=\"M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z\" />", "circle-check": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"m16 9-5.5 5.5L8 12\" />", "settings-2": "<path d=\"M14 17H5\" /> <path d=\"M19 7h-9\" /> <circle cx=\"17\" cy=\"17\" r=\"3\" /> <circle cx=\"7\" cy=\"7\" r=\"3\" />", "plus": "<path d=\"M5 12h14\" /> <path d=\"M12 5v14\" />", "check": "<path d=\"M20 6 9 17l-5-5\" />", "save": "<path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\" /> <path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\" /> <path d=\"M7 3v4a1 1 0 0 0 1 1h7\" />", "square": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" />", "play": "<path d=\"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z\" />", "send": "<path d=\"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z\" /> <path d=\"m21.854 2.147-10.94 10.939\" />", "trash": "<path d=\"M10 11v6\" /> <path d=\"M14 11v6\" /> <path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\" /> <path d=\"M3 6h18\" /> <path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\" />", "sun": "<circle cx=\"12\" cy=\"12\" r=\"4\" /> <path d=\"M12 2v2\" /> <path d=\"M12 20v2\" /> <path d=\"m4.93 4.93 1.41 1.41\" /> <path d=\"m17.66 17.66 1.41 1.41\" /> <path d=\"M2 12h2\" /> <path d=\"M20 12h2\" /> <path d=\"m6.34 17.66-1.41 1.41\" /> <path d=\"m19.07 4.93-1.41 1.41\" />", "scroll-text": "<path d=\"M15 12h-5\" /> <path d=\"M15 8h-5\" /> <path d=\"M19 17V5a2 2 0 0 0-2-2H4\" /> <path d=\"M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3\" />", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M12 6v6l4 2\" />", "user":'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
   "user": '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />',
@@ -34,7 +34,7 @@ async function checkAppVersion() {
     // 版本号以 Go 服务端 /api/version 返回值为准，前端不再维护副本。
     const current = `v${v.current_version || "未知"}`;
     el.textContent = current;
-    el.title = v.has_update ? "发现新版本,点击查看" : "查看版本信息";
+    el.title = v.has_update ? "发现新版本，点击查看" : "查看版本信息";
     el.classList.toggle("has-update", !!v.has_update);
     status?.classList.toggle("hidden", !v.has_update);
     if (status) status.textContent = v.has_update ? "有更新" : "";
@@ -104,6 +104,52 @@ function fmtRemain(seconds) {
 }
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// 异步操作期间禁用按钮并显示加载指示，避免重复提交时界面毫无反馈。
+function setBusy(btn, busy) {
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.classList.toggle("loading", busy);
+}
+
+// 加载占位骨架：屏幕阅读器仍读到"正在加载"，视觉上是脉冲色块，等待期间布局不跳动。
+function skeletonHTML(lines = 3) {
+  const rows = Array.from({ length: lines }, () => '<div class="skeleton-line" aria-hidden="true"></div>').join("");
+  return `<div class="skeleton-lines"><span class="sr-only" role="status">正在加载…</span>${rows}</div>`;
+}
+
+// 卡片形状的骨架：高度贴近真实卡片，加载完成时下方内容不发生跳动。
+function skeletonCardsHTML(count, height, cover = false) {
+  const cards = Array.from({ length: count }, () => `<div class="skeleton-card" style="height:${height}px" aria-hidden="true"></div>`).join("");
+  return `<div class="skeleton-cards${cover ? " covers" : ""}"><span class="sr-only" role="status">正在加载…</span>${cards}</div>`;
+}
+
+// 自定义确认框：返回 Promise<boolean>，替代原生 confirm，与界面风格保持一致。
+function confirmAction({ title = "确认操作", message = "", confirmText = "确定", danger = true } = {}) {
+  return new Promise((resolve) => {
+    const dlg = $("#confirm-dialog");
+    $("#confirm-title").textContent = title;
+    $("#confirm-message").textContent = message;
+    const ok = $("#confirm-ok");
+    const cancel = $("#confirm-cancel");
+    ok.textContent = confirmText;
+    ok.className = danger ? "btn danger" : "btn primary";
+    const finish = (result) => {
+      ok.removeEventListener("click", onOk);
+      cancel.removeEventListener("click", onCancel);
+      dlg.removeEventListener("cancel", onEsc);
+      if (dlg.open) dlg.close();
+      resolve(result);
+    };
+    const onOk = () => finish(true);
+    const onCancel = () => finish(false);
+    const onEsc = (e) => { e.preventDefault(); finish(false); };
+    ok.addEventListener("click", onOk);
+    cancel.addEventListener("click", onCancel);
+    dlg.addEventListener("cancel", onEsc);
+    dlg.showModal();
+  });
 }
 
 /* ---------- 视图切换 ---------- */
@@ -222,7 +268,7 @@ function enhanceSelect(sel) {
   toggle.addEventListener("keydown", (e) => {
     if (["Enter", " ", "ArrowDown"].includes(e.key)) { e.preventDefault(); open(); }
   });
-  // 外部代码程序化设置 sel.value 后派发 change,即可同步按钮文案。
+  // 外部代码程序化设置 sel.value 后派发 change，即可同步按钮文案。
   sel.addEventListener("change", sync);
   document.addEventListener("click", (e) => {
     if (!dd.contains(e.target)) close();
@@ -237,7 +283,7 @@ function enhanceSelect(sel) {
   renderMenu();
 }
 
-// 开始时间下拉:30 分钟一档
+// 开始时间下拉：30 分钟一档
 const runatSel = $("#challenge-runat-input");
 for (let h = 0; h < 24; h++) {
   for (const m of [0, 30]) {
@@ -295,13 +341,13 @@ function toast(msg, type = "info") {
   renderIcons(el);
   el.classList.remove("hidden", "ok", "error");
   el.classList.add(type);
-  // popover 提到最顶层,原生弹窗打开时也能看到报错
+  // popover 提到最顶层，原生弹窗打开时也能看到报错
   try { el.showPopover(); } catch {}
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     el.classList.add("hidden");
     try { el.hidePopover(); } catch {}
-  }, type === "error" ? 4200 : 2600);
+  }, type === "error" ? 4200 : 3200);
 }
 
 /* ---------- 账号列表 ---------- */
@@ -311,17 +357,17 @@ let listRequest = 0;
 
 async function loadAccounts() {
   const request = ++listRequest;
-  $("#reload-btn").disabled = true;
+  setBusy($("#reload-btn"), true);
   try {
     allAccounts = await api("/api/accounts");
     if (request !== listRequest) return;
     renderAccounts();
   } catch (err) {
     if (request !== listRequest) return;
-    showEmptyState(`无法加载账号:${err.message}`, "点击「刷新」重试");
+    showEmptyState(`无法加载账号：${err.message}`, "点击「刷新」重试");
     $("#list-summary").textContent = "加载失败";
   } finally {
-    if (request === listRequest) $("#reload-btn").disabled = false;
+    if (request === listRequest) setBusy($("#reload-btn"), false);
   }
 }
 
@@ -336,14 +382,14 @@ function renderAccounts() {
   );
   $("#account-count").textContent = accounts.length;
   $("#account-count-label").textContent = query ? "搜索结果" : "全部账号";
-  // 无账号时的空态由 #empty 承载:未添加任何账号,或搜索无匹配
+  // 无账号时的空态由 #empty 承载：未添加任何账号，或搜索无匹配
   $("#empty").classList.toggle("hidden", accounts.length > 0);
   if (!accounts.length && query) {
     $("#empty-title").textContent = `没有找到「${query}」`;
     $("#empty-desc").textContent = "换个关键词试试";
   } else {
     $("#empty-title").textContent = "从连接第一个账号开始";
-    $("#empty-desc").textContent = "用微信扫一扫,即可把阅读账号添加到这里。";
+    $("#empty-desc").textContent = "用微信扫一扫，即可把阅读账号添加到这里。";
   }
 
   const list = $("#account-list");
@@ -352,7 +398,7 @@ function renderAccounts() {
     const row = document.createElement("div");
     row.className = "account-row";
 
-    // 头像:优先微信头像,否则取显示名首字
+    // 头像：优先微信头像，否则取显示名首字
     const avatar = document.createElement("div");
     avatar.className = "avatar";
     if (a.avatar) {
@@ -365,7 +411,7 @@ function renderAccounts() {
       avatar.textContent = Array.from(displayName(a))[0] || "读";
     }
 
-    // 信息列:可编辑昵称/备注 + 别名与 ID
+    // 信息列：可编辑昵称/备注 + 别名与 ID
     const info = document.createElement("div");
     info.className = "account-info";
     const name = document.createElement("input");
@@ -392,14 +438,14 @@ function renderAccounts() {
         toast("备注已保存", "ok");
       } catch (err) {
         name.value = a.remark || "";
-        toast(`保存失败:${err.message}`, "error");
+        toast(`保存失败：${err.message}`, "error");
       }
     });
     const sub = document.createElement("div");
     sub.className = "account-sub";
-    // 网页扫码的账号别名即 vid,此时只显示 ID;别名不同(CLI 创建)才额外标注。
+    // 网页扫码的账号别名即 vid，此时只显示 ID；别名不同（CLI 创建）才额外标注。
     sub.textContent = `ID ${a.vid}`;
-    sub.title = `本地别名 ${a.vid}(CLI --alias 用)`;
+    sub.title = `本地别名 ${a.vid}(CLI --alias 用）`;
     info.append(name, sub);
     row.append(avatar, info);
 
@@ -409,44 +455,49 @@ function renderAccounts() {
     const badge = document.createElement("span");
     badge.className = "badge " + (a.has_access_token ? "ok" : "missing");
     badge.textContent = a.has_access_token ? "凭据有效" : "待刷新";
-    badge.title = "表示本地是否保存凭据,不代表实时登录状态";
+    badge.title = "表示本地是否保存凭据，不代表实时登录状态";
     const rotated = document.createElement("span");
     rotated.className = "account-time";
     rotated.textContent = fmtTime(a.rotated_at);
     cred.append(badge, rotated);
 
-    // 操作:详情 / 刷新 / 删除
+    // 操作：详情 / 刷新 / 删除
     const ops = document.createElement("div");
     ops.className = "ops";
     const detailBtn = button("详情", "btn", () => showDetails(a));
     detailBtn.setAttribute("aria-label", `查看账号 ${displayName(a)} 详情`);
     const refreshBtn = button("刷新", "btn", async () => {
-      refreshBtn.disabled = true;
+      setBusy(refreshBtn, true);
       try {
         await api(`/api/accounts/${encodeURIComponent(a.vid)}/refresh`, { method: "POST" });
         toast(`已刷新 ${displayName(a)}`, "ok");
         await loadAccounts();
       } catch (err) {
-        toast(`刷新失败:${err.message}`, "error");
-        refreshBtn.disabled = false;
+        toast(`刷新失败：${err.message}`, "error");
+        setBusy(refreshBtn, false);
       }
     });
     refreshBtn.setAttribute("aria-label", `刷新账号 ${displayName(a)}`);
     const delBtn = button("删除", "btn danger", async () => {
-      if (!confirm(`确定删除账号「${displayName(a)}」?仅删除本地凭据,不影响微信读书账号。`)) return;
+      const okDelete = await confirmAction({
+        title: "删除账号",
+        message: `确定删除账号「${displayName(a)}」？仅删除本地凭据，不影响微信读书账号。`,
+        confirmText: "删除",
+      });
+      if (!okDelete) return;
       try {
         await api(`/api/accounts/${encodeURIComponent(a.vid)}`, { method: "DELETE" });
         toast("已删除", "ok");
         await loadAccounts();
       } catch (err) {
-        toast(`删除失败:${err.message}`, "error");
+        toast(`删除失败：${err.message}`, "error");
       }
     });
     delBtn.setAttribute("aria-label", `删除账号 ${displayName(a)}`);
     ops.append(detailBtn, refreshBtn, delBtn);
 
     row.append(cred, ops);
-    // 让操作区最右侧:info 占满剩余宽度
+    // 让操作区最右侧：info 占满剩余宽度
     info.style.flex = "1";
     list.append(row);
   }
@@ -478,9 +529,9 @@ function stopLoginPolling() {
 
 const loginStatusText = {
   pending: "",
-  scanned: "已扫码,请在微信中确认",
-  success: "登录成功!",
-  expired: "二维码已过期,请重新生成",
+  scanned: "已扫码，请在微信中确认",
+  success: "登录成功！",
+  expired: "二维码已过期，请重新生成",
   declined: "你在微信中拒绝了授权",
   canceled: "登录已取消",
   error: "登录失败",
@@ -488,9 +539,9 @@ const loginStatusText = {
 
 function setLoginStatus(status, errMsg) {
   const el = $("#login-status");
-  // 注意用 in 判断:某些状态的文案就是空串,不能用真值回退,否则状态码会漏到界面。
+  // 注意用 in 判断：某些状态的文案就是空串，不能用真值回退，否则状态码会漏到界面。
   const label = status in loginStatusText ? loginStatusText[status] : status;
-  // 错误详情与状态文案相同时只展示一次,避免重复。
+  // 错误详情与状态文案相同时只展示一次，避免重复。
   const duplicated = !errMsg || errMsg === label || label.includes(errMsg) || errMsg.includes(label);
   el.textContent = duplicated ? label : `${label}:${errMsg}`;
   el.className = "status" + (status === "success" ? " ok" : ["expired", "declined", "error", "canceled"].includes(status) ? " err" : "");
@@ -520,14 +571,14 @@ async function startLogin() {
     loginId = data.id;
     $("#qr-area").classList.remove("hidden");
     $("#qr-img").src = `${data.qr_url}?t=${Date.now()}`;
-    // 二维码已就绪,按钮常驻底部,随时可刷新换新码
+    // 二维码已就绪，按钮常驻底部，随时可刷新换新码
     $("#login-start").disabled = false;
     setStartBtnText("刷新二维码");
     setLoginStatus("pending");
     loginPollTimer = setInterval(() => pollLogin(generation), 1500);
   } catch (err) {
     if (generation !== loginGeneration) return;
-    toast(`发起登录失败:${err.message}`, "error");
+    toast(`发起登录失败：${err.message}`, "error");
     $("#login-start").disabled = false;
     setStartBtnText("重新生成二维码");
   }
@@ -539,7 +590,7 @@ async function pollLogin(generation) {
   try {
     data = await api(`/api/login/${loginId}`);
   } catch {
-    return; // 单次轮询失败忽略,下一轮再试
+    return; // 单次轮询失败忽略，下一轮再试
   }
   if (generation !== loginGeneration) return;
   setLoginStatus(data.status, data.error);
@@ -583,9 +634,11 @@ async function showDetails(account, force = false) {
   const generation = ++detailRequest;
   detailAccount = account;
   $("#detail-title").textContent = displayName(account);
-  $("#detail-content").innerHTML = `<p class="empty">${force ? "正在从微信读书更新…" : "正在加载…"}</p>`;
+  $("#detail-content").innerHTML = force
+    ? '<p class="empty">正在从微信读书更新…</p>'
+    : skeletonHTML(4);
   if (!$("#detail-dialog").open) $("#detail-dialog").showModal();
-  $("#detail-reload").disabled = true;
+  setBusy($("#detail-reload"), true);
   try {
     const data = await api(`/api/accounts/${encodeURIComponent(account.vid)}/details`, {
       method: force ? "POST" : "GET",
@@ -594,9 +647,9 @@ async function showDetails(account, force = false) {
     renderDetails(data);
   } catch (err) {
     if (generation !== detailRequest) return;
-    $("#detail-content").innerHTML = `<p class="empty">加载失败:${escapeHtml(err.message)}</p>`;
+    $("#detail-content").innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
   } finally {
-    if (generation === detailRequest) $("#detail-reload").disabled = false;
+    if (generation === detailRequest) setBusy($("#detail-reload"), false);
   }
 }
 
@@ -610,7 +663,7 @@ function renderDetails(d) {
   if (failed.length) {
     const warn = document.createElement("p");
     warn.className = "detail-warn";
-    warn.textContent = `部分数据未能获取(${failed.map(([k]) => detailSectionNames[k] || k).join("、")}),可点击「刷新数据」重试。`;
+    warn.textContent = `部分数据未能获取（${failed.map(([k]) => detailSectionNames[k] || k).join("、")})，可点击「刷新数据」重试。`;
     root.append(warn);
   }
 
@@ -619,7 +672,7 @@ function renderDetails(d) {
   if (d.card) root.append(detailSection("会员卡", memberCardBlock(d.card)));
 
   const books = Array.isArray(d.books) ? d.books : [];
-  root.append(detailSection(`书架(${books.length} 本)`, shelfGrid(books, d.reading)));
+  root.append(detailSection(`书架（${books.length} 本）`, shelfGrid(books, d.reading)));
 }
 
 function detailSection(title, el) {
@@ -631,7 +684,7 @@ function detailSection(title, el) {
   return sec;
 }
 
-// 微信读书接口返回有的把对象包在子字段里,有的直接平铺,这里做兼容。
+// 微信读书接口返回有的把对象包在子字段里，有的直接平铺，这里做兼容。
 function nested(obj, ...keys) {
   if (!obj || typeof obj !== "object") return null;
   for (const k of keys) {
@@ -680,7 +733,7 @@ function userCard(u) {
   return wrap;
 }
 
-// 会员卡只展示对用户有意义的四项,其余接口字段一律不展示。
+// 会员卡只展示对用户有意义的四项，其余接口字段一律不展示。
 function memberCardBlock(c) {
   return kvListEl([
     ["起始日期", fmtDay(c.startTime)],
@@ -738,7 +791,7 @@ async function openChallenge() {
   const sel = $("#challenge-account");
   sel.textContent = "";
   if (!accounts.length) {
-    // 一个账号都没有:隐藏整个配置面板,只显示引导
+    // 一个账号都没有：隐藏整个配置面板，只显示引导
     $("#challenge-panel").classList.add("hidden");
     $("#official-challenge").classList.add("hidden");
     $("#challenge-empty").classList.remove("hidden");
@@ -748,7 +801,8 @@ async function openChallenge() {
   $("#challenge-panel").classList.remove("hidden");
   $("#challenge-empty").classList.add("hidden");
   $("#challenge-banner").classList.remove("hidden");
-  $("#official-challenge").classList.remove("hidden");
+  // 官方挑战面板由数据决定是否展示:加载期间保持隐藏,避免"闪现再消失"造成抖动。
+  $("#official-challenge").classList.add("hidden");
   if (!accounts.some((a) => a.vid === challengeAlias)) challengeAlias = accounts[0].vid;
   for (const a of accounts) {
     const opt = document.createElement("option");
@@ -762,13 +816,13 @@ async function openChallenge() {
 
 async function loadChallenge() {
   if (!challengeAlias) return;
-  $("#challenge-books").innerHTML = '<p class="empty">正在加载书架…</p>';
+  $("#challenge-books").innerHTML = skeletonCardsHTML(18, 190, true);
   try {
-    // GET details 走本地缓存,瞬时返回;书架与阅读配置一次拿全。
+    // GET details 走本地缓存，瞬时返回；书架与阅读配置一次拿全。
     const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/details`);
     renderChallenge(d);
   } catch (err) {
-    $("#challenge-books").innerHTML = `<p class="empty">加载失败:${escapeHtml(err.message)}</p>`;
+    $("#challenge-books").innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
   }
   loadOfficialChallenge();
 }
@@ -777,16 +831,17 @@ async function loadChallenge() {
 
 async function loadOfficialChallenge() {
   if (!challengeAlias) return;
-  const body = $("#official-challenge-body");
   const status = $("#official-challenge-status");
-  body.innerHTML = '<p class="empty">正在加载…</p>';
+  const panel = $("#official-challenge");
+  // 加载期间保持隐藏:未参加挑战时面板最终不展示,先渲染骨架再隐藏会让页面抖动一下。
+  panel.classList.add("hidden");
   status.textContent = "—";
   try {
     const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge`);
     renderOfficialChallenge(d.challenge || {});
   } catch (err) {
-    status.textContent = "—";
-    body.innerHTML = `<p class="empty">加载失败:${escapeHtml(err.message)}</p>`;
+    // 面板属于辅助信息,加载失败时保持隐藏避免布局跳动;详情留给控制台。
+    console.warn("官方挑战进度加载失败:", err.message);
   }
 }
 
@@ -795,7 +850,7 @@ function renderOfficialChallenge(c) {
   const status = $("#official-challenge-status");
   const panel = $("#official-challenge");
   if (!c.id || !c.status) {
-    // 未参加官方挑战赛:整个面板不展示。
+    // 未参加官方挑战赛：整个面板不展示。
     panel.classList.add("hidden");
     return;
   }
@@ -812,7 +867,7 @@ function renderOfficialChallenge(c) {
   const circ = (2 * Math.PI * R).toFixed(1);
   const ring = (pct, value, unit, label, target) => `
     <div class="challenge-metric">
-      <div class="challenge-ring" role="img" aria-label="${label} ${value} ${unit},目标 ${target} ${unit},完成 ${Math.round(pct)}%">
+      <div class="challenge-ring" role="img" aria-label="${label} ${value} ${unit}，目标 ${target} ${unit}，完成 ${Math.round(pct)}%">
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <circle class="ring-track" cx="60" cy="60" r="${R}"></circle>
           <circle class="ring-fill" cx="60" cy="60" r="${R}" stroke-dasharray="${circ}"
@@ -857,7 +912,7 @@ function renderChallenge(d) {
   const runatValue = cfg.run_at || "03:00";
   const runatInput = $("#challenge-runat-input");
   if (![...runatInput.options].some((o) => o.value === runatValue)) {
-    // 已保存的时间不在 30 分钟档位:补一个选项,避免显示为空
+    // 已保存的时间不在 30 分钟档位：补一个选项，避免显示为空
     const opt = document.createElement("option");
     opt.value = opt.textContent = runatValue;
     runatInput.append(opt);
@@ -870,13 +925,13 @@ function renderChallenge(d) {
   $("#challenge-minutes-input").value = cfg.minutes || 30;
   updateChallengeButtons(!!cfg.running);
   $("#challenge-laststatus").textContent = cfg.last_status
-    ? `上次执行(${cfg.last_run_date || "—"}):${cfg.last_status}`
+    ? `上次执行（${cfg.last_run_date || "—"}):${cfg.last_status}`
     : "尚未执行过";
 
   const grid = $("#challenge-books");
   grid.textContent = "";
   if (!challengeBooks.length) {
-    grid.innerHTML = '<p class="empty">书架为空,先在详情里刷新数据。</p>';
+    grid.innerHTML = '<p class="empty">书架为空，先在详情里刷新数据。</p>';
     return;
   }
   for (const b of challengeBooks) {
@@ -897,7 +952,9 @@ function renderChallenge(d) {
     }
     const meta = document.createElement("div");
     meta.className = "book-meta";
-    meta.innerHTML = `<div class="book-title">${escapeHtml(b.title || "未命名书籍")}</div><div class="book-author">${escapeHtml(b.author || b.authorName || "未知作者")}</div>`;
+    const bookTitle = b.title || "未命名书籍";
+    const bookAuthor = b.author || b.authorName || "未知作者";
+    meta.innerHTML = `<div class="book-title" title="${escapeHtml(bookTitle)}">${escapeHtml(bookTitle)}</div><div class="book-author">${escapeHtml(bookAuthor)}</div>`;
     card.append(meta);
     const check = document.createElement("span");
     check.className = "check";
@@ -916,7 +973,7 @@ function renderChallenge(d) {
   }
 }
 
-// 「立即执行」与「停止阅读」是同一个按钮:按会话状态切换文案、图标与配色。
+// 「立即执行」与「停止阅读」是同一个按钮：按会话状态切换文案、图标与配色。
 function updateChallengeButtons(running) {
   challengeRunning = !!running;
   const btn = $("#challenge-run");
@@ -938,7 +995,7 @@ $("#challenge-save").addEventListener("click", async () => {
     return;
   }
   const btn = $("#challenge-save");
-  btn.disabled = true;
+  setBusy(btn, true);
   try {
     await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`, {
       method: "POST",
@@ -955,30 +1012,30 @@ $("#challenge-save").addEventListener("click", async () => {
     $("#challenge-banner").classList.toggle("off", !$("#challenge-enabled").checked);
     $("#challenge-runat").textContent = $("#challenge-runat-input").value || "03:00";
     $("#challenge-minutes").textContent = `${$("#challenge-minutes-input").value || 30} 分钟`;
-    toast($("#challenge-enabled").checked ? "已保存,到点自动参与阅读挑战" : "配置已保存(未开启)", "ok");
+    toast($("#challenge-enabled").checked ? "已保存，到点自动参与阅读挑战" : "配置已保存（未开启）", "ok");
   } catch (err) {
-    toast(`保存失败:${err.message}`, "error");
+    toast(`保存失败：${err.message}`, "error");
   }
-  btn.disabled = false;
+  setBusy(btn, false);
 });
 
 async function runChallengeNow() {
   if (!challengeAlias) return;
   if (!challengeSavedBooks.length) {
-    toast("请先选择要阅读的书籍,并点「保存配置」", "error");
+    toast("请先选择要阅读的书籍，并点「保存配置」", "error");
     return;
   }
   const btn = $("#challenge-run");
-  btn.disabled = true;
+  setBusy(btn, true);
   try {
     const data = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/run`, { method: "POST" });
-    toast(data.resumed ? "继续上次未完成的阅读" : "阅读会话已启动,每 30 秒记 0.5 分钟", "ok");
+    toast(data.resumed ? "继续上次未完成的阅读" : "阅读会话已启动，每 30 秒记 0.5 分钟", "ok");
   } catch (err) {
-    toast(`启动失败:${err.message}`, "error");
-    btn.disabled = false;
+    toast(`启动失败：${err.message}`, "error");
+    setBusy(btn, false);
     return;
   }
-  btn.disabled = false;
+  setBusy(btn, false);
   updateChallengeButtons(true);
   let polls = 0;
   if (challengeRunTimer) clearInterval(challengeRunTimer);
@@ -987,7 +1044,7 @@ async function runChallengeNow() {
     try {
       const cfg = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`);
       updateChallengeButtons(!!cfg.running);
-      // 会话是否结束以 running 为准;结束后按钮回到「立即执行」。
+      // 会话是否结束以 running 为准；结束后按钮回到「立即执行」。
       if (!cfg.running) {
         $("#challenge-laststatus").textContent = cfg.last_status || "已结束";
         clearInterval(challengeRunTimer);
@@ -1001,12 +1058,17 @@ async function runChallengeNow() {
 
 async function stopChallenge() {
   if (!challengeAlias) return;
-  if (!confirm("确定停止本次阅读会话?已上报的时长会保留,当日不再重跑。")) return;
+  const okStop = await confirmAction({
+    title: "停止阅读",
+    message: "确定停止本次阅读会话？已上报的时长会保留，当日不再重跑。",
+    confirmText: "停止",
+  });
+  if (!okStop) return;
   try {
     await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading/stop`, { method: "POST" });
     $("#challenge-laststatus").textContent = "正在停止…";
   } catch (err) {
-    toast(`停止失败:${err.message}`, "error");
+    toast(`停止失败：${err.message}`, "error");
   }
 }
 
@@ -1016,7 +1078,7 @@ $("#challenge-goto-accounts").addEventListener("click", () => {
   loadAccounts();
 });
 
-/* ---------- 我的阅读(周阅读奖励) ---------- */
+/* ---------- 我的阅读（周阅读奖励） ---------- */
 
 let readingAlias = null;
 let readingData = null;
@@ -1049,7 +1111,7 @@ async function openReading() {
 }
 
 function resetWeeklyUI() {
-  // 加载前清空全部动态区域:切换账号后不能残留上一账号的数据。
+  // 加载前清空全部动态区域：切换账号后不能残留上一账号的数据。
   readingData = null;
   readingCard = null;
   readingPrefs = {};
@@ -1066,8 +1128,8 @@ async function loadWeekly() {
   if (!readingAlias) return;
   const request = ++weeklyRequest;
   resetWeeklyUI();
-  $("#reading-time-awards").innerHTML = '<p class="empty">正在加载…</p>';
-  $("#reading-day-awards").innerHTML = '<p class="empty">正在加载…</p>';
+  $("#reading-time-awards").innerHTML = skeletonCardsHTML(5, 148);
+  $("#reading-day-awards").innerHTML = skeletonCardsHTML(3, 148);
   try {
     const d = await api(`/api/accounts/${encodeURIComponent(readingAlias)}/weekly`);
     if (request !== weeklyRequest) return;
@@ -1077,13 +1139,13 @@ async function loadWeekly() {
     renderWeekly();
   } catch (err) {
     if (request !== weeklyRequest) return;
-    const msg = `加载失败:${escapeHtml(err.message)}`;
+    const msg = `加载失败：${escapeHtml(err.message)}`;
     $("#reading-time-awards").innerHTML = `<p class="empty">${msg}</p>`;
     $("#reading-day-awards").innerHTML = `<p class="empty">${msg}</p>`;
   }
 }
 
-// 秒数 → 「X 小时 Y 分钟」;不足 1 分钟按秒展示。
+// 秒数 → 「X 小时 Y 分钟」；不足 1 分钟按秒展示。
 function fmtDuration(sec) {
   sec = Math.max(0, Math.floor(sec || 0));
   if (sec === 0) return "0 分钟";
@@ -1093,7 +1155,7 @@ function fmtDuration(sec) {
   return m > 0 ? `${m} 分钟` : `${sec} 秒`;
 }
 
-// 「读 30 分钟」「读 1 小时」「读 2 天」→ 秒数 / 天数,用于进度条。
+// 「读 30 分钟」「读 1 小时」「读 2 天」→ 秒数 / 天数，用于进度条。
 function parseLevelGoal(desc) {
   const sec = desc && desc.match(/读 (\d+) 分钟/);
   if (sec) return { seconds: Number(sec[1]) * 60 };
@@ -1104,7 +1166,7 @@ function parseLevelGoal(desc) {
   return {};
 }
 
-// 奖品描述:优先用档位的 awardChoices 自行拼接(统一叫体验卡),
+// 奖品描述：优先用档位的 awardChoices 自行拼接（统一叫体验卡）,
 // 没有明细时退回服务端原文并把"无限卡"替换为"体验卡"。
 function choicesDesc(a) {
   const choices = a.awardChoices || [];
@@ -1140,7 +1202,7 @@ function weeklyCard(a, weekly, prefs) {
   desc.textContent = choicesDesc(a);
   card.append(desc);
 
-  // 进度条:时长奖励按本周秒数,天数奖励按本周天数;右侧标注当前进度。
+  // 进度条：时长奖励按本周秒数，天数奖励按本周天数；右侧标注当前进度。
   // 达成/已领取的档位进度条保持 100% 展示。
   if (goal.seconds || goal.days) {
     const done = goal.seconds ? weekly.readingTime : weekly.readingDay;
@@ -1150,12 +1212,12 @@ function weeklyCard(a, weekly, prefs) {
       ? `${Math.floor(done / 60)} / ${need / 60} 分钟`
       : `${done} / ${need} 天`;
     if (goal.seconds && need >= 3600) {
-      // 小时档位用小时计("1 / 3 小时"),分钟档位用分钟计。
+      // 小时档位用小时计（"1 / 3 小时")，分钟档位用分钟计。
       label = `${Math.round((done / 3600) * 10) / 10} / ${need / 3600} 小时`;
     }
     const row = document.createElement("div");
     row.className = "reward-progress-row";
-    row.innerHTML = `<div class="reward-progress"><i style="width:${pct}%"></i></div>`;
+    row.innerHTML = `<div class="reward-progress"><i style="transform:scaleX(${(pct / 100).toFixed(4)})"></i></div>`;
     const tag = document.createElement("span");
     tag.className = "reward-progress-label";
     tag.textContent = label;
@@ -1163,8 +1225,8 @@ function weeklyCard(a, weekly, prefs) {
     card.append(row);
   }
 
-  // 双按钮:书币 / 体验卡。任何时候都可点击 —— 点击保存每周的自动领取设置,
-  // 设置写入数据库;若当前正好可领取,保存后立即领取一次。选中项以描边色标识。
+  // 双按钮：书币 / 体验卡。任何时候都可点击 —— 点击保存每周的自动领取设置，
+  // 设置写入数据库；若当前正好可领取，保存后立即领取一次。选中项以描边色标识。
   const actions = document.createElement("div");
   actions.className = "reward-actions";
   for (const c of a.awardChoices || []) {
@@ -1174,13 +1236,13 @@ function weeklyCard(a, weekly, prefs) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "reward-btn";
-    btn.title = `设为每周自动领取:${name} ${val}`;
+    btn.title = `设为每周自动领取：${name} ${val}`;
     if (claimable) {
       btn.classList.add("claimable");
       btn.textContent = `${name} ${val}`;
     } else {
-      // 选中描边由保存的设置决定,与本周是否领取过无关:已领取的档位换选另
-      // 一种后,描边移动到新选项上,表示下周起自动领取它。
+      // 选中描边由保存的设置决定，与本周是否领取过无关：已领取的档位换选另
+      // 一种后，描边移动到新选项上，表示下周起自动领取它。
       const selected = prefChoice === c.choiceType;
       const claimedThisWeek = claimed && a.awardChooseType === c.choiceType;
       btn.classList.add(selected ? "selected" : "plain");
@@ -1198,37 +1260,40 @@ function weeklyCard(a, weekly, prefs) {
   return card;
 }
 
-// 把本周每日阅读秒数渲染成迷你柱状图:柱高是当天时长,柱下标注星期,
-// 今天用强调色标出;悬停显示具体时长。readDays 为周一到周日 7 项。
+// 把本周每日阅读秒数渲染成迷你柱状图：柱高是当天时长，柱下标注星期，
+// 今天用强调色标出。每根柱子可聚焦，悬停或键盘聚焦时显示具体时长。
+// readDays 为周一到周日 7 项。
 function renderWeekBars(root, readDays) {
   const labels = ["一", "二", "三", "四", "五", "六", "日"];
   const days = readDays.slice(-labels.length);
   const offset = labels.length - days.length;
   root.textContent = "";
-  root.removeAttribute("role");
-  root.removeAttribute("aria-label");
   if (!days.length || days.every((s) => !s)) {
     root.textContent = "本周还没有阅读记录";
     return;
   }
   const max = Math.max(...days, 1);
-  // 仅当拿到完整一周时才能把下标当作星期;今天是周几(0=周一)。
+  // 仅当拿到完整一周时才能把下标当作星期；今天是周几（0=周一）。
   const today = days.length === labels.length ? (new Date().getDay() + 6) % 7 : -1;
   const bars = document.createElement("div");
   bars.className = "week-bars";
+  bars.setAttribute("role", "list");
+  bars.setAttribute("aria-label", "本周每日阅读时长");
   root.append(bars);
-  root.setAttribute("role", "img");
-  root.setAttribute("aria-label",
-    "本周每日阅读:" + days.map((s, i) => `周${labels[offset + i]} ${s > 0 ? fmtDuration(s) : "没有阅读"}`).join(","));
   days.forEach((sec, i) => {
+    const label = labels[offset + i];
+    const value = sec > 0 ? fmtDuration(sec) : "没有阅读";
     const col = document.createElement("span");
     col.className = "week-bar";
     if (i === today) col.classList.add("today");
-    col.title = `周${labels[offset + i]} · ${sec > 0 ? fmtDuration(sec) : "没有阅读"}`;
+    col.setAttribute("role", "listitem");
+    col.setAttribute("tabindex", "0");
+    col.setAttribute("aria-label", `周${label}:${value}`);
+    col.dataset.tip = `周${label} · ${value}`;
     const bar = document.createElement("i");
     bar.style.height = (sec > 0 ? Math.max(3, Math.round((sec / max) * 28)) : 2) + "px";
     const name = document.createElement("b");
-    name.textContent = labels[offset + i];
+    name.textContent = label;
     col.append(bar, name);
     bars.append(col);
   });
@@ -1242,8 +1307,8 @@ function renderWeekly() {
   $("#reading-stat-month").textContent = fmtDuration((w.monthReadDaysDetail || {}).readTimes);
   const monthDays = ((w.monthReadDaysDetail || {}).readDays || []).filter((s) => s > 0).length;
   $("#reading-stat-month-detail").textContent = `本月有 ${monthDays} 天读过`;
-  // 无限卡剩余天数以详情缓存的会员卡信息为准(官方 memberCardSummary 接口),
-  // weekly 里的 infiniteCard 字段不反映真实余额,仅作兜底。
+  // 无限卡剩余天数以详情缓存的会员卡信息为准（官方 memberCardSummary 接口）,
+  // weekly 里的 infiniteCard 字段不反映真实余额，仅作兜底。
   const mc = readingCard || {};
   const ic = w.infiniteCard || {};
   if (mc.has) {
@@ -1257,7 +1322,7 @@ function renderWeekly() {
     $("#reading-stat-card-sub").textContent = "还没有可用的体验卡";
   }
 
-  // 时长奖励按档位秒数从小到大排序,天数奖励同理。
+  // 时长奖励按档位秒数从小到大排序，天数奖励同理。
   const byGoal = (a, b) => {
     const ga = parseLevelGoal(a.awardLevelDesc) || {};
     const gb = parseLevelGoal(b.awardLevelDesc) || {};
@@ -1282,25 +1347,25 @@ function renderWeekly() {
   }
 }
 
-/* ---------- 奖品选择(保存每周设置,由调度器自动领取) ---------- */
+/* ---------- 奖品选择（保存每周设置，由调度器自动领取） ---------- */
 
 function choiceLabel(choiceType, num) {
   return choiceType === 1 ? `体验卡 ${num} 天` : `书币 ${num} 个`;
 }
 
 async function saveRewardChoice(a, c, btn) {
-  btn.disabled = true;
+  setBusy(btn, true);
   try {
     const p = await api(`/api/accounts/${encodeURIComponent(readingAlias)}/weekly/pref`, {
       method: "POST",
       body: JSON.stringify({ award_level_id: a.awardLevelId, choice_type: c.choiceType }),
     });
     readingPrefs = p.prefs || {};
-    toast(`设置已保存:将自动领取${choiceLabel(c.choiceType, c.awardNum)}`, "ok");
+    toast(`设置已保存：将自动领取${choiceLabel(c.choiceType, c.awardNum)}`, "ok");
     renderWeekly();
   } catch (err) {
-    toast(`设置保存失败:${err.message}`, "error");
-    btn.disabled = false;
+    toast(`设置保存失败：${err.message}`, "error");
+    setBusy(btn, false);
   }
 }
 
@@ -1345,9 +1410,9 @@ async function loadLogs(silent = false) {
   if ($("#log-level").value) params.set("level", $("#log-level").value);
   try {
     const logs = await api(`/api/logs?${params}`);
-    $("#logs-list").textContent = "";
+    $("#logs-rows").textContent = "";
     if (!logs.length) {
-      $("#logs-list").innerHTML = '<p class="empty">暂无日志</p>';
+      $("#logs-rows").innerHTML = '<p class="empty">暂无日志</p>';
     } else {
       for (const e of logs) {
         const row = document.createElement("div");
@@ -1375,13 +1440,13 @@ async function loadLogs(silent = false) {
         msg.textContent = e.message;
         msg.title = e.message;
         row.append(time, level, source, account, msg);
-        $("#logs-list").append(row);
+        $("#logs-rows").append(row);
       }
       $("#logs-list").scrollTop = 0;
     }
     $("#logs-updated").textContent = `更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
   } catch (err) {
-    if (!silent) toast(`加载日志失败:${err.message}`, "error");
+    if (!silent) toast(`加载日志失败：${err.message}`, "error");
   }
 }
 
@@ -1389,13 +1454,18 @@ $("#logs-reload").addEventListener("click", () => loadLogs());
 $("#log-alias").addEventListener("change", () => loadLogs());
 $("#log-level").addEventListener("change", () => loadLogs());
 $("#logs-clear").addEventListener("click", async () => {
-  if (!confirm("确定清空全部日志?")) return;
+  const okClear = await confirmAction({
+    title: "清空日志",
+    message: "确定清空全部日志？清空后无法恢复。",
+    confirmText: "清空",
+  });
+  if (!okClear) return;
   try {
     await api("/api/logs", { method: "DELETE" });
     toast("日志已清空", "ok");
     loadLogs();
   } catch (err) {
-    toast(`清空失败:${err.message}`, "error");
+    toast(`清空失败：${err.message}`, "error");
   }
 });
 
@@ -1403,19 +1473,19 @@ $("#logs-clear").addEventListener("click", async () => {
 
 const pushTypes = {
   bark: {
-    label: "Bark", desc: "iOS 通知,免费、可自建服务端",
+    label: "Bark", desc: "iOS 通知，免费、可自建服务端",
     fields: [["device_key", "Device Key", true], ["server", "服务端地址", false, "https://api.day.app"]],
   },
   telegram: {
-    label: "Telegram", desc: "无条数限制,网络需可访问 Telegram",
+    label: "Telegram", desc: "无条数限制，网络需可访问 Telegram",
     fields: [["bot_token", "Bot Token", true], ["chat_id", "Chat ID", true]],
   },
   serverchan: {
-    label: "Server酱", desc: "消息直达微信,免费版每天限 5 条",
+    label: "Server酱", desc: "消息直达微信，免费版每天限 5 条",
     fields: [["send_key", "SendKey", true]],
   },
   pushplus: {
-    label: "pushplus", desc: "微信公众号推送,需关注公众号",
+    label: "pushplus", desc: "微信公众号推送，需关注公众号",
     fields: [["token", "Token", true]],
   },
 };
@@ -1448,7 +1518,7 @@ async function loadPushChannels() {
     desc.textContent = meta.desc;
     info.append(name, desc);
 
-    // 开关:切换即保存
+    // 开关：切换即保存
     const sw = document.createElement("label");
     sw.className = "switch";
     const swInput = document.createElement("input");
@@ -1485,17 +1555,17 @@ async function loadPushChannels() {
 
     const ops = document.createElement("div");
     ops.className = "push-card-ops";
-    const saveBtn = button("保存参数", "btn", () => saveChannel(type, swInput.checked, collectParams(fields)));
+    const saveBtn = button("保存参数", "btn", () => saveChannel(type, swInput.checked, collectParams(fields), saveBtn));
     const testBtn = button("发送测试", "btn", async () => {
       const params = collectParams(fields);
-      testBtn.disabled = true;
+      setBusy(testBtn, true);
       try {
         await api(`/api/settings/push/${type}/test`, { method: "POST", body: JSON.stringify({ params }) });
-        toast("测试消息已发送,请查收", "ok");
+        toast("测试消息已发送，请查收", "ok");
       } catch (err) {
-        toast(`测试失败:${err.message}`, "error");
+        toast(`测试失败：${err.message}`, "error");
       }
-      testBtn.disabled = false;
+      setBusy(testBtn, false);
     });
     ops.append(saveBtn, testBtn);
     card.append(ops);
@@ -1512,16 +1582,18 @@ async function loadPushChannels() {
   if (summary) summary.textContent = `${enabledCount}/${Object.keys(pushTypes).length} 个渠道已开启`;
 }
 
-async function saveChannel(type, enabled, params) {
+async function saveChannel(type, enabled, params, btn) {
+  setBusy(btn, true);
   try {
     await api("/api/settings/push", {
       method: "POST",
       body: JSON.stringify({ type, enabled, params }),
     });
-    toast(enabled ? "已开启" : "配置已保存(未开启)", "ok");
+    toast(enabled ? "已开启" : "配置已保存（未开启）", "ok");
   } catch (err) {
-    toast(`保存失败:${err.message}`, "error");
+    toast(`保存失败：${err.message}`, "error");
   }
+  setBusy(btn, false);
 }
 
 /* ---------- 启动 ---------- */

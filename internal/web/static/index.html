@@ -8,7 +8,7 @@
   <title>微信读书</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
   <script>
-    // 启动前先确定主题,避免亮暗闪烁;优先取用户手动选择,其次跟随系统。
+    // 启动前先确定主题，避免亮暗闪烁；优先取用户手动选择，其次跟随系统。
     document.documentElement.dataset.theme =
       localStorage.getItem("weread-theme") ||
       (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -18,6 +18,7 @@
 </head>
 
 <body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
   <aside class="sidebar">
     <div class="brand">
       <a class="brand-link" href="/" id="brand-link">
@@ -59,7 +60,7 @@
   </aside>
 
   <div class="workspace">
-    <main>
+    <main id="main-content" tabindex="-1">
       <!-- 我的账号 -->
       <section id="view-accounts" class="view">
         <div class="page-head">
@@ -82,8 +83,8 @@
           <div id="account-list" class="account-list"></div>
           <div id="empty" class="empty hidden">
             <span class="nav-icon" data-icon="book-open"></span>
-            <h3 id="empty-title">从连接第一个账号开始</h3>
-            <p id="empty-desc">用微信扫一扫,即可把阅读账号添加到这里。</p>
+            <h2 id="empty-title">从连接第一个账号开始</h2>
+            <p id="empty-desc">用微信扫一扫，即可把阅读账号添加到这里。</p>
           </div>
         </div>
       </section>
@@ -150,8 +151,8 @@
 
         <div id="reading-empty" class="empty hidden">
           <span class="nav-icon" data-icon="gift"></span>
-          <h3>还没有账号</h3>
-          <p>先到「我的账号」扫码添加一个,再回来看阅读奖励。</p>
+          <h2>还没有账号</h2>
+          <p>先到「我的账号」扫码添加一个，再回来看阅读奖励。</p>
           <button id="reading-goto-accounts" class="btn primary">去添加账号</button>
         </div>
       </section>
@@ -193,7 +194,7 @@
               <input type="number" id="challenge-minutes-input" min="1" max="480" value="30" /> 分钟
             </label>
           </div>
-          <div class="books-head">选择书籍 <small>必选,至少 1 本；选 1 本固定阅读,选多本时随机阅读其中一本。选好后点「保存配置」再「立即执行」</small></div>
+          <div class="books-head">选择书籍 <small>必选，至少 1 本；选 1 本固定阅读，选多本时随机阅读其中一本。选好后点「保存配置」再「立即执行」</small></div>
           <div id="challenge-books" class="book-grid"></div>
           <div class="panel-foot ops-between">
             <span id="challenge-laststatus" class="dim">尚未执行过</span>
@@ -206,8 +207,8 @@
         </div>
         <div id="challenge-empty" class="empty hidden">
           <span class="nav-icon" data-icon="book-open"></span>
-          <h3>还没有账号</h3>
-          <p>先到「我的账号」扫码添加一个,再回来开启阅读挑战。</p>
+          <h2>还没有账号</h2>
+          <p>先到「我的账号」扫码添加一个，再回来开启阅读挑战。</p>
           <button id="challenge-goto-accounts" class="btn primary">去添加账号</button>
         </div>
       </section>
@@ -233,14 +234,14 @@
           </div>
         </div>
         <div class="panel">
-          <div class="logs-header" role="row">
-            <span>时间</span><span>级别</span><span>来源</span><span>账号</span><span>内容</span>
-          </div>
           <div id="logs-list" class="logs-list">
-            <p class="empty">暂无日志</p>
+            <div class="logs-header" role="row">
+              <span>时间</span><span>级别</span><span>来源</span><span>账号</span><span>内容</span>
+            </div>
+            <div id="logs-rows"></div>
           </div>
           <div class="panel-foot">
-            <span>自动刷新:每 10 秒</span>
+            <span>自动刷新：每 10 秒</span>
             <span id="logs-updated">—</span>
           </div>
         </div>
@@ -267,7 +268,7 @@
       <div id="qr-area" class="qr-area hidden">
         <img id="qr-img" width="220" height="220" alt="微信扫码登录微信读书" />
         <p id="login-status" class="status" role="status"></p>
-        <p class="dialog-note">打开微信扫一扫,并在手机上确认登录</p>
+        <p class="dialog-note">打开微信扫一扫，并在手机上确认登录</p>
       </div>
       <div class="dialog-ops">
         <button id="login-start" class="btn primary block"><span class="nav-icon" data-icon="refresh-cw"></span><span
@@ -286,6 +287,18 @@
       </div>
       <div class="dialog-ops">
         <button id="detail-reload" class="btn"><span class="nav-icon" data-icon="refresh-cw"></span>刷新数据</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 操作确认 -->
+  <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title">
+    <div class="dialog-body">
+      <h2 id="confirm-title">确认操作</h2>
+      <p id="confirm-message" class="confirm-message"></p>
+      <div class="confirm-ops">
+        <button id="confirm-cancel" class="btn" type="button">取消</button>
+        <button id="confirm-ok" class="btn danger" type="button">确定</button>
       </div>
     </div>
   </dialog>

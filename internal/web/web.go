@@ -93,9 +93,74 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("error") == "1" {
 		errMsg = `<div class="error" role="alert">账号或密码错误，请重试</div>`
 	}
-	html := `<!doctype html><html lang="zh-CN"><meta name="viewport" content="width=device-width"><title>登录 · 微信读书</title><style>
- :root{color-scheme:light;--bg:#f5f2ec;--card:#fff;--text:#29251f;--muted:#817a70;--line:#ddd6ca;--accent:#d99743;--accent2:#bc7629}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,sans-serif}.card{width:min(100%,390px);padding:40px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 16px 45px #4c3b2418}.brand{text-align:center;margin-bottom:28px}.brand img{width:54px;height:54px;border-radius:14px}.brand h1{font-size:22px;margin:14px 0 6px}.brand p{color:var(--muted);margin:0;font-size:13px}label{display:block;font-size:13px;font-weight:600;margin:16px 0 7px}input{display:block;width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:9px;background:transparent;color:inherit;font:inherit}input:focus{outline:2px solid #d9974366;border-color:var(--accent)}button{width:100%;margin-top:24px;padding:12px;border:0;border-radius:9px;background:var(--accent);color:#fff;font:600 15px inherit;cursor:pointer}button:hover{background:var(--accent2)}.error{padding:10px 12px;border-radius:8px;background:#c94d3514;color:#b43d2c;font-size:13px;margin-bottom:12px}@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#171513;--card:#25211d;--text:#f2eee8;--muted:#aaa196;--line:#494139}.card{box-shadow:0 16px 45px #0005}.error{background:#e06b581f;color:#ff9b89}}
- </style><main class="card"><div class="brand"><img src="/favicon.png" alt=""><h1>欢迎回来</h1><p>登录后管理你的微信读书账号</p></div>` + errMsg + `<form method="post"><label for="username">账号</label><input id="username" name="username" autocomplete="username" placeholder="请输入登录账号" required><label for="password">密码</label><input id="password" name="password" type="password" autocomplete="current-password" placeholder="请输入登录密码" required><button type="submit">登录</button></form></main></html>`
+	html := `<!doctype html><html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 · 微信读书</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<script>
+  // 与主界面一致：优先用户手动选择的主题，其次跟随系统。
+  document.documentElement.dataset.theme =
+    localStorage.getItem("weread-theme") ||
+    (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+</script>
+<link rel="stylesheet" href="https://gw.alipayobjects.com/os/k/jinkai/style.css" crossorigin="anonymous">
+<style>
+:root{color-scheme:light;--bg:#f6f4ef;--surface:#fffdf9;--text:#2a2620;--text-dim:#746e65;--border:#e6e1d5;--border-strong:#948a77;--accent:#b45309;--accent-strong:#8a3e06;--accent-soft:#f7ead7;--err:#b91c1c;--shadow:0 16px 45px rgba(76,59,36,.12);--font-sans:"TsangerJinKai02",system-ui,sans-serif}
+html[data-theme="dark"]{color-scheme:dark;--bg:#171512;--surface:#201d19;--text:#eae5da;--text-dim:#a39c8f;--border:#383329;--border-strong:#736a5a;--accent:#e0a458;--accent-strong:#f0b869;--accent-soft:#332a1c;--err:#f87171;--shadow:0 16px 45px rgba(0,0,0,.35)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg);color:var(--text);font:15px/1.5 var(--font-sans)}
+.card{width:min(100%,390px);padding:40px;border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:var(--shadow)}
+.brand{text-align:center;margin-bottom:28px}
+.brand img{width:54px;height:54px;border-radius:14px}
+.brand h1{font-size:22px;margin:14px 0 6px}
+.brand p{color:var(--text-dim);margin:0;font-size:13px}
+label{display:block;font-size:13px;font-weight:600;margin:16px 0 7px}
+input{display:block;width:100%;padding:12px 13px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);color:inherit;font:inherit}
+input:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:66px}
+.pw-toggle{position:absolute;top:50%;right:6px;transform:translateY(-50%);padding:7px 9px;border:0;border-radius:6px;background:transparent;color:var(--text-dim);font:inherit;font-size:12px;cursor:pointer}
+.pw-toggle:hover{color:var(--accent);background:var(--accent-soft)}
+.pw-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button[type=submit]{width:100%;margin-top:24px;padding:12px;border:0;border-radius:9px;background:var(--accent);color:#fff;font:600 15px inherit;cursor:pointer}
+button[type=submit]:hover{background:var(--accent-strong)}
+button[type=submit]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.error{padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--err) 12%,transparent);color:var(--err);font-size:13px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand">
+    <img src="/favicon.png" alt="">
+    <h1>欢迎回来</h1>
+    <p>登录后管理你的微信读书账号</p>
+  </div>` + errMsg + `
+  <form method="post">
+    <label for="username">账号</label>
+    <input id="username" name="username" autocomplete="username" placeholder="请输入登录账号" required>
+    <label for="password">密码</label>
+    <div class="pw-wrap">
+      <input id="password" name="password" type="password" autocomplete="current-password" placeholder="请输入登录密码" required>
+      <button type="button" id="pw-toggle" class="pw-toggle" aria-label="显示密码" aria-pressed="false">显示</button>
+    </div>
+    <button type="submit">登录</button>
+  </form>
+</main>
+<script>
+  const pw = document.getElementById("password");
+  const pwToggle = document.getElementById("pw-toggle");
+  pwToggle.addEventListener("click", () => {
+    const show = pw.type === "password";
+    pw.type = show ? "text" : "password";
+    pwToggle.textContent = show ? "隐藏" : "显示";
+    pwToggle.setAttribute("aria-pressed", String(show));
+    pwToggle.setAttribute("aria-label", show ? "隐藏密码" : "显示密码");
+  });
+</script>
+</body>
+</html>`
 	w.Write([]byte(html))
 }
 
