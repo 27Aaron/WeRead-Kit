@@ -1743,6 +1743,47 @@ main {
   white-space: nowrap;
 }
 
+/* 本周每日阅读的迷你柱状图:柱高表示当天时长,下方是星期。 */
+.week-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  padding-top: 10px;
+}
+
+.week-bar {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+
+.week-bar i {
+  display: block;
+  width: 62%;
+  max-width: 18px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-dim) 42%, transparent);
+}
+
+.week-bar.today i {
+  background: var(--accent);
+}
+
+.week-bar b {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--text-dim);
+}
+
+.week-bar.today b {
+  color: var(--accent);
+}
+
 .reward-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
@@ -2402,10 +2443,9 @@ button {
 }
 
 .brand-version-wrap {
-  position: relative;
   position: absolute;
   left: 57px;
-  top: 43px;
+  top: 21px;
   margin: 0;
   line-height: 1;
 }
@@ -2415,6 +2455,12 @@ button {
   align-items: center;
   gap: 9px;
   width: max-content;
+}
+
+/* 版本号由 .brand-version-wrap 定位在「微信读书」正下方;文字盒预留版本号的
+   高度,让文字与版本号整体和图标垂直居中,还原 v0.1.7 的观感。 */
+.brand-text {
+  margin-bottom: 13px;
 }
 
 .brand-version-row {
@@ -2436,7 +2482,7 @@ button {
   background: #ef4444;
   color: transparent;
   font-size: 0;
-  vertical-align: 2px;
+  vertical-align: middle;
   animation: version-pulse 1.6s ease-in-out infinite;
 }
 
@@ -2500,7 +2546,7 @@ button {
 @media (max-width: 640px) {
   .brand-version-wrap {
     left: 37px;
-    top: 30px;
+    top: 14px;
   }
 
   .version-popover {
