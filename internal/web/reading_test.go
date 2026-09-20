@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -9,7 +10,25 @@ import (
 	"testing"
 
 	"github.com/27Aaron/weread-kit/internal/store"
+	"github.com/27Aaron/weread-kit/internal/weread"
 )
+
+func TestStartFarmStopsWhenInitialStateCannotBeSaved(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	db.Close()
+
+	s := &Server{db: db, ctx: context.Background(), farms: map[string]*farmSessionHandle{}}
+	err = s.startFarm("v1", weread.FarmTask{BookID: "book", Total: 2}, &weread.Credentials{Vid: "v1"})
+	if err == nil {
+		t.Fatal("startFarm succeeded despite state persistence failure")
+	}
+	if s.farmRunning("v1") {
+		t.Fatal("failed task remained marked as running")
+	}
+}
 
 // TestReadingConfigValidation 验证 RunAt 补零校验、书 ID 分隔符拒绝与自动去重。
 func TestReadingConfigValidation(t *testing.T) {
