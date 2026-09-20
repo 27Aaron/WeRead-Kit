@@ -9,10 +9,12 @@
   /* 次级表面:工具栏、表头 */
   --text: #2a2620;
   /* 主文字:墨色 */
-  --text-dim: #7d766b;
-  /* 次级文字 */
+  --text-dim: #746e65;
+  /* 次级文字:对 --surface 对比度 4.97:1,满足 WCAG AA */
   --border: #e6e1d5;
   /* 分隔线 */
+  --border-strong: #948a77;
+  /* 输入控件边界:对 --surface 3.36:1、对 --bg 3.10:1(WCAG 1.4.11) */
   --accent: #b45309;
   /* 琥珀强调 */
   --accent-strong: #8a3e06;
@@ -40,6 +42,8 @@ html[data-theme="dark"] {
   --text: #eae5da;
   --text-dim: #a39c8f;
   --border: #383329;
+  --border-strong: #736a5a;
+  /* 输入控件边界:对 --surface 对比度 3.15:1(WCAG 1.4.11) */
   --accent: #e0a458;
   --accent-strong: #f0b869;
   --accent-soft: #332a1c;
@@ -75,6 +79,30 @@ select {
 
 button {
   cursor: pointer;
+}
+
+/* 键盘用户跳过侧边栏直达主内容;平时移出视口,聚焦时浮出。 */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 100;
+  padding: 10px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: var(--shadow);
+}
+
+.skip-link:focus {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+}
+
+main:focus {
+  outline: none;
 }
 
 button:disabled {
@@ -352,8 +380,9 @@ main {
   padding: 12px 20px;
   border-top: 1px solid var(--border);
   background: var(--surface-2);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-dim);
+  flex-shrink: 0;
 }
 
 .ops-between {
@@ -435,6 +464,41 @@ main {
   width: 100%;
 }
 
+/* 异步操作中的按钮:禁用并显示转圈指示,文字保持占位避免宽度跳动 */
+.btn.loading {
+  position: relative;
+  color: transparent;
+}
+
+.btn.loading:disabled {
+  opacity: 0.8;
+}
+
+.btn.loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid var(--text-dim);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.btn.primary.loading::after {
+  border-color: var(--accent-soft);
+  border-top-color: transparent;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .btn .nav-icon {
   width: 15px;
   height: 15px;
@@ -445,7 +509,7 @@ main {
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--text-dim);
@@ -465,7 +529,7 @@ main {
 
 .select {
   padding: 8px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   font-size: 12px;
@@ -489,7 +553,7 @@ main {
   min-width: 120px;
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
@@ -561,8 +625,8 @@ main {
 .switch {
   position: relative;
   display: inline-block;
-  width: 42px;
-  height: 24px;
+  width: 46px;
+  height: 26px;
   flex-shrink: 0;
 }
 
@@ -575,7 +639,7 @@ main {
 .switch i {
   position: absolute;
   inset: 0;
-  background: var(--border);
+  background: var(--border-strong);
   border-radius: 24px;
   transition: background 0.18s;
 }
@@ -583,8 +647,8 @@ main {
 .switch i::before {
   content: "";
   position: absolute;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   left: 3px;
   top: 3px;
   border-radius: 50%;
@@ -598,7 +662,7 @@ main {
 }
 
 .switch input:checked+i::before {
-  transform: translateX(18px);
+  transform: translateX(20px);
 }
 
 .empty {
@@ -607,13 +671,82 @@ main {
   color: var(--text-dim);
 }
 
+/* 仅屏幕阅读器可见的文本 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 加载骨架屏:替代"正在加载…"纯文本,让等待期间布局保持稳定 */
+.skeleton-lines {
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px;
+}
+
+.skeleton-line {
+  height: 13px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton-line:nth-child(2n) {
+  width: 78%;
+}
+
+.skeleton-line:nth-child(3n) {
+  width: 56%;
+}
+
+/* 卡片形状的骨架:尺寸贴近真实卡片,加载完成时布局几乎不跳动 */
+.skeleton-cards {
+  /* 外层是奖励/书籍网格:骨架容器横跨整行,避免被压成单列 */
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 12px;
+  padding: 14px;
+}
+
+.skeleton-cards.covers {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 15px;
+  padding: 14px 20px 18px;
+}
+
+.skeleton-card {
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.45;
+  }
+}
+
 .empty .nav-icon {
   width: 34px;
   height: 34px;
   opacity: 0.5;
 }
 
-.empty h3 {
+.empty h2 {
   margin: 12px 0 6px;
   font-size: 15px;
   color: var(--text);
@@ -775,7 +908,7 @@ main {
 }
 
 .account-name:hover {
-  border-color: var(--border);
+  border-color: var(--border-strong);
 }
 
 .account-name:focus {
@@ -785,7 +918,7 @@ main {
 }
 
 .account-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-dim);
   margin-top: 2px;
   font-family: var(--font-mono);
@@ -793,7 +926,7 @@ main {
 
 .account-meta {
   width: auto;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-dim);
   line-height: 1.7;
 }
@@ -807,7 +940,7 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -914,7 +1047,7 @@ main {
 }
 
 .dialog-note {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.7;
   color: var(--text-dim);
   margin: 10px 0 0;
@@ -927,6 +1060,25 @@ main {
 
 .dialog-ops .btn {
   width: 100%;
+  padding: 11px;
+}
+
+/* 确认对话框:说明文字 + 并排的取消/确认按钮 */
+.confirm-message {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.confirm-ops {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.confirm-ops .btn {
+  flex: 1;
   padding: 11px;
 }
 
@@ -964,7 +1116,7 @@ main {
   padding: 12px 18px;
   background: var(--accent-soft);
   color: var(--warn);
-  font-size: 11px;
+  font-size: 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -989,7 +1141,7 @@ main {
 }
 
 .user-vid {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-dim);
   margin-top: 3px;
   font-family: var(--font-mono);
@@ -1003,7 +1155,7 @@ main {
 .kv-row {
   display: flex;
   gap: 12px;
-  font-size: 11px;
+  font-size: 12px;
   min-width: 0;
 }
 
@@ -1057,7 +1209,7 @@ main {
 .shelf-title {
   width: min(100%, 120px);
   box-sizing: border-box;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
   line-height: 1.45;
   max-height: calc(1.45em * 2);
@@ -1073,7 +1225,7 @@ main {
 .shelf-author {
   width: min(100%, 120px);
   box-sizing: border-box;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-dim);
   margin-top: 2px;
   overflow: hidden;
@@ -1157,7 +1309,7 @@ main {
 
 .field-inline input {
   padding: 7px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   font-size: 12px;
@@ -1195,7 +1347,7 @@ main {
 }
 
 .book-title {
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1203,7 +1355,7 @@ main {
 
 .book-author {
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1285,8 +1437,12 @@ main {
 }
 
 .logs-header {
+  /* 表头留在滚动容器内并吸顶:与数据行共用同一列宽,不会错位 */
+  position: sticky;
+  top: 0;
+  z-index: 2;
   height: 40px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-dim);
   background: var(--surface-2);
@@ -1294,7 +1450,7 @@ main {
 }
 
 .logs-list {
-  max-height: calc(100vh - 190px);
+  /* 高度由日志面板的 flex 布局分配,加载前后保持一致,避免布局跳动 */
   min-height: 370px;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -1315,7 +1471,7 @@ main {
 .log-row {
   height: 44px;
   min-width: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-family: var(--font-mono);
   border-bottom: 1px solid var(--border);
 }
@@ -1401,7 +1557,7 @@ main {
 }
 
 .push-card-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-dim);
   margin-top: 2px;
 }
@@ -1417,7 +1573,7 @@ main {
   width: 100%;
   height: 32px;
   padding: 0 11px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--text);
@@ -1516,7 +1672,29 @@ main {
     padding: 0 14px;
   }
 
+  /* 顶栏保留主题切换:图标按钮排在菜单按钮左侧 */
   .sidebar-foot {
+    display: flex;
+    order: 1;
+    margin: 0 0 0 auto;
+    padding: 0;
+    border: 0;
+  }
+
+  .sidebar-foot .theme-toggle {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    justify-content: center;
+  }
+
+  .sidebar-foot .theme-toggle:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .sidebar-foot #theme-label {
     display: none;
   }
 
@@ -1540,9 +1718,9 @@ main {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    margin-left: auto;
-    width: 34px;
-    height: 34px;
+    order: 2;
+    width: 44px;
+    height: 44px;
     border: 0;
     border-radius: var(--radius-sm);
     background: transparent;
@@ -1632,7 +1810,7 @@ main {
   }
 
   .account-meta .badge {
-    font-size: 10px;
+    font-size: 11px;
   }
 
 
@@ -1684,7 +1862,7 @@ main {
   opacity: 0.5;
 }
 
-#challenge-empty h3 {
+#challenge-empty h2 {
   margin: 14px 0 6px;
   font-size: 15px;
   color: var(--text);
@@ -1751,7 +1929,13 @@ main {
   padding-top: 10px;
 }
 
+/* 柱状图容器不裁剪,允许数值提示浮出 */
+#reading-stat-week-detail {
+  overflow: visible;
+}
+
 .week-bar {
+  position: relative;
   flex: 1 1 0;
   min-width: 0;
   display: flex;
@@ -1759,6 +1943,31 @@ main {
   justify-content: flex-end;
   align-items: center;
   gap: 4px;
+}
+
+/* 悬停或键盘聚焦时显示当天时长;触屏点按聚焦同样可见。 */
+.week-bar::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+  z-index: 5;
+}
+
+.week-bar:hover::after,
+.week-bar:focus-visible::after {
+  opacity: 1;
 }
 
 .week-bar i {
@@ -1774,7 +1983,7 @@ main {
 }
 
 .week-bar b {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1;
   color: var(--text-dim);
@@ -1853,9 +2062,12 @@ main {
 .reward-progress i {
   display: block;
   height: 100%;
+  width: 100%;
   background: var(--accent);
   border-radius: 999px;
-  transition: width 0.4s ease;
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform 0.4s ease;
 }
 
 .reward-progress-label {
@@ -2036,7 +2248,7 @@ main {
 }
 
 .ring-center span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-dim);
 }
 
@@ -2155,6 +2367,8 @@ main {
 
 html {
   background: var(--bg);
+  /* 始终为滚动条预留空间:切换视图时内容高度变化不再引起横向晃动 */
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -2296,8 +2510,7 @@ button {
 }
 
 #view-logs>.panel {
-  height: auto;
-  max-height: calc(100vh - 160px);
+  height: calc(100vh - 160px);
   min-height: 420px;
 }
 
@@ -2369,6 +2582,7 @@ button {
   }
 
   #view-logs>.panel {
+    height: auto;
     min-height: 0;
     max-height: none;
   }
@@ -2580,7 +2794,8 @@ button {
   .dd-toggle,
   .select,
   .push-param-input,
-  .field-inline input {
-    min-height: 40px;
+  .field-inline input,
+  .search {
+    min-height: 44px;
   }
 }
