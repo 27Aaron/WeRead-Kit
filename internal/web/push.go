@@ -149,15 +149,19 @@ func (s *Server) notifyFarmResult(vid, level, title, body string) {
 		emblem = "⚠️ "
 	}
 	for _, ch := range channels {
+		// 每个渠道独立计时,避免前一个慢渠道耗尽整轮通知的超时时间。
+		channelCtx, channelCancel := context.WithTimeout(ctx, 15*time.Second)
 		var params map[string]string
 		if err := json.Unmarshal([]byte(ch.Params), &params); err != nil {
+			channelCancel()
 			continue
 		}
-		if err := notify.Send(ctx, ch.Type, params, emblem+title, body); err != nil {
+		if err := notify.Send(channelCtx, ch.Type, params, emblem+title, body); err != nil {
 			s.logf("warn", "push", vid, "%s 渠道推送失败: %v", ch.Type, err)
 		} else {
 			s.logf("info", "push", vid, "%s 渠道推送成功: %s", ch.Type, title)
 		}
+		channelCancel()
 	}
 }
 
