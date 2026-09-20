@@ -9,7 +9,52 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
 async function checkAppVersion() {
-  try { const v = await fetch('/api/version').then(r => r.json()); const el = $('#app-version'); if (!el) return; el.textContent = `v${v.current_version || '0.0.9'}`; if (v.has_update) { el.classList.add('has-update'); const pop = $('#version-popover'); pop.innerHTML = `<strong>发现新版本</strong><p>最新版本：${v.latest_version}</p>${v.html_url ? `<a href="${v.html_url}" target="_blank" rel="noreferrer">查看详情 →</a>` : ''}`; el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); pop.classList.toggle('hidden'); }); document.addEventListener('click', (e) => { if (!el.contains(e.target) && !pop.contains(e.target)) pop.classList.add('hidden'); }); } } catch (_) {}
+  const el = $("#app-version");
+  const pop = $("#version-popover");
+  const status = $("#version-status");
+  if (!el || !pop) return;
+
+  if (!el.dataset.bound) {
+    el.dataset.bound = "1";
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const open = pop.classList.toggle("hidden") === false;
+      el.setAttribute("aria-expanded", String(open));
+    });
+    document.addEventListener("click", (e) => {
+      if (!el.contains(e.target) && !pop.contains(e.target)) {
+        pop.classList.add("hidden");
+        el.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  const render = (v) => {
+    const current = `v${v.current_version || "0.0.9"}`;
+    el.textContent = current;
+    el.title = v.has_update ? "发现新版本,点击查看" : "查看版本信息";
+    el.classList.toggle("has-update", !!v.has_update);
+    status?.classList.toggle("hidden", !v.has_update);
+    if (status) status.textContent = v.has_update ? "有更新" : "";
+
+    if (v.has_update) {
+      const latest = escapeHtml(v.latest_version || "新版本");
+      pop.innerHTML = `<strong>发现新版本 ${latest}</strong><p>当前版本 ${current}。建议更新以获得最新功能和修复。</p>${v.html_url ? `<a href="${escapeHtml(v.html_url)}" target="_blank" rel="noreferrer">查看发布说明 <span aria-hidden="true">→</span></a>` : ""}`;
+    } else if (v.check_failed) {
+      pop.innerHTML = `<strong>暂时无法检查更新</strong><p>网络不可用或更新服务暂时没有响应。</p><button type="button" class="version-retry" id="version-retry">重新检查</button>`;
+      pop.querySelector("#version-retry")?.addEventListener("click", () => checkAppVersion());
+    } else {
+      pop.innerHTML = `<strong>已是最新版本</strong><p>当前版本 ${current}，暂时不需要更新。</p>`;
+    }
+  };
+
+  try {
+    const v = await fetch("/api/version").then((r) => r.json());
+    render(v);
+  } catch (_) {
+    render({ current_version: el.textContent.replace(/^v/, ""), check_failed: true });
+  }
 }
 setTimeout(checkAppVersion, 300);
 
@@ -96,6 +141,8 @@ $("#nav-toggle").addEventListener("click", () => {
 function enhanceSelect(sel) {
   if (sel.dataset.dd) return;
   sel.dataset.dd = "1";
+  sel.setAttribute("aria-hidden", "true");
+  sel.tabIndex = -1;
   const dd = document.createElement("div");
   dd.className = "dd";
   sel.before(dd);
@@ -104,16 +151,24 @@ function enhanceSelect(sel) {
   toggle.type = "button";
   toggle.className = "dd-toggle";
   toggle.setAttribute("aria-haspopup", "listbox");
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-controls", `${sel.id}-menu`);
   toggle.innerHTML = '<span class="dd-label"></span><span class="nav-icon" data-icon="chevron-down"></span>';
   const menu = document.createElement("div");
   menu.className = "dd-menu";
+  menu.id = `${sel.id}-menu`;
+  menu.setAttribute("role", "listbox");
   dd.append(toggle, menu);
   renderIcons(toggle);
 
   const currentLabel = () => sel.options[sel.selectedIndex]?.textContent ?? "";
   function sync() {
     toggle.querySelector(".dd-label").textContent = currentLabel();
-    [...menu.children].forEach((item, i) => item.classList.toggle("active", sel.options[i]?.selected));
+    [...menu.children].forEach((item, i) => {
+      const active = !!sel.options[i]?.selected;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-selected", String(active));
+    });
   }
   function renderMenu() {
     menu.textContent = "";
@@ -121,12 +176,31 @@ function enhanceSelect(sel) {
       const item = document.createElement("button");
       item.type = "button";
       item.className = "dd-item";
+      item.setAttribute("role", "option");
+      item.id = `${sel.id}-option-${opt.value || opt.index}`;
+      item.tabIndex = -1;
       item.textContent = opt.textContent;
       item.addEventListener("click", () => {
         sel.value = opt.value;
         sync();
         close();
+        toggle.focus();
         sel.dispatchEvent(new Event("change"));
+      });
+      item.addEventListener("keydown", (e) => {
+        const items = [...menu.children];
+        const index = items.indexOf(item);
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          items[(index + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          item.click();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          close();
+          toggle.focus();
+        }
       });
       menu.append(item);
     }
@@ -135,19 +209,25 @@ function enhanceSelect(sel) {
   function open() {
     renderMenu();
     dd.classList.add("open");
+    toggle.setAttribute("aria-expanded", "true");
     menu.querySelector(".active")?.scrollIntoView({ block: "nearest" });
+    menu.querySelector(".active")?.focus();
   }
   function close() {
     dd.classList.remove("open");
+    toggle.setAttribute("aria-expanded", "false");
   }
   toggle.addEventListener("click", () => (dd.classList.contains("open") ? close() : open()));
+  toggle.addEventListener("keydown", (e) => {
+    if (["Enter", " ", "ArrowDown"].includes(e.key)) { e.preventDefault(); open(); }
+  });
   // 外部代码程序化设置 sel.value 后派发 change,即可同步按钮文案。
   sel.addEventListener("change", sync);
   document.addEventListener("click", (e) => {
     if (!dd.contains(e.target)) close();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") close();
+    if (e.key === "Escape") { close(); toggle.focus(); }
   });
   new MutationObserver(() => {
     sync();
@@ -291,6 +371,7 @@ function renderAccounts() {
     name.className = "account-name";
     name.value = a.remark || a.name || a.vid;
     name.placeholder = "点击设置备注";
+    name.setAttribute("aria-label", `账号 ${displayName(a)} 的备注`);
     name.maxLength = 100;
     name.title = "点击修改备注";
     name.addEventListener("keydown", (e) => {
@@ -337,6 +418,7 @@ function renderAccounts() {
     const ops = document.createElement("div");
     ops.className = "ops";
     const detailBtn = button("详情", "btn", () => showDetails(a));
+    detailBtn.setAttribute("aria-label", `查看账号 ${displayName(a)} 详情`);
     const refreshBtn = button("刷新", "btn", async () => {
       refreshBtn.disabled = true;
       try {
@@ -348,6 +430,7 @@ function renderAccounts() {
         refreshBtn.disabled = false;
       }
     });
+    refreshBtn.setAttribute("aria-label", `刷新账号 ${displayName(a)}`);
     const delBtn = button("删除", "btn danger", async () => {
       if (!confirm(`确定删除账号「${displayName(a)}」?仅删除本地凭据,不影响微信读书账号。`)) return;
       try {
@@ -358,6 +441,7 @@ function renderAccounts() {
         toast(`删除失败:${err.message}`, "error");
       }
     });
+    delBtn.setAttribute("aria-label", `删除账号 ${displayName(a)}`);
     ops.append(detailBtn, refreshBtn, delBtn);
 
     row.append(cred, ops);
@@ -1238,19 +1322,24 @@ async function loadLogs(silent = false) {
         row.className = `log-row log-${e.level}`;
         const time = document.createElement("span");
         time.className = "log-time";
+        time.dataset.label = "时间";
         time.textContent = fmtTime(e.ts);
         const level = document.createElement("span");
         level.className = "log-level";
+        level.dataset.label = "级别";
         level.textContent = e.level;
         const source = document.createElement("span");
         source.className = "log-source";
+        source.dataset.label = "来源";
         source.textContent = e.source || "-";
         const account = document.createElement("span");
         account.className = "log-alias";
+        account.dataset.label = "账号";
         account.textContent = e.name || e.vid || "-";
         account.title = e.vid;
         const msg = document.createElement("span");
         msg.className = "log-msg";
+        msg.dataset.label = "内容";
         msg.textContent = e.message;
         msg.title = e.message;
         row.append(time, level, source, account, msg);
@@ -1333,6 +1422,7 @@ async function loadPushChannels() {
     const swInput = document.createElement("input");
     swInput.type = "checkbox";
     swInput.checked = !!ch.enabled;
+    swInput.setAttribute("aria-label", `启用 ${meta.label} 推送`);
     const slider = document.createElement("i");
     sw.append(swInput, slider);
     swInput.addEventListener("change", () => saveChannel(type, swInput.checked, collectParams(card), swInput));
@@ -1343,15 +1433,21 @@ async function loadPushChannels() {
     fields.className = "push-fields";
     const inputs = {};
     for (const [key, label, required, def] of meta.fields) {
+      const field = document.createElement("label");
+      field.className = "push-field";
+      const fieldLabel = document.createElement("span");
+      fieldLabel.textContent = required ? `${label}（必填）` : label;
       const input = document.createElement("input");
-      input.type = "text";
+      input.type = key.includes("token") || key.includes("key") ? "password" : "text";
       input.className = "push-param-input";
       input.value = saved[key] !== undefined ? saved[key] : (def || "");
-      input.placeholder = required ? `${label}(必填)` : label;
+      input.placeholder = label;
+      input.setAttribute("aria-label", label);
       input.dataset.key = key;
       if (required) input.required = true;
       inputs[key] = input;
-      fields.append(input);
+      field.append(fieldLabel, input);
+      fields.append(field);
     }
     card.append(fields);
 
@@ -1380,7 +1476,8 @@ async function loadPushChannels() {
 
     list.append(card);
   }
-  $("#push-summary").textContent = `${enabledCount}/${Object.keys(pushTypes).length} 个已开启`;
+  const summary = $("#push-summary");
+  if (summary) summary.textContent = `${enabledCount}/${Object.keys(pushTypes).length} 个渠道已开启`;
 }
 
 async function saveChannel(type, enabled, params) {
