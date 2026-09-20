@@ -9,7 +9,52 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
 async function checkAppVersion() {
-  try { const v = await fetch('/api/version').then(r => r.json()); const el = $('#app-version'); if (!el) return; el.textContent = `v${v.current_version || '0.0.9'}`; if (v.has_update) { el.classList.add('has-update'); const pop = $('#version-popover'); pop.innerHTML = `<strong>发现新版本</strong><p>最新版本：${v.latest_version}</p>${v.html_url ? `<a href="${v.html_url}" target="_blank" rel="noreferrer">查看详情 →</a>` : ''}`; el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); const open = pop.classList.toggle('hidden') === false; el.setAttribute('aria-expanded', String(open)); }); document.addEventListener('click', (e) => { if (!el.contains(e.target) && !pop.contains(e.target)) { pop.classList.add('hidden'); el.setAttribute('aria-expanded', 'false'); } }); } } catch (_) {}
+  const el = $("#app-version");
+  const pop = $("#version-popover");
+  const status = $("#version-status");
+  if (!el || !pop) return;
+
+  if (!el.dataset.bound) {
+    el.dataset.bound = "1";
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const open = pop.classList.toggle("hidden") === false;
+      el.setAttribute("aria-expanded", String(open));
+    });
+    document.addEventListener("click", (e) => {
+      if (!el.contains(e.target) && !pop.contains(e.target)) {
+        pop.classList.add("hidden");
+        el.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  const render = (v) => {
+    const current = `v${v.current_version || "0.0.9"}`;
+    el.textContent = current;
+    el.title = v.has_update ? "发现新版本,点击查看" : "查看版本信息";
+    el.classList.toggle("has-update", !!v.has_update);
+    status?.classList.toggle("hidden", !v.has_update);
+    if (status) status.textContent = v.has_update ? "有更新" : "";
+
+    if (v.has_update) {
+      const latest = escapeHtml(v.latest_version || "新版本");
+      pop.innerHTML = `<strong>发现新版本 ${latest}</strong><p>当前版本 ${current}。建议更新以获得最新功能和修复。</p>${v.html_url ? `<a href="${escapeHtml(v.html_url)}" target="_blank" rel="noreferrer">查看发布说明 <span aria-hidden="true">→</span></a>` : ""}`;
+    } else if (v.check_failed) {
+      pop.innerHTML = `<strong>暂时无法检查更新</strong><p>网络不可用或更新服务暂时没有响应。</p><button type="button" class="version-retry" id="version-retry">重新检查</button>`;
+      pop.querySelector("#version-retry")?.addEventListener("click", () => checkAppVersion());
+    } else {
+      pop.innerHTML = `<strong>已是最新版本</strong><p>当前版本 ${current}，暂时不需要更新。</p>`;
+    }
+  };
+
+  try {
+    const v = await fetch("/api/version").then((r) => r.json());
+    render(v);
+  } catch (_) {
+    render({ current_version: el.textContent.replace(/^v/, ""), check_failed: true });
+  }
 }
 setTimeout(checkAppVersion, 300);
 
