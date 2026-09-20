@@ -135,56 +135,8 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 				return result, active, nil
 			}
 		}
-		hasSync, err := c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
-		// 心跳直接报会话过期(-2012):重新桥接(必要时刷新移动端凭据)后原地重试,
-		// 与下面"未记账"路径共用连续失败上限,连续恢复失败仍会中止并推送。
-		if errors.Is(err, ErrSessionExpired) {
-			cookie, active, err = c.renewSession(ctx, active, cookie)
-			if err == nil {
-				reader, err = c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
-				if err == nil {
-					hasSync, err = c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
-				}
-			}
-			// /web/login/session/init 可能接受已过期的移动端凭据,返回格式正确但
-			// 实际不可用的 Cookie。重新桥接后的第一次心跳若仍提示会话过期,
-			// 必须先刷新移动端凭据,再重新桥接并重试。
-			if errors.Is(err, ErrSessionExpired) {
-				cookie, active, err = c.refreshAndBridge(ctx, active)
-				if err == nil {
-					reader, err = c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
-					if err == nil {
-						hasSync, err = c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
-					}
-				}
-			}
-		}
-		if err == nil && !hasSync {
-			// 无 synckey = 阅读同步状态未对齐,先调 chapterInfos 修复(参考实现的
-			// fix_no_synckey 步骤),再原地重试本次心跳。
-			if _, cerr := c.ChapterUIDs(ctx, cookie, result.BookID); cerr == nil {
-				hasSync, err = c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
-			}
-		}
-		if err == nil && !hasSync {
-			// 修复后仍未记账:视为会话失效,续期后原地重试本次心跳。
-			cookie, active, err = c.renewSession(ctx, active, cookie)
-			if err == nil {
-				reader, err = c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
-				if err == nil {
-					hasSync, err = c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
-				}
-			}
-			if errors.Is(err, ErrSessionExpired) {
-				cookie, active, err = c.refreshAndBridge(ctx, active)
-				if err == nil {
-					reader, err = c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
-					if err == nil {
-						hasSync, err = c.readHeartbeat(ctx, cookie, reader, result.BookID, chapterUID, offset, percent, farmHeartbeatSeconds)
-					}
-				}
-			}
-		}
+		var hasSync bool
+		hasSync, cookie, active, reader, err = c.readWithRecovery(ctx, cookie, active, reader, result.BookID, chapterUID, offset, percent)
 		counted := err == nil && hasSync
 		if !counted {
 			if ctx.Err() != nil {
@@ -226,6 +178,44 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 		}
 	}
 	return result, active, nil
+}
+
+// readWithRecovery 统一处理阅读心跳的会话恢复，避免各类失败路径出现不一致。
+func (c *Client) readWithRecovery(ctx context.Context, cookie string, active *Credentials, reader *ReaderSession, bookID string, chapterUID, offset, percent int) (bool, string, *Credentials, *ReaderSession, error) {
+	read := func() (bool, error) {
+		return c.readHeartbeat(ctx, cookie, reader, bookID, chapterUID, offset, percent, farmHeartbeatSeconds)
+	}
+	hasSync, err := read()
+	recover := func() {
+		cookie, active, err = c.renewSession(ctx, active, cookie)
+		if err == nil {
+			reader, err = c.readInit(ctx, cookie, bookID, chapterUID, offset, percent)
+			if err == nil {
+				hasSync, err = read()
+			}
+		}
+		if errors.Is(err, ErrSessionExpired) {
+			cookie, active, err = c.refreshAndBridge(ctx, active)
+			if err == nil {
+				reader, err = c.readInit(ctx, cookie, bookID, chapterUID, offset, percent)
+				if err == nil {
+					hasSync, err = read()
+				}
+			}
+		}
+	}
+	if errors.Is(err, ErrSessionExpired) {
+		recover()
+	}
+	if err == nil && !hasSync {
+		if _, cerr := c.ChapterUIDs(ctx, cookie, bookID); cerr == nil {
+			hasSync, err = read()
+		}
+	}
+	if err == nil && !hasSync {
+		recover()
+	}
+	return hasSync, cookie, active, reader, err
 }
 
 // webSession 获取网页会话 Cookie;移动端凭据过期时先刷新再桥接。

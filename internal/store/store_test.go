@@ -8,6 +8,21 @@ import (
 	"time"
 )
 
+func TestOpenInitializesSchemaVersion(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer db.Close()
+	var version int
+	if err := db.QueryRow(`SELECT version FROM weread_schema`).Scan(&version); err != nil {
+		t.Fatalf("schema version: %v", err)
+	}
+	if version != 1 {
+		t.Fatalf("schema version = %d, want 1", version)
+	}
+}
+
 func TestSaveLoadRoundtrip(t *testing.T) {
 	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -146,4 +161,35 @@ func TestOpenRelativePath(t *testing.T) {
 		t.Fatalf("Open relative path: %v", err)
 	}
 	defer db.Close()
+}
+
+func TestMigrationReopenAndFutureVersion(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Save(db, &Credential{Vid: "v", RefreshToken: "rt", DeviceID: "d"}); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	db, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(db, "v"); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM weread_schema`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("count=%d err=%v", count, err)
+	}
+	if _, err := db.Exec(`UPDATE weread_schema SET version=99`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	if db, err = Open(path); err == nil {
+		db.Close()
+		t.Fatal("accepted unsupported schema")
+	}
 }

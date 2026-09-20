@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strings"
 )
@@ -55,32 +56,55 @@ func (c *Client) RenewWebCookie(ctx context.Context, cookie string) (string, err
 	if err := checkBusinessCode(data); err != nil {
 		return "", err
 	}
-	return mergeWebCookies(cookie, resp.Cookies()), nil
+	var result struct {
+		Succ int `json:"succ"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil || result.Succ != 1 {
+		return "", fmt.Errorf("续期网页会话未成功")
+	}
+	merged := mergeWebCookies(cookie, resp.Cookies())
+	request := &http.Request{Header: http.Header{"Cookie": []string{merged}}}
+	if _, err := request.Cookie("wr_skey"); err != nil {
+		return "", ErrSessionExpired
+	}
+	return merged, nil
 }
 
 func mergeWebCookies(cookie string, updates []*http.Cookie) string {
-	values := map[string]string{}
-	for _, part := range strings.Split(cookie, ";") {
-		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
-		if len(kv) == 2 {
-			values[kv[0]] = kv[1]
-		}
+	// 每次合并使用独立 jar，账号之间不共享 Cookie。统一 Domain 后避免
+	// host-only 与域 Cookie 同名共存；jar 负责 Path、Secure 和过期删除。
+	jar, _ := cookiejar.New(nil)
+	u, _ := url.Parse(webBaseURL + "/web/book/read")
+	req := &http.Request{Header: http.Header{"Cookie": []string{cookie}}}
+	for _, ck := range req.Cookies() {
+		ck.Domain = u.Hostname()
+		ck.Path = "/"
+		jar.SetCookies(u, []*http.Cookie{ck})
 	}
 	for _, ck := range updates {
-		if ck != nil && (ck.Name == "wr_vid" || ck.Name == "wr_skey" || ck.Name == "wr_rt") {
+		if ck == nil || (ck.Name != "wr_vid" && ck.Name != "wr_skey" && ck.Name != "wr_rt") {
+			continue
+		}
+		if ck.Domain != "" && strings.TrimPrefix(ck.Domain, ".") != u.Hostname() {
+			continue
+		}
+		copy := *ck
+		copy.Domain = u.Hostname()
+		jar.SetCookies(u, []*http.Cookie{&copy})
+	}
+	values := map[string]string{}
+	for _, ck := range jar.Cookies(u) {
+		if _, ok := values[ck.Name]; !ok {
 			values[ck.Name] = ck.Value
 		}
 	}
-	out := ""
+	var out []string
 	for _, name := range []string{"wr_vid", "wr_skey", "wr_rt"} {
 		if v := values[name]; v != "" {
-			if out != "" {
-				out += "; "
-			}
-			out += name + "=" + v
+			out = append(out, name+"="+v)
 		}
 	}
-	return out
+	return strings.Join(out, "; ")
 }
 
 // WebCookie 用移动端凭据调 /web/login/session/init 换取网页会话。

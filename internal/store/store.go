@@ -46,7 +46,7 @@ func Open(path string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("解析数据库路径失败: %w", err)
 	}
-	dsn := (&url.URL{Scheme: "file", Path: abs}).String() + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
+	dsn := (&url.URL{Scheme: "file", Path: abs}).String() + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(ON)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("打开数据库失败: %w", err)
@@ -71,8 +71,40 @@ func Open(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-// migrate 初始化当前数据库结构并补齐当前版本字段。
+// migrate 在同一事务内升级结构和版本，失败后保留旧版本。
 func migrate(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS weread_schema (version INTEGER PRIMARY KEY)`); err != nil {
+		return err
+	}
+	var version int
+	if err := tx.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM weread_schema`).Scan(&version); err != nil {
+		return err
+	}
+	if version > 1 {
+		return fmt.Errorf("数据库版本 %d 高于程序支持的版本 1", version)
+	}
+	if version == 0 {
+		if err := migrateBaseline(tx); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`INSERT INTO weread_schema(version) VALUES (1)`); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+type schemaDB interface {
+	Exec(string, ...any) (sql.Result, error)
+	Query(string, ...any) (*sql.Rows, error)
+}
+
+func migrateBaseline(db schemaDB) error {
 	for _, stmt := range []string{schema, readingSchema, readingIndexes, logsSchema, pushSchema, settingsSchema} {
 		if _, err := db.Exec(stmt); err != nil {
 			return err
@@ -97,7 +129,7 @@ func migrate(db *sql.DB) error {
 	return nil
 }
 
-func ensureColumn(db *sql.DB, table, column, definition string) error {
+func ensureColumn(db schemaDB, table, column, definition string) error {
 	rows, err := db.Query(`PRAGMA table_info(` + table + `)`)
 	if err != nil {
 		return err
