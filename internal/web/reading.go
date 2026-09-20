@@ -118,8 +118,12 @@ func (s *Server) handleReadingRun(w http.ResponseWriter, r *http.Request) {
 	} else {
 		task = weread.NewFarmTask(cfg.BookIDs, cfg.Minutes)
 	}
-	if !s.startFarm(vid, task, toWeread(c)) {
-		writeErr(w, http.StatusConflict, errors.New("该账号已有阅读会话在进行中"))
+	if err := s.startFarm(vid, task, toWeread(c)); err != nil {
+		if errors.Is(err, errFarmAlreadyRunning) {
+			writeErr(w, http.StatusConflict, err)
+		} else {
+			writeErr(w, http.StatusInternalServerError, err)
+		}
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"started": true, "resumed": task.Done > 0})
@@ -130,6 +134,8 @@ type farmSessionHandle struct {
 	ctrl   *weread.FarmControl
 }
 
+var errFarmAlreadyRunning = errors.New("该账号已有阅读会话在进行中")
+
 func (s *Server) farmRunning(vid string) bool {
 	s.farmMu.Lock()
 	defer s.farmMu.Unlock()
@@ -137,11 +143,11 @@ func (s *Server) farmRunning(vid string) bool {
 	return ok
 }
 
-func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Credentials) bool {
+func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Credentials) error {
 	s.farmMu.Lock()
 	if _, running := s.farms[vid]; running || s.closing {
 		s.farmMu.Unlock()
-		return false
+		return errFarmAlreadyRunning
 	}
 	ctrl := weread.NewFarmControl()
 	// 会话 ctx 与句柄共享同一个 cancel:「停止」按钮调用它即可终止整场会话。
@@ -154,7 +160,14 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 	// 书名前置到各类日志与状态文案里,日志页一眼可见当前刷的是哪本书。
 	book := "《" + s.readingBookTitle(vid, task.BookID) + "》"
 	// 先标记归属日期,防止调度器同日重复触发;手动执行也计入当日。
-	_ = store.SaveReadingRunState(s.db, vid, today, book+"正在阅读…", &store.RunProgress{BookID: task.BookID, Done: task.Done, Total: task.Total})
+	if err := store.SaveReadingRunState(s.db, vid, today, book+"正在阅读…", &store.RunProgress{BookID: task.BookID, Done: task.Done, Total: task.Total}); err != nil {
+		s.farmMu.Lock()
+		delete(s.farms, vid)
+		s.farmMu.Unlock()
+		cancel()
+		s.farmWG.Done()
+		return fmt.Errorf("保存阅读任务状态失败: %w", err)
+	}
 	s.logf("info", "farm", vid, "%s阅读会话已启动,目标 %.1f 分钟%s",
 		book, float64(task.Total)*0.5, resumeNote(task.Done))
 
@@ -169,7 +182,9 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 
 		result, next, err := s.client.FarmSession(sessCtx, creds, task, func(done, total int, msg string) {
 			// 断点与日志每次心跳(30 秒)记一条,粒度 0.5 分钟。
-			_ = store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total})
+			if err := store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total}); err != nil {
+				s.logf("error", "farm", vid, "阅读进度保存失败: %v", err)
+			}
 			s.logf("info", "farm", vid, "正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2)
 		}, ctrl)
 		if next != nil && (next != creds || next.AccessToken != creds.AccessToken || next.RefreshToken != creds.RefreshToken || next.DeviceID != creds.DeviceID || next.Vid != creds.Vid) {
@@ -203,7 +218,9 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 		if s.ctx.Err() != nil && !ctrl.Stopped() {
 			return
 		}
-		_ = store.SaveReadingRunState(s.db, vid, today, status, nil)
+		if err := store.SaveReadingRunState(s.db, vid, today, status, nil); err != nil {
+			s.logf("error", "farm", vid, "阅读结果保存失败: %v", err)
+		}
 		s.logf(level, "farm", vid, "%s", status)
 		// 完成与失败时推送通知;用户主动停止的会话不打扰。
 		switch {
@@ -217,7 +234,7 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 				fmt.Sprintf("%s\n已阅读 %s", s.readingBookTitle(vid, task.BookID), minutesText))
 		}
 	}()
-	return true
+	return nil
 }
 
 // ResumeInterrupted 在服务启动时仅续跑进程异常退出后留下的当日未完成会话。
@@ -238,7 +255,9 @@ func (s *Server) ResumeInterrupted() {
 		}
 		s.logf("info", "farm", cfg.Vid, "《%s》续跑上次未完成的阅读会话(已完成 %.1f/%.1f 分钟)",
 			s.readingBookTitle(cfg.Vid, bookID), float64(done)*0.5, float64(total)*0.5)
-		s.startFarm(cfg.Vid, weread.FarmTask{BookID: bookID, Done: done, Total: total}, toWeread(c))
+		if err := s.startFarm(cfg.Vid, weread.FarmTask{BookID: bookID, Done: done, Total: total}, toWeread(c)); err != nil && !errors.Is(err, errFarmAlreadyRunning) {
+			s.logf("error", "farm", cfg.Vid, "续跑阅读任务失败: %v", err)
+		}
 	}
 }
 
@@ -307,7 +326,10 @@ func (s *Server) tickFarm(ctx context.Context) {
 		task := weread.NewFarmTask(cfg.BookIDs, cfg.Minutes)
 		s.logf("info", "farm", cfg.Vid, "调度器触发每日阅读:%s(计划 %s,目标 %.1f 分钟)",
 			"《"+s.readingBookTitle(cfg.Vid, task.BookID)+"》", cfg.RunAt, float64(task.Total)*0.5)
-		if !s.startFarm(cfg.Vid, task, toWeread(c)) {
+		if err := s.startFarm(cfg.Vid, task, toWeread(c)); err != nil {
+			if !errors.Is(err, errFarmAlreadyRunning) {
+				s.logf("error", "farm", cfg.Vid, "启动阅读任务失败: %v", err)
+			}
 			continue
 		}
 	}
