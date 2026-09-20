@@ -25,7 +25,8 @@
         <span class="brand-text">微信读书</span>
       </a>
       <div class="brand-version-wrap">
-        <button class="brand-version" id="app-version" type="button" title="查看版本信息" aria-expanded="false">v0.1.8</button>
+        <!-- 版本号由 /api/version 提供，避免发布时同时修改前端和 Go 代码。 -->
+        <button class="brand-version" id="app-version" type="button" title="正在读取版本" aria-expanded="false">v…</button>
         <span id="version-status" class="version-status hidden" aria-live="polite"></span>
       </div>
       <div id="version-popover" class="version-popover hidden" role="status"></div>

@@ -31,7 +31,8 @@ async function checkAppVersion() {
   }
 
   const render = (v) => {
-    const current = `v${v.current_version || "0.0.9"}`;
+    // 版本号以 Go 服务端 /api/version 返回值为准，前端不再维护副本。
+    const current = `v${v.current_version || "未知"}`;
     el.textContent = current;
     el.title = v.has_update ? "发现新版本,点击查看" : "查看版本信息";
     el.classList.toggle("has-update", !!v.has_update);
