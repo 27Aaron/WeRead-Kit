@@ -2397,10 +2397,24 @@ button {
 }
 
 /* ---------- 可访问性与控件收口 ---------- */
+.brand {
+  position: relative;
+}
+
 .brand-version-wrap {
   position: relative;
-  margin: 2px 8px 0 57px;
+  position: absolute;
+  left: 57px;
+  top: 43px;
+  margin: 0;
   line-height: 1;
+}
+
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: max-content;
 }
 
 .brand-version-row {
@@ -2414,17 +2428,16 @@ button {
 }
 
 .version-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 18px;
-  padding: 2px 7px;
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  border-radius: 999px;
-  color: var(--accent);
-  background: var(--accent-soft);
-  font-size: 10px;
-  font-weight: 600;
-  white-space: nowrap;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: transparent;
+  font-size: 0;
+  vertical-align: 2px;
+  animation: version-pulse 1.6s ease-in-out infinite;
 }
 
 .version-popover {
@@ -2486,7 +2499,8 @@ button {
 
 @media (max-width: 640px) {
   .brand-version-wrap {
-    margin-left: 0;
+    left: 37px;
+    top: 30px;
   }
 
   .version-popover {
