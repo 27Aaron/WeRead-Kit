@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -18,8 +19,14 @@ import (
 	"time"
 )
 
-// readSignatureKey 是网页前端内嵌的固定盐,sg = SHA256(ts + rn + KEY)。
+// readSignatureKey 是当前网页接口仍兼容的固定 sg 盐。部分响应会返回
+// readerToken，优先使用 token；旧版/实际接口只返回 succ/synckey 时使用此盐。
 const readSignatureKey = "3c5c8717f3daf09iop3423zafeqoi"
+
+// ReaderSession 是一次网页版阅读会话。
+type ReaderSession struct {
+	Token string
+}
 
 func md5Hex(s string) string {
 	sum := md5.Sum([]byte(s))
@@ -123,27 +130,92 @@ func signPayload(payload map[string]any) string {
 	return strconv.FormatInt(n1+n2, 16)
 }
 
-// readHeartbeat 发送一次阅读心跳(rt 秒),返回服务端是否计入(synckey 存在)。
-func (c *Client) readHeartbeat(ctx context.Context, cookie, bookID string, chapterUID, offset, percent, rt int) (bool, error) {
-	now := time.Now()
-	payload := map[string]any{
+func readPayload(bookID string, chapterUID, offset, percent int) map[string]any {
+	return map[string]any{
 		"appId": getWebAppID(webUserAgent),
 		"b":     calcHash(bookID),
 		"c":     calcHash(strconv.Itoa(chapterUID)),
 		"ci":    chapterUID,
 		"co":    offset,
-		"ct":    now.Unix(),
+		"ct":    time.Now().Unix(),
 		"dy":    0,
 		"fm":    "epub",
 		"pc":    calcHash("0"),
 		"pr":    percent,
 		"ps":    calcHash("0"),
 		"sm":    "",
-		"rt":    rt,
-		"ts":    now.UnixMilli(),
-		"rn":    randIntn(1000),
 	}
-	payload["sg"] = sha256Hex(fmt.Sprintf("%d%d%s", payload["ts"], payload["rn"], readSignatureKey))
+}
+
+// readInit 建立网页版阅读会话并取得 readerToken。
+func (c *Client) readInit(ctx context.Context, cookie, bookID string, chapterUID, offset, percent int) (*ReaderSession, error) {
+	payload := readPayload(bookID, chapterUID, offset, percent)
+	payload["s"] = signPayload(payload)
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	data, status, err := c.do(ctx, http.MethodPost, webBaseURL+"/web/book/read", map[string]string{
+		"User-Agent": webUserAgent, "cookie": cookie, "content-type": "application/json; charset=UTF-8",
+	}, body)
+	if err != nil {
+		return nil, fmt.Errorf("阅读会话初始化失败: %w", err)
+	}
+	if status == http.StatusUnauthorized {
+		return nil, ErrSessionExpired
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("阅读会话初始化失败: HTTP %d", status)
+	}
+	var resp struct {
+		ReaderToken string `json:"readerToken"`
+		Token       string `json:"token"`
+		Data        struct {
+			ReaderToken string `json:"readerToken"`
+			Token       string `json:"token"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("阅读会话响应不是 JSON: %w", err)
+	}
+	token := resp.ReaderToken
+	if token == "" {
+		token = resp.Data.ReaderToken
+	}
+	if token == "" {
+		token = resp.Token
+	}
+	if token == "" {
+		token = resp.Data.Token
+	}
+	if token == "" {
+		if err := checkBusinessCode(data); err != nil {
+			return nil, err
+		}
+		// 线上 /web/book/read 常见响应为 {succ:1,synckey:...}，
+		// 并不回传 readerToken。保留已验证的固定盐兼容这类响应。
+		var okResp struct {
+			Succ    json.RawMessage `json:"succ"`
+			Synckey json.RawMessage `json:"synckey"`
+		}
+		if err := json.Unmarshal(data, &okResp); err != nil || (len(okResp.Succ) == 0 && len(okResp.Synckey) == 0) {
+			return nil, errors.New("阅读会话响应缺少 readerToken")
+		}
+		token = readSignatureKey
+	}
+	return &ReaderSession{Token: token}, nil
+}
+
+// readHeartbeat 发送一次阅读心跳(rt 秒),返回服务端是否计入(synckey 存在)。
+func (c *Client) readHeartbeat(ctx context.Context, cookie string, session *ReaderSession, bookID string, chapterUID, offset, percent, rt int) (bool, error) {
+	if session == nil || session.Token == "" {
+		return false, errors.New("阅读会话未初始化")
+	}
+	payload := readPayload(bookID, chapterUID, offset, percent)
+	payload["rt"] = rt
+	payload["ts"] = time.Now().UnixMilli()
+	payload["rn"] = randIntn(1000)
+	payload["sg"] = sha256Hex(fmt.Sprintf("%d%d%s", payload["ts"], payload["rn"], session.Token))
 	payload["s"] = signPayload(payload)
 
 	body, err := json.Marshal(payload)

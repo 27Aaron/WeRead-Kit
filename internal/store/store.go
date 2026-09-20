@@ -73,7 +73,7 @@ func Open(path string) (*sql.DB, error) {
 
 // migrate 初始化当前数据库结构并补齐当前版本字段。
 func migrate(db *sql.DB) error {
-	for _, stmt := range []string{schema, readingSchema, logsSchema, pushSchema, settingsSchema} {
+	for _, stmt := range []string{schema, readingSchema, readingIndexes, logsSchema, pushSchema, settingsSchema} {
 		if _, err := db.Exec(stmt); err != nil {
 			return err
 		}

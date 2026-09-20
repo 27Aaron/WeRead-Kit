@@ -63,6 +63,45 @@ func TestSaveRejectsIncomplete(t *testing.T) {
 	}
 }
 
+func TestOpenCreatesOperationalIndexes(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer db.Close()
+
+	for _, table := range []string{"weread_reading", "weread_log"} {
+		rows, err := db.Query(`PRAGMA index_list(` + table + `)`)
+		if err != nil {
+			t.Fatalf("index_list(%s): %v", table, err)
+		}
+		found := map[string]bool{}
+		for rows.Next() {
+			var seq, unique, partial int
+			var origin string
+			var name string
+			if err := rows.Scan(&seq, &name, &unique, &origin, &partial); err != nil {
+				rows.Close()
+				t.Fatalf("scan index_list(%s): %v", table, err)
+			}
+			found[name] = true
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			t.Fatalf("read index_list(%s): %v", table, err)
+		}
+		rows.Close()
+		for _, name := range map[string][]string{
+			"weread_reading": {"idx_weread_reading_enabled"},
+			"weread_log":     {"idx_weread_log_ts", "idx_weread_log_vid_id"},
+		}[table] {
+			if !found[name] {
+				t.Errorf("%s missing index %s", table, name)
+			}
+		}
+	}
+}
+
 // TestDeletePurgesLogs 回归:删除账号须连带清理其历史日志,其他账号日志不受影响。
 func TestDeletePurgesLogs(t *testing.T) {
 	db, err := Open(filepath.Join(t.TempDir(), "test.db"))

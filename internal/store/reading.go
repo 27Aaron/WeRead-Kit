@@ -27,7 +27,7 @@ type ReadingConfig struct {
 
 const readingSchema = `
 CREATE TABLE IF NOT EXISTS weread_reading (
-  vid           TEXT PRIMARY KEY,
+  vid           TEXT PRIMARY KEY REFERENCES weread_account(vid) ON DELETE CASCADE,
   enabled       INTEGER NOT NULL DEFAULT 0,
   book_ids      TEXT NOT NULL DEFAULT '',
   minutes       INTEGER NOT NULL DEFAULT 30,
@@ -39,6 +39,11 @@ CREATE TABLE IF NOT EXISTS weread_reading (
   run_done      INTEGER NOT NULL DEFAULT 0,
   run_total     INTEGER NOT NULL DEFAULT 0
 );`
+
+const readingIndexes = `
+CREATE INDEX IF NOT EXISTS idx_weread_reading_enabled
+ON weread_reading(enabled);
+`
 
 // DefaultReadingConfig 返回一份默认配置(未启用、30 分钟、凌晨 3 点)。
 func DefaultReadingConfig(vid string) *ReadingConfig {
