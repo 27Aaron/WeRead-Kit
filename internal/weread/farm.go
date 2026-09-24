@@ -99,11 +99,16 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 	chapters, err := c.ChapterUIDs(ctx, cookie, result.BookID)
 	if err != nil {
 		cookie, active, err = c.renewSession(ctx, active, cookie)
-		if err != nil {
-			result.Err = err.Error()
-			return result, active, err
+		if err == nil {
+			chapters, err = c.ChapterUIDs(ctx, cookie, result.BookID)
 		}
-		chapters, err = c.ChapterUIDs(ctx, cookie, result.BookID)
+		if errors.Is(err, ErrSessionExpired) {
+			// 第一级续期可能只是「桥接假成功」,需真正刷新凭据再桥接,理由见 initReader。
+			cookie, active, err = c.refreshAndBridge(ctx, active)
+			if err == nil {
+				chapters, err = c.ChapterUIDs(ctx, cookie, result.BookID)
+			}
+		}
 		if err != nil {
 			result.Err = err.Error()
 			return result, active, err
@@ -115,16 +120,10 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 	chapterUID := chapters[chapterPos]
 	offset := randIntn(600)
 	percent := 0
-	reader, err := c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
+	cookie, active, reader, err := c.initReader(ctx, cookie, active, result.BookID, chapterUID, offset, percent)
 	if err != nil {
-		cookie, active, err = c.renewSession(ctx, active, cookie)
-		if err == nil {
-			reader, err = c.readInit(ctx, cookie, result.BookID, chapterUID, offset, percent)
-		}
-		if err != nil {
-			result.Err = err.Error()
-			return result, active, err
-		}
+		result.Err = err.Error()
+		return result, active, err
 	}
 	consecutiveFails := 0
 
@@ -271,4 +270,32 @@ func (c *Client) refreshAndBridge(ctx context.Context, active *Credentials) (str
 		return "", next, fmt.Errorf("续期后桥接仍失败: %w", err)
 	}
 	return cookie, next, nil
+}
+
+// initReader 建立阅读会话;失败时按「续期现有 Cookie → 刷新移动端凭据重新桥接」两级恢复,
+// 返回的凭据可能已被轮换,调用方须继续沿用。
+//
+// 为什么需要第二级:桥接接口 /web/login/session/init 对**已过期**的移动端凭据同样会返回
+// 成功并下发格式正确的 Cookie(线上实测如此),于是第一级 renewSession 拿到的只是一个
+// 「桥接成功、后续鉴权必然被拒」的死 Cookie,重试 readInit 仍报会话过期。心跳路径已由
+// readWithRecovery 覆盖了这一点,启动路径此前只有第一级,导致「启动瞬间凭据恰好已失效」时
+// 阅读会话初始化会立即以「会话已过期」结束(实测:数秒内失败,且凭据未被轮换)。
+func (c *Client) initReader(ctx context.Context, cookie string, active *Credentials, bookID string, chapterUID, offset, percent int) (string, *Credentials, *ReaderSession, error) {
+	reader, err := c.readInit(ctx, cookie, bookID, chapterUID, offset, percent)
+	if err == nil || !errors.Is(err, ErrSessionExpired) {
+		return cookie, active, reader, err
+	}
+	cookie, active, err = c.renewSession(ctx, active, cookie)
+	if err == nil {
+		if reader, err = c.readInit(ctx, cookie, bookID, chapterUID, offset, percent); err == nil {
+			return cookie, active, reader, nil
+		}
+	}
+	if errors.Is(err, ErrSessionExpired) {
+		cookie, active, err = c.refreshAndBridge(ctx, active)
+		if err == nil {
+			reader, err = c.readInit(ctx, cookie, bookID, chapterUID, offset, percent)
+		}
+	}
+	return cookie, active, reader, err
 }
