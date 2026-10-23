@@ -109,3 +109,20 @@ func TestHandleLoginPost(t *testing.T) {
 		t.Fatalf("bad login: want 303 -> /login?error=1, got %d -> %q", rec.Code, rec.Header().Get("Location"))
 	}
 }
+
+// TestSessionInvalidatedByCredentialChange 驗證修改登入帳號或密碼後舊會話失效。
+func TestSessionInvalidatedByCredentialChange(t *testing.T) {
+	before := &Server{username: "u", password: "p", sessionKey: []byte("k")}
+	token := before.sessionToken(time.Now().Add(time.Hour).Unix())
+	if !before.validSession(token) {
+		t.Fatal("token rejected by issuing server")
+	}
+	for _, after := range []*Server{
+		{username: "u", password: "p2", sessionKey: []byte("k")},
+		{username: "u2", password: "p", sessionKey: []byte("k")},
+	} {
+		if after.validSession(token) {
+			t.Fatalf("token still valid after credential change to %q/%q", after.username, after.password)
+		}
+	}
+}
