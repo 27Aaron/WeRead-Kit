@@ -302,6 +302,10 @@ func (s *Server) tickFarm(ctx context.Context) {
 			continue
 		}
 		if len(cfg.BookIDs) == 0 {
+			// 記下當日已處理,否則每 30 秒掃描都會重複寫這條警告。
+			if err := store.SaveReadingRunState(s.db, cfg.Vid, today, "未选择书籍,已跳过今日调度", nil); err != nil {
+				s.logf("error", "farm", cfg.Vid, "保存调度状态失败: %v", err)
+			}
 			s.logf("warn", "farm", cfg.Vid, "配置未选择书籍,跳过今日调度")
 			continue
 		}
