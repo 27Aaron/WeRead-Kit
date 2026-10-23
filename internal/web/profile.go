@@ -13,7 +13,7 @@ import (
 	"github.com/27Aaron/weread-kit/internal/weread"
 )
 
-func saveProfile(db *sql.DB, c *store.Credential, raw json.RawMessage) error {
+func saveProfile(db *sql.DB, accountVid string, raw json.RawMessage) error {
 	var user struct {
 		User     json.RawMessage `json:"user"`
 		Name     string          `json:"name"`
@@ -39,9 +39,9 @@ func saveProfile(db *sql.DB, c *store.Credential, raw json.RawMessage) error {
 	}
 	vid := user.UserVid.String()
 	if vid == "" {
-		vid = c.Vid
+		vid = accountVid
 	}
-	if vid != c.Vid {
+	if vid != accountVid {
 		return fmt.Errorf("用户资料 ID 与账号不一致")
 	}
 	return store.UpdateProfile(db, vid, user.Name, user.Avatar, vid)
@@ -58,18 +58,13 @@ func syncProfile(ctx context.Context, db *sql.DB, client *weread.Client, c *stor
 		}
 		return cookie, nil
 	}
+	// 續期結果由 client.OnRefresh 落庫,這裡只需換用新憑據。
 	refresh := func() error {
 		next, err := client.Refresh(ctx, creds)
 		if err != nil {
 			return err
 		}
-		if err := store.Save(db, toStore(c.Vid, next)); err != nil {
-			return err
-		}
 		creds = next
-		c.AccessToken = next.AccessToken
-		c.RefreshToken = next.RefreshToken
-		c.DeviceID = next.DeviceID
 		return nil
 	}
 	cookie, err := bridge()
@@ -93,7 +88,7 @@ func syncProfile(ctx context.Context, db *sql.DB, client *weread.Client, c *stor
 	if err != nil {
 		return err
 	}
-	return saveProfile(db, c, raw)
+	return saveProfile(db, c.Vid, raw)
 }
 
 // 既有账号的资料由独立流程补充,账号列表加载不等待微信读书接口。

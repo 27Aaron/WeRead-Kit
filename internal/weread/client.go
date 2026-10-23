@@ -49,18 +49,22 @@ type Credentials struct {
 // Client 是协议客户端,可注入自定义 *http.Client 便于测试。
 type Client struct {
 	HTTP *http.Client
+	// OnRefresh 在每次成功刷新憑據後同步呼叫一次(先於等待中的呼叫方回傳),
+	// 用於立即持久化輪換後的憑據。須在首次使用 Client 前設定。
+	OnRefresh func(next *Credentials)
 
 	refreshMu sync.Mutex
 	refreshes map[string]*refreshCall
 }
 
-// refreshCall 表示同一账号正在进行的一次凭据刷新。
+// refreshCall 表示同一帳號最近一次(可能仍在進行的)憑據刷新。
 // 多个请求同时发现会话过期时,后到的请求复用前一个请求的结果,避免重复消费 refreshToken。
 type refreshCall struct {
-	source *Credentials
-	done   chan struct{}
-	next   *Credentials
-	err    error
+	source   *Credentials
+	done     chan struct{}
+	next     *Credentials
+	err      error
+	finished time.Time
 }
 
 func NewClient() *Client {

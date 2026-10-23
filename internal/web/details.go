@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/27Aaron/weread-kit/internal/store"
+	"github.com/27Aaron/weread-kit/internal/weread"
 )
 
 // handleAccountDetails 返回账号详情(用户信息/会员卡/书架)。
@@ -42,42 +43,13 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d, next, err := s.client.Details(r.Context(), toWeread(c))
+	// 採集途中的續期已由 OnRefresh 落庫。
+	d, err := s.client.Details(r.Context(), toWeread(c))
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
-	// 采集途中发生过续期,轮换出的新凭据必须落库。
-	if next != nil {
-		if serr := store.Save(s.db, toStore(vid, next)); serr != nil {
-			writeErr(w, http.StatusInternalServerError, serr)
-			return
-		}
-		if c, err = store.Load(s.db, vid); err != nil {
-			writeErr(w, http.StatusInternalServerError, err)
-			return
-		}
-	}
-
-	shelfJSON, merr := json.Marshal(d.Shelf)
-	if merr != nil {
-		writeErr(w, http.StatusInternalServerError, merr)
-		return
-	}
-	if cerr := store.SaveDetailsCache(s.db, vid, d.User, d.Card, shelfJSON); cerr != nil {
-		// 缓存写失败不影响本次返回,前端下次仍可强制刷新。
-		if d.Errs == nil {
-			d.Errs = map[string]string{}
-		}
-		d.Errs["cache"] = "缓存写入失败: " + cerr.Error()
-	}
-	// 同步展示名/头像缓存(独立于详情缓存,列表页用)。
-	if err := saveProfile(s.db, c, d.User); err != nil {
-		if d.Errs == nil {
-			d.Errs = map[string]string{}
-		}
-		d.Errs["profile"] = "保存用户资料失败"
-	}
+	persistDetails(s.db, vid, d)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"vid":       vid,
@@ -89,6 +61,25 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 		"cached_at": time.Now().Unix(),
 		"reading":   mustReadingConfig(s.db, vid),
 	})
+}
+
+// persistDetails 把一次採集結果寫入詳情快取與資料快取;失敗項記入 d.Errs。
+// 快取寫入失敗不影響本次回傳,前端下次仍可強制刷新。
+func persistDetails(db *sql.DB, vid string, d *weread.Details) {
+	var shelfJSON []byte
+	if _, failed := d.Errs["shelf"]; !failed {
+		// 書架拉取失敗時傳空,保留舊快取而不是寫入空書架。
+		shelfJSON, _ = json.Marshal(d.Shelf)
+	}
+	if err := store.SaveDetailsCache(db, vid, d.User, d.Card, shelfJSON); err != nil {
+		d.Errs["cache"] = "缓存写入失败: " + err.Error()
+	}
+	// 同步顯示名稱/頭像快取(獨立於詳情快取,列表頁用)。
+	if len(d.User) > 0 {
+		if err := saveProfile(db, vid, d.User); err != nil {
+			d.Errs["profile"] = "保存用户资料失败"
+		}
+	}
 }
 
 func mustReadingConfig(db *sql.DB, vid string) *store.ReadingConfig {

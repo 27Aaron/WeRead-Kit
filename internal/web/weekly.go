@@ -207,24 +207,16 @@ func weeklyChoiceName(choice int) string {
 // 返回原始响应与加载到的账号(含详情缓存,供计算无限卡剩余状态)。
 func (s *Server) weeklyCall(ctx context.Context, vid string, op func(*weread.Credentials) (json.RawMessage, error)) (json.RawMessage, *store.Credential, error) {
 	c, err := store.Load(s.db, vid)
-	if errors.Is(err, store.ErrNotFound) {
-		return nil, nil, err
-	}
 	if err != nil {
 		return nil, nil, err
 	}
 	creds := toWeread(c)
 	data, err := op(creds)
 	if errors.Is(err, weread.ErrSessionExpired) {
+		// 續期結果由 client.OnRefresh 落庫。
 		next, rerr := s.client.Refresh(ctx, creds)
 		if rerr != nil {
 			return nil, nil, fmt.Errorf("会话已过期且续期失败: %w", rerr)
-		}
-		if err := store.Save(s.db, toStore(vid, next)); err != nil {
-			return nil, nil, err
-		}
-		if c, err = store.Load(s.db, vid); err != nil {
-			return nil, nil, err
 		}
 		data, err = op(next)
 	}

@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -183,25 +182,11 @@ func (m *loginManager) finish(id string, creds *weread.Credentials, err error) {
 func (m *loginManager) warmDetails(record *store.Credential) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	d, next, err := m.client.Details(ctx, toWeread(record))
+	d, err := m.client.Details(ctx, toWeread(record))
 	if err != nil {
 		return
 	}
-	if next != nil {
-		updated := toStore(record.Vid, next)
-		if err := store.Save(m.db, updated); err != nil {
-			return
-		}
-		record = updated
-	}
-	shelfJSON, err := json.Marshal(d.Shelf)
-	if err != nil {
-		return
-	}
-	if err := store.SaveDetailsCache(m.db, record.Vid, d.User, d.Card, shelfJSON); err != nil {
-		return
-	}
-	_ = saveProfile(m.db, record, d.User)
+	persistDetails(m.db, record.Vid, d)
 }
 
 func (m *loginManager) gc() {
