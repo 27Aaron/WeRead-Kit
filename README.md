@@ -1,5 +1,7 @@
 # WeRead-Kit
 
+简体中文 | [English](README.en.md)
+
 [![CI](https://github.com/27Aaron/WeRead-Kit/actions/workflows/release.yml/badge.svg)](https://github.com/27Aaron/WeRead-Kit/actions/workflows/release.yml) [![Release](https://img.shields.io/github/v/release/27Aaron/WeRead-Kit)](https://github.com/27Aaron/WeRead-Kit/releases) [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2F27Aaron%2FWeRead--Kit-2496ED?logo=docker&logoColor=white)](https://github.com/27Aaron/WeRead-Kit/pkgs/container/weread-kit) [![Go Version](https://img.shields.io/github/go-mod/go-version/27Aaron/WeRead-Kit?logo=go)](https://go.dev/)
 
 ## 界面预览
@@ -13,7 +15,7 @@
 - **多渠道推送**：支持 Bark、Telegram、Server酱和 PushPlus，在阅读完成、中断或失败时通知你。
 - **本地账号管理**：微信扫码登录，账号状态和配置保存在本机 SQLite 数据库中。
 - **多用户**：支持同时管理多个微信读书账号，各账号的阅读挑战与奖励预约独立配置、互不影响。
-- **登录密码保护**：设置账号密码后，Web 控制台需登录访问；登录会话 7 天有效，并使用 SameSite Cookie 与跨源请求保护。
+- **登录密码保护**：设置账号密码后，Web 控制台需登录访问；登录会话 7 天有效，修改账号或密码并重启后旧会话立即失效，并使用 SameSite Cookie 与跨源请求保护。
 - **可观测的运行日志**：按账号和级别查看调度、登录续期、阅读上报和推送结果。
 - **轻量 Web 控制台**：支持浅色/深色主题、响应式布局和可选登录保护。
 
@@ -33,6 +35,8 @@ docker run -d --name weread-kit \
 ```
 
 > `--stop-signal SIGINT` 让容器停止时走应用的优雅退出路径，避免超时后被强杀。
+
+容器内监听 `0.0.0.0`，能访问 8080 端口的人都可以管理账号、读取凭据。端口对局域网或公网开放时，请加上 `-e WEREAD_USERNAME=... -e WEREAD_PASSWORD=...` 启用登录；未设置密码时，程序启动会输出警告。
 
 仓库也自带 `compose.yaml`，克隆后直接 `docker compose up -d` 即可。
 
@@ -88,7 +92,9 @@ go build -o weread-kit ./cmd/weread-kit && ./weread-kit
 
 - 阅读任务每 30 秒上报一次，页面会显示当前进度。
 - 用户主动停止任务后，当天不会自动续跑；程序崩溃、重启或异常退出则会在下次启动时恢复。
-- 会话过期时程序会自动尝试续期。持续失败时，在账号页刷新数据，必要时重新扫码。
+- 会话过期时程序会自动尝试续期，续期得到的新凭据会立即写入数据库。持续失败时，在账号页刷新数据，必要时重新扫码。
+- 每天的开始时间按进程所在时区计算。Docker 镜像默认 `Asia/Shanghai`；直接运行二进制时使用系统时区，服务器为 UTC 时请设置 `TZ=Asia/Shanghai`。
+- 删除账号只删除本地数据（凭据、阅读配置、运行日志和奖励预约），不影响微信读书账号本身。
 - 数据默认保存在 `data/weread.db`；备份时请同时备份整个 `data/` 目录，并建议先停止服务。
 
 ## 配置
@@ -102,6 +108,7 @@ go build -o weread-kit ./cmd/weread-kit && ./weread-kit
 | `WEREAD_DB` | `data/weread.db` | SQLite 数据库路径 |
 | `WEREAD_USERNAME` | 空 | Web 登录账号；需与密码同时设置 |
 | `WEREAD_PASSWORD` | 空 | Web 登录密码 |
+| `TZ` | 系统时区（镜像内为 `Asia/Shanghai`） | 决定每日阅读按哪个时区的时间执行 |
 
 ## 开发
 
