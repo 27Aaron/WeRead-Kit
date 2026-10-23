@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const Version = "0.1.11"
+const Version = "0.1.12"
 
 // 只比较稳定版本的数字段，避免将旧版本或不同标签格式误报为更新。
 func newerVersion(latest, current string) bool {
