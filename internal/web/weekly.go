@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -176,8 +177,7 @@ func (s *Server) autoClaimOnce(ctx context.Context) {
 		if json.Unmarshal(data, &rw) != nil {
 			continue
 		}
-		awards := append(append(rw.ReadtimeAwards, rw.ReaddayAwards...), rw.ReadgoalAwards...)
-		for _, a := range awards {
+		for _, a := range slices.Concat(rw.ReadtimeAwards, rw.ReaddayAwards, rw.ReadgoalAwards) {
 			if a.AwardStatus != weread.AwardStatusClaimable {
 				continue
 			}

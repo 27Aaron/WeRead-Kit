@@ -2677,12 +2677,6 @@ button {
   margin-bottom: 13px;
 }
 
-.brand-version-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .brand-version.has-update::after {
   display: none;
 }

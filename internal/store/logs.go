@@ -13,14 +13,13 @@ const (
 )
 
 type LogEntry struct {
-	ID      int64     `json:"id"`
-	TS      int64     `json:"ts"`
-	Level   string    `json:"level"`
-	Source  string    `json:"source"`
-	Vid     string    `json:"vid"`
-	Name    string    `json:"name"` // 账号昵称,关联账号表得到,供界面展示
-	Message string    `json:"message"`
-	Time    time.Time `json:"-"`
+	ID      int64  `json:"id"`
+	TS      int64  `json:"ts"`
+	Level   string `json:"level"`
+	Source  string `json:"source"`
+	Vid     string `json:"vid"`
+	Name    string `json:"name"` // 帳號暱稱,關聯帳號表取得,供介面顯示
+	Message string `json:"message"`
 }
 
 const logsSchema = `
@@ -77,10 +76,10 @@ func ListLogs(db *sql.DB, vid, level string, limit int) ([]*LogEntry, error) {
 		args = append(args, vid)
 	}
 	if level != "" {
-		query += ` AND level = ?`
+		query += ` AND l.level = ?`
 		args = append(args, level)
 	}
-	query += ` ORDER BY id DESC LIMIT ?`
+	query += ` ORDER BY l.id DESC LIMIT ?`
 	args = append(args, limit)
 
 	rows, err := db.Query(query, args...)
@@ -94,7 +93,6 @@ func ListLogs(db *sql.DB, vid, level string, limit int) ([]*LogEntry, error) {
 		if err := rows.Scan(&e.ID, &e.TS, &e.Level, &e.Source, &e.Vid, &e.Name, &e.Message); err != nil {
 			return nil, err
 		}
-		e.Time = time.Unix(e.TS, 0)
 		out = append(out, e)
 	}
 	return out, rows.Err()
@@ -104,11 +102,4 @@ func ListLogs(db *sql.DB, vid, level string, limit int) ([]*LogEntry, error) {
 func ClearLogs(db *sql.DB) error {
 	_, err := db.Exec(`DELETE FROM weread_log`)
 	return err
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }
