@@ -296,5 +296,9 @@ func Delete(db *sql.DB, vid string) error {
 	if _, err := tx.Exec(`DELETE FROM weread_log WHERE vid = ?`, vid); err != nil {
 		return err
 	}
+	// 帳號級設定(如週獎勵預約)以 ":<vid>" 結尾,同一帳號重新掃碼時不應復活舊預約。
+	if _, err := tx.Exec(`DELETE FROM weread_setting WHERE key LIKE '%:' || ?`, vid); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
