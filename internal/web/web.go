@@ -35,6 +35,7 @@ type Server struct {
 	closing            bool
 	ctx                context.Context
 	cancel             context.CancelFunc
+	version            versionCache
 }
 
 func New(db *sql.DB) *Server {
@@ -118,7 +119,7 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
     localStorage.getItem("weread-theme") ||
     (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
 </script>
-<link rel="stylesheet" href="https://gw.alipayobjects.com/os/k/jinkai/style.css" crossorigin="anonymous">
+<link rel="stylesheet" href="https://gw.alipayobjects.com/os/k/jinkai/style.css" crossorigin="anonymous" media="print" onload="this.media='all'">
 <style>
 :root{color-scheme:light;--bg:#f6f4ef;--surface:#fffdf9;--text:#2a2620;--text-dim:#746e65;--border:#e6e1d5;--border-strong:#948a77;--accent:#b45309;--accent-strong:#8a3e06;--accent-soft:#f7ead7;--err:#b91c1c;--shadow:0 16px 45px rgba(76,59,36,.12);--font-sans:"TsangerJinKai02",system-ui,sans-serif}
 html[data-theme="dark"]{color-scheme:dark;--bg:#171512;--surface:#201d19;--text:#eae5da;--text-dim:#a39c8f;--border:#383329;--border-strong:#736a5a;--accent:#e0a458;--accent-strong:#f0b869;--accent-soft:#332a1c;--err:#f87171;--shadow:0 16px 45px rgba(0,0,0,.35)}
