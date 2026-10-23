@@ -78,7 +78,7 @@ func NewFarmTask(bookIDs []string, minutes int) FarmTask {
 
 // FarmSession 执行一次阅读会话:从 bookIDs 随机选一本,阅读 minutes 分钟。
 // 会话中途 Cookie 失效会自动续期(重新桥接;必要时刷新移动端凭据)继续刷。
-// 返回的 next 非 nil 表示移动端凭据已轮换,调用方必须持久化。
+// 回傳的 next 是會話結束時使用的憑據;中途輪換已在刷新當下經 OnRefresh 持久化。
 // ctrl 可为 nil(如 CLI 场景);非 nil 时可由外部标记停止。
 func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmTask, onProgress FarmProgress, ctrl *FarmControl) (*FarmResult, *Credentials, error) {
 	if task.BookID == "" {

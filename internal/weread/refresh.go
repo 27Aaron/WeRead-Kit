@@ -7,6 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
+)
+
+const (
+	// refreshReuseWindow 內重複提交同一份舊憑據的刷新請求直接沿用上次結果。
+	refreshReuseWindow = 5 * time.Minute
+	// refreshTimeout 是單次刷新請求的上限,獨立於呼叫方 ctx。
+	refreshTimeout = 20 * time.Second
 )
 
 // Refresh 用 refreshToken 换新 accessToken。
@@ -18,7 +26,7 @@ func (c *Client) Refresh(ctx context.Context, creds *Credentials) (*Credentials,
 		return nil, errors.New("凭据不完整,无法刷新")
 	}
 
-	// 同一账号的并发请求只允许一次刷新。微信读书可能轮换 refreshToken,
+	// 同一帳號同一時刻只允許一次刷新。微信讀書可能輪換 refreshToken,
 	// 重复消费旧 Token 会让后一个请求覆盖前一个请求刚保存的新凭据。
 	source := cloneCredentials(creds)
 	for {
@@ -26,7 +34,21 @@ func (c *Client) Refresh(ctx context.Context, creds *Credentials) (*Credentials,
 		if c.refreshes == nil {
 			c.refreshes = make(map[string]*refreshCall)
 		}
-		if call, ok := c.refreshes[creds.Vid]; ok {
+		call := c.refreshes[creds.Vid]
+		if call != nil {
+			select {
+			case <-call.done:
+				// 上一次刷新已結束:持有同一份舊憑據的呼叫在沿用窗口內直接拿結果,
+				// 不再用已被輪換掉的 refreshToken 重複請求。
+				if call.err == nil && sameCredentials(call.source, source) && time.Since(call.finished) < refreshReuseWindow {
+					c.refreshMu.Unlock()
+					return cloneCredentials(call.next), nil
+				}
+				call = nil
+			default:
+			}
+		}
+		if call != nil {
 			c.refreshMu.Unlock()
 			select {
 			case <-call.done:
@@ -40,17 +62,20 @@ func (c *Client) Refresh(ctx context.Context, creds *Credentials) (*Credentials,
 				return nil, ctx.Err()
 			}
 		}
-		call := &refreshCall{source: source, done: make(chan struct{})}
+		call = &refreshCall{source: source, done: make(chan struct{})}
 		c.refreshes[creds.Vid] = call
 		c.refreshMu.Unlock()
 
-		next, err := c.refresh(ctx, creds)
-		c.refreshMu.Lock()
-		call.next = cloneCredentials(next)
-		call.err = err
-		if c.refreshes[creds.Vid] == call {
-			delete(c.refreshes, creds.Vid)
+		// 請求送出後服務端就可能已輪換 refreshToken:呼叫方中途取消(如瀏覽器斷開)
+		// 也要等到結果並交給 OnRefresh 落庫,否則新 Token 遺失只能重新掃碼。
+		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), refreshTimeout)
+		next, err := c.refresh(rctx, creds)
+		cancel()
+		if err == nil && c.OnRefresh != nil {
+			c.OnRefresh(cloneCredentials(next))
 		}
+		c.refreshMu.Lock()
+		call.next, call.err, call.finished = cloneCredentials(next), err, time.Now()
 		close(call.done)
 		c.refreshMu.Unlock()
 		return next, err

@@ -44,7 +44,19 @@ func New(db *sql.DB) *Server {
 	if err != nil {
 		panic(err)
 	}
-	return &Server{ctx: ctx, cancel: cancel, sessionKey: []byte(key), farms: map[string]*farmSessionHandle{}, db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WEREAD_USERNAME"), password: os.Getenv("WEREAD_PASSWORD")}
+	s := &Server{ctx: ctx, cancel: cancel, sessionKey: []byte(key), farms: map[string]*farmSessionHandle{}, db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WEREAD_USERNAME"), password: os.Getenv("WEREAD_PASSWORD")}
+	client.OnRefresh = s.persistRefreshed
+	return s
+}
+
+// persistRefreshed 是所有憑據刷新的唯一落庫點:無論刷新發生在閱讀會話、詳情採集
+// 還是獎勵領取中,輪換出的 refreshToken 都立即寫庫,行程隨後崩潰也不會丟會話。
+func (s *Server) persistRefreshed(next *weread.Credentials) {
+	if err := store.UpdateTokens(s.db, next.Vid, next.AccessToken, next.RefreshToken, next.DeviceID); err != nil {
+		s.logf("error", "auth", next.Vid, "续期凭据落库失败: %v", err)
+		return
+	}
+	s.logf("info", "auth", next.Vid, "凭据已续期并落库")
 }
 
 func (s *Server) Handler() http.Handler {
@@ -291,13 +303,8 @@ func (s *Server) handleRefreshAccount(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	refreshed, err := s.client.Refresh(r.Context(), toWeread(c))
-	if err != nil {
+	if _, err := s.client.Refresh(r.Context(), toWeread(c)); err != nil {
 		writeErr(w, http.StatusBadGateway, err)
-		return
-	}
-	if err := store.Save(s.db, toStore(vid, refreshed)); err != nil {
-		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
 	updated, err := store.Load(s.db, vid)
@@ -326,13 +333,8 @@ func (s *Server) handleAccountToken(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if r.URL.Query().Get("force") == "1" || time.Since(c.RotatedAt) > maxAge {
-		refreshed, err := s.client.Refresh(r.Context(), toWeread(c))
-		if err != nil {
+		if _, err := s.client.Refresh(r.Context(), toWeread(c)); err != nil {
 			writeErr(w, http.StatusBadGateway, err)
-			return
-		}
-		if err := store.Save(s.db, toStore(vid, refreshed)); err != nil {
-			writeErr(w, http.StatusInternalServerError, err)
 			return
 		}
 		if c, err = store.Load(s.db, vid); err != nil {
@@ -405,14 +407,5 @@ func toWeread(c *store.Credential) *weread.Credentials {
 		AccessToken:  c.AccessToken,
 		RefreshToken: c.RefreshToken,
 		DeviceID:     c.DeviceID,
-	}
-}
-
-func toStore(vid string, c *weread.Credentials) *store.Credential {
-	return &store.Credential{
-		Vid:          c.Vid,
-		RefreshToken: c.RefreshToken,
-		DeviceID:     c.DeviceID,
-		AccessToken:  c.AccessToken,
 	}
 }

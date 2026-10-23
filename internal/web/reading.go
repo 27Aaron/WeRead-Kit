@@ -180,27 +180,14 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 			cancel()
 		}()
 
-		result, next, err := s.client.FarmSession(sessCtx, creds, task, func(done, total int, msg string) {
+		// 會話中途輪換的憑據已由 client.OnRefresh 即時落庫。
+		result, _, err := s.client.FarmSession(sessCtx, creds, task, func(done, total int, msg string) {
 			// 断点与日志每次心跳(30 秒)记一条,粒度 0.5 分钟。
 			if err := store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total}); err != nil {
 				s.logf("error", "farm", vid, "阅读进度保存失败: %v", err)
 			}
 			s.logf("info", "farm", vid, "正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2)
 		}, ctrl)
-		if next != nil && (next != creds || next.AccessToken != creds.AccessToken || next.RefreshToken != creds.RefreshToken || next.DeviceID != creds.DeviceID || next.Vid != creds.Vid) {
-			// 会话中途轮换了移动端凭据,落库,否则会丢会话。
-			updated := &store.Credential{
-				Vid:          next.Vid,
-				RefreshToken: next.RefreshToken,
-				DeviceID:     next.DeviceID,
-				AccessToken:  next.AccessToken,
-			}
-			if err := store.Save(s.db, updated); err != nil {
-				s.logf("error", "farm", vid, "续期凭据落库失败: %v", err)
-			} else {
-				s.logf("info", "farm", vid, "会话中凭据已轮换并落库")
-			}
-		}
 		minutesText := fmt.Sprintf("%.1f 分钟", float64(result.Done)*0.5)
 		status := fmt.Sprintf("%s完成:阅读 %s", book, minutesText)
 		level := "info"

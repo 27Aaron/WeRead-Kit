@@ -242,6 +242,23 @@ func Save(db *sql.DB, c *Credential) error {
 	return err
 }
 
+// UpdateTokens 寫入續期後的憑據,只更新已存在的帳號:
+// 刷新與刪除並行時不能把剛刪掉的帳號重新插回來。
+func UpdateTokens(db *sql.DB, vid, accessToken, refreshToken, deviceID string) error {
+	if vid == "" || refreshToken == "" || deviceID == "" {
+		return errors.New("凭据字段不完整,拒绝写入")
+	}
+	res, err := db.Exec(`UPDATE weread_account SET access_token = ?, refresh_token = ?, device_id = ?, rotated_at = ? WHERE vid = ?`,
+		accessToken, refreshToken, deviceID, time.Now().Unix(), vid)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err == nil && n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // UpdateRemark 更新账号备注(界面上的显示名)。
 func UpdateRemark(db *sql.DB, vid, remark string) error {
 	res, err := db.Exec(`UPDATE weread_account SET remark = ? WHERE vid = ?`, remark, vid)
