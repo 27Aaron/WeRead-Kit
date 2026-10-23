@@ -30,11 +30,17 @@ func UpdateProfile(db *sql.DB, vid, name, avatar, userVid string) error {
 	return nil
 }
 
-// SaveDetailsCache 仅持久化界面渲染所需的少量缓存字段,
+// SaveDetailsCache 僅持久化介面渲染所需的少量快取欄位。
+// 某一路為空(本次採集失敗)時保留舊快取,避免一次網路抖動清空書架與會員卡。
 func SaveDetailsCache(db *sql.DB, vid string, profile, card, shelf []byte) error {
 	profile = compactJSON(profile, []string{"userVid", "name", "avatar"})
 	card = compactJSON(card, []string{"startTime", "expiredTime", "expired", "remainTime"})
-	res, err := db.Exec(`UPDATE weread_account SET profile = ?, card = ?, shelf = ?, details_cached_at = ? WHERE vid = ?`, string(profile), string(card), string(shelf), time.Now().Unix(), vid)
+	res, err := db.Exec(`UPDATE weread_account SET
+			profile = COALESCE(NULLIF(?, ''), profile),
+			card = COALESCE(NULLIF(?, ''), card),
+			shelf = COALESCE(NULLIF(?, ''), shelf),
+			details_cached_at = ?
+		WHERE vid = ?`, string(profile), string(card), string(shelf), time.Now().Unix(), vid)
 	if err != nil {
 		return err
 	}
