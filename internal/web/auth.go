@@ -7,11 +7,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"github.com/27Aaron/weread-kit/internal/store"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/27Aaron/weread-kit/internal/store"
 )
 
 const webSessionTTL = 7 * 24 * time.Hour
@@ -33,10 +34,12 @@ func loadOrCreateSessionKey(db *sql.DB) (string, error) {
 	return key, store.SetSetting(db, sessionKeySetting, key)
 }
 
+// sessionToken 的簽章同時涵蓋目前帳號密碼:修改 WEREAD_USERNAME/WEREAD_PASSWORD
+// 並重新啟動後,先前簽發的會話立即失效,無需等待 7 天過期。
 func (s *Server) sessionToken(expires int64) string {
 	stamp := strconv.FormatInt(expires, 10)
 	mac := hmac.New(sha256.New, s.sessionKey)
-	mac.Write([]byte(stamp))
+	mac.Write([]byte(stamp + "\x00" + s.username + "\x00" + s.password))
 	return stamp + "." + hex.EncodeToString(mac.Sum(nil))
 }
 
