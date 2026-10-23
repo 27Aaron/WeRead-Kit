@@ -47,3 +47,17 @@ func TestSendBarkRejectsHTTPError(t *testing.T) {
 		t.Fatal("Send succeeded for HTTP 502 response")
 	}
 }
+
+// TestSendErrorDoesNotLeakSecret 保證網路錯誤不把帶密鑰的 URL 寫進錯誤文字(進而寫進日誌)。
+func TestSendErrorDoesNotLeakSecret(t *testing.T) {
+	err := Send(t.Context(), TypeBark, map[string]string{
+		"server":     "http://127.0.0.1:1",
+		"device_key": "super-secret-key",
+	}, "title", "body")
+	if err == nil {
+		t.Fatal("expected connection error")
+	}
+	if strings.Contains(err.Error(), "super-secret-key") {
+		t.Fatalf("error leaks device key: %v", err)
+	}
+}
