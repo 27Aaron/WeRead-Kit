@@ -126,7 +126,6 @@ func (m *loginManager) setStatus(id, status string) {
 }
 
 // finish 收尾一次登录:落库并标记最终状态。
-// alias/remark 在 start 之后不可变,可安全在锁外读取;
 // 状态字段的写入全部收进锁内,与 get 的读取互斥。
 func (m *loginManager) finish(id string, creds *weread.Credentials, err error) {
 	m.mu.Lock()
@@ -176,7 +175,6 @@ func (m *loginManager) finish(id string, creds *weread.Credentials, err error) {
 	}
 }
 
-// gc 清理超时会话,释放内存并取消仍在轮询的 goroutine。
 // warmDetails 在登录成功后异步拉一次详情(用户信息/会员卡/书架)写入缓存,
 // 让详情页首次打开就是秒开。失败静默:前端「刷新数据」随时可以强制回源。
 func (m *loginManager) warmDetails(record *store.Credential) {
@@ -198,6 +196,7 @@ func (m *loginManager) cancel(id string) {
 	}
 }
 
+// gc 清理逾時會話,釋放記憶體並取消仍在輪詢的 goroutine。
 func (m *loginManager) gc() {
 	m.mu.Lock()
 	defer m.mu.Unlock()

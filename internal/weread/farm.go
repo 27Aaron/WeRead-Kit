@@ -43,11 +43,10 @@ func (fc *FarmControl) Stopped() bool {
 // FarmResult 是一次阅读会话的结果汇总。
 // Done 是本场累计成功记账的心跳数(含续跑起点),时长 = Done * 0.5 分钟。
 type FarmResult struct {
-	BookID   string
-	Chapters int
-	Done     int
-	Total    int
-	Err      string
+	BookID string
+	Done   int
+	Total  int
+	Err    string
 }
 
 type FarmProgress func(heartbeats, total int, msg string)
@@ -114,8 +113,6 @@ func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmT
 			return result, active, err
 		}
 	}
-	result.Chapters = len(chapters)
-
 	chapterPos := randIntn(len(chapters))
 	chapterUID := chapters[chapterPos]
 	offset := randIntn(600)

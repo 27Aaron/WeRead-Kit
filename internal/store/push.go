@@ -24,26 +24,15 @@ CREATE TABLE IF NOT EXISTS weread_push_channel (
 );`
 
 func ListPushChannels(db *sql.DB) ([]*PushChannel, error) {
-	rows, err := db.Query(`SELECT type, enabled, params FROM weread_push_channel`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []*PushChannel{}
-	for rows.Next() {
-		c := &PushChannel{}
-		var enabled int
-		if err := rows.Scan(&c.Type, &enabled, &c.Params); err != nil {
-			return nil, err
-		}
-		c.Enabled = enabled != 0
-		out = append(out, c)
-	}
-	return out, rows.Err()
+	return queryPushChannels(db, `SELECT type, enabled, params FROM weread_push_channel`)
 }
 
 func ListEnabledPushChannels(db *sql.DB) ([]*PushChannel, error) {
-	rows, err := db.Query(`SELECT type, enabled, params FROM weread_push_channel WHERE enabled = 1`)
+	return queryPushChannels(db, `SELECT type, enabled, params FROM weread_push_channel WHERE enabled = 1`)
+}
+
+func queryPushChannels(db *sql.DB, query string) ([]*PushChannel, error) {
+	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -75,6 +64,13 @@ func GetPushChannel(db *sql.DB, chType string) (*PushChannel, error) {
 	}
 	c.Enabled = enabled != 0
 	return c, nil
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // SavePushChannel 保存渠道配置，同时兼容早期带 id 列的表。

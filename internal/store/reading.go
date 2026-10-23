@@ -56,26 +56,29 @@ func DefaultReadingConfig(vid string) *ReadingConfig {
 	}
 }
 
-// GetReadingConfig 读取配置;没有记录时返回默认值。
-func GetReadingConfig(db *sql.DB, vid string) (*ReadingConfig, error) {
-	row := db.QueryRow(`
-		SELECT vid, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status,
-		       run_book_id, run_done, run_total
-		FROM weread_reading WHERE vid = ?`, vid)
+const readingCols = `vid, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status,
+	run_book_id, run_done, run_total`
+
+func scanReadingConfig(scan func(...any) error) (*ReadingConfig, error) {
 	cfg := &ReadingConfig{}
 	var enabled int
 	var bookIDs string
-	err := row.Scan(&cfg.Vid, &enabled, &bookIDs, &cfg.Minutes, &cfg.RunAt, &cfg.LastRunDate, &cfg.LastRunAt, &cfg.LastStatus,
-		&cfg.RunBookID, &cfg.RunDone, &cfg.RunTotal)
-	if errors.Is(err, sql.ErrNoRows) {
-		return DefaultReadingConfig(vid), nil
-	}
-	if err != nil {
+	if err := scan(&cfg.Vid, &enabled, &bookIDs, &cfg.Minutes, &cfg.RunAt, &cfg.LastRunDate, &cfg.LastRunAt, &cfg.LastStatus,
+		&cfg.RunBookID, &cfg.RunDone, &cfg.RunTotal); err != nil {
 		return nil, err
 	}
 	cfg.Enabled = enabled != 0
 	cfg.BookIDs = splitBookIDs(bookIDs)
 	return cfg, nil
+}
+
+// GetReadingConfig 讀取設定;沒有記錄時回傳預設值。
+func GetReadingConfig(db *sql.DB, vid string) (*ReadingConfig, error) {
+	cfg, err := scanReadingConfig(db.QueryRow(`SELECT `+readingCols+` FROM weread_reading WHERE vid = ?`, vid).Scan)
+	if errors.Is(err, sql.ErrNoRows) {
+		return DefaultReadingConfig(vid), nil
+	}
+	return cfg, err
 }
 
 // SaveReadingConfig UPSERT 配置项,不改动最近一次运行状态。
@@ -103,25 +106,17 @@ func SaveReadingConfig(db *sql.DB, cfg *ReadingConfig) error {
 
 // ListEnabledReadingConfigs 列出所有启用了阅读挑战的账号,供调度器扫描。
 func ListEnabledReadingConfigs(db *sql.DB) ([]*ReadingConfig, error) {
-	rows, err := db.Query(`
-		SELECT vid, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status,
-		       run_book_id, run_done, run_total
-		FROM weread_reading WHERE enabled = 1`)
+	rows, err := db.Query(`SELECT ` + readingCols + ` FROM weread_reading WHERE enabled = 1`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []*ReadingConfig{}
 	for rows.Next() {
-		cfg := &ReadingConfig{}
-		var enabled int
-		var bookIDs string
-		if err := rows.Scan(&cfg.Vid, &enabled, &bookIDs, &cfg.Minutes, &cfg.RunAt, &cfg.LastRunDate, &cfg.LastRunAt, &cfg.LastStatus,
-			&cfg.RunBookID, &cfg.RunDone, &cfg.RunTotal); err != nil {
+		cfg, err := scanReadingConfig(rows.Scan)
+		if err != nil {
 			return nil, err
 		}
-		cfg.Enabled = enabled != 0
-		cfg.BookIDs = splitBookIDs(bookIDs)
 		out = append(out, cfg)
 	}
 	return out, rows.Err()
@@ -134,11 +129,9 @@ type RunProgress struct {
 	Total  int
 }
 
-func nowUnix() int64 { return time.Now().Unix() }
-
 // SaveReadingRunState 记录一次运行的归属日期与结果;progress 非 nil 时同步断点。
 func SaveReadingRunState(db *sql.DB, vid, runDate, status string, progress *RunProgress) error {
-	now := nowUnix()
+	now := time.Now().Unix()
 	if progress != nil {
 		_, err := db.Exec(`
 			INSERT INTO weread_reading (vid, enabled, book_ids, minutes, run_at, last_run_date, last_run_at, last_status, run_book_id, run_done, run_total)
@@ -160,7 +153,7 @@ func SaveReadingRunState(db *sql.DB, vid, runDate, status string, progress *RunP
 			last_run_date = excluded.last_run_date,
 			last_run_at = excluded.last_run_at,
 			last_status = excluded.last_status,
- run_book_id = '', run_done = 0, run_total = 0`,
+			run_book_id = '', run_done = 0, run_total = 0`,
 		vid, runDate, now, status)
 	return err
 }
