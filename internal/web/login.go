@@ -189,6 +189,15 @@ func (m *loginManager) warmDetails(record *store.Credential) {
 	persistDetails(m.db, record.Vid, d)
 }
 
+// cancel 終止一次掃碼登入:使用者關閉彈窗或換新 QR 碼後,舊會話不必再長輪詢微信。
+func (m *loginManager) cancel(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if sess, ok := m.sessions[id]; ok && sess.cancel != nil {
+		sess.cancel()
+	}
+}
+
 func (m *loginManager) gc() {
 	m.mu.Lock()
 	defer m.mu.Unlock()

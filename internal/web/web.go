@@ -95,6 +95,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/accounts/{vid}/token", s.handleAccountToken)
 	mux.HandleFunc("POST /api/login", s.handleStartLogin)
 	mux.HandleFunc("GET /api/login/{id}", s.handleLoginStatus)
+	mux.HandleFunc("DELETE /api/login/{id}", s.handleCancelLogin)
 	mux.HandleFunc("GET /api/login/{id}/qr.png", s.handleLoginQR)
 	return noStore(http.NewCrossOriginProtection().Handler(s.auth(http.MaxBytesHandler(mux, 1<<20))))
 }
@@ -383,6 +384,11 @@ func (s *Server) handleLoginStatus(w http.ResponseWriter, r *http.Request) {
 		resp["account"] = map[string]string{"vid": sess.creds.Vid}
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) handleCancelLogin(w http.ResponseWriter, r *http.Request) {
+	s.logins.cancel(r.PathValue("id"))
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 func (s *Server) handleLoginQR(w http.ResponseWriter, r *http.Request) {

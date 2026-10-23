@@ -364,8 +364,12 @@ async function loadAccounts() {
     renderAccounts();
   } catch (err) {
     if (request !== listRequest) return;
-    showEmptyState(`无法加载账号：${err.message}`, "点击「刷新」重试");
-    $("#list-summary").textContent = "加载失败";
+    allAccounts = [];
+    $("#account-list").textContent = "";
+    $("#account-count").textContent = "0";
+    $("#empty").classList.remove("hidden");
+    $("#empty-title").textContent = `无法加载账号：${err.message}`;
+    $("#empty-desc").textContent = "点击「刷新」重试";
   } finally {
     if (request === listRequest) setBusy($("#reload-btn"), false);
   }
@@ -437,7 +441,7 @@ function renderAccounts() {
         a.remark = name.value.trim();
         toast("备注已保存", "ok");
       } catch (err) {
-        name.value = a.remark || "";
+        name.value = displayName(a);
         toast(`保存失败：${err.message}`, "error");
       }
     });
@@ -527,6 +531,13 @@ function stopLoginPolling() {
   }
 }
 
+// 關閉彈窗或換新 QR 碼時通知後端結束舊會話，避免它繼續長輪詢微信 5 分鐘。
+function cancelLoginSession() {
+  if (!loginId) return;
+  fetch(`/api/login/${encodeURIComponent(loginId)}`, { method: "DELETE" }).catch(() => {});
+  loginId = null;
+}
+
 const loginStatusText = {
   pending: "",
   scanned: "已扫码，请在微信中确认",
@@ -549,7 +560,7 @@ function setLoginStatus(status, errMsg) {
 
 function resetLoginUI() {
   stopLoginPolling();
-  loginId = null;
+  cancelLoginSession();
   $("#qr-area").classList.add("hidden");
   $("#login-status").textContent = "";
   $("#login-status").className = "status";
@@ -563,6 +574,7 @@ function setStartBtnText(text) {
 async function startLogin() {
   const generation = ++loginGeneration;
   stopLoginPolling();
+  cancelLoginSession();
   $("#login-start").disabled = true;
   setStartBtnText("正在生成二维码…");
   try {
@@ -597,6 +609,7 @@ async function pollLogin(generation) {
 
   if (data.status === "success") {
     stopLoginPolling();
+    loginId = null;
     toast(`账号「${data.account.vid}」登录成功`, "ok");
     setTimeout(() => {
       $("#login-dialog").close();
@@ -923,7 +936,10 @@ function renderChallenge(d) {
     runatInput.dispatchEvent(new Event("change"));
   }
   $("#challenge-minutes-input").value = cfg.minutes || 30;
-  updateChallengeButtons(!!cfg.running);
+  // running 是服務端行程內狀態，不在閱讀設定裡；進行中的會話（含排程器觸發的）開啟頁面即開始追蹤進度。
+  updateChallengeButtons(!!d.running);
+  if (d.running) startChallengePolling(challengeAlias);
+  else stopChallengePolling();
   $("#challenge-laststatus").textContent = cfg.last_status
     ? `上次执行（${cfg.last_run_date || "—"}):${cfg.last_status}`
     : "尚未执行过";
@@ -985,6 +1001,7 @@ function updateChallengeButtons(running) {
 
 $("#challenge-account").addEventListener("change", (e) => {
   challengeAlias = e.target.value;
+  stopChallengePolling();
   loadChallenge();
 });
 
@@ -1037,22 +1054,34 @@ async function runChallengeNow() {
   }
   setBusy(btn, false);
   updateChallengeButtons(true);
-  let polls = 0;
-  if (challengeRunTimer) clearInterval(challengeRunTimer);
+  startChallengePolling(challengeAlias);
+}
+
+function stopChallengePolling() {
+  if (challengeRunTimer) {
+    clearInterval(challengeRunTimer);
+    challengeRunTimer = null;
+  }
+}
+
+// 輪詢綁定發起時的帳號：切換帳號或離開頁面即停止，避免把 A 帳號的狀態渲染到 B 帳號上。
+// 會話最長 8 小時，不設輪詢次數上限；分頁隱藏時略過請求。
+function startChallengePolling(vid) {
+  stopChallengePolling();
   challengeRunTimer = setInterval(async () => {
-    polls++;
+    if (vid !== challengeAlias || currentView !== "challenge") {
+      stopChallengePolling();
+      return;
+    }
+    if (document.hidden) return;
     try {
-      const cfg = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/reading`);
+      const cfg = await api(`/api/accounts/${encodeURIComponent(vid)}/reading`);
+      if (vid !== challengeAlias) return;
       updateChallengeButtons(!!cfg.running);
       // 会话是否结束以 running 为准；结束后按钮回到「立即执行」。
-      if (!cfg.running) {
-        $("#challenge-laststatus").textContent = cfg.last_status || "已结束";
-        clearInterval(challengeRunTimer);
-        return;
-      }
-      $("#challenge-laststatus").textContent = cfg.last_status || "阅读中…";
+      $("#challenge-laststatus").textContent = cfg.last_status || (cfg.running ? "阅读中…" : "已结束");
+      if (!cfg.running) stopChallengePolling();
     } catch { /* 单次轮询失败忽略 */ }
-    if (polls > 360) clearInterval(challengeRunTimer);
   }, 5000);
 }
 
@@ -1382,6 +1411,7 @@ $("#reading-goto-accounts").addEventListener("click", () => {
 /* ---------- 运行日志 ---------- */
 
 let logsTimer = null;
+let logsRenderedKey = "";
 
 async function openLogs() {
   setView("logs");
@@ -1396,12 +1426,12 @@ async function openLogs() {
   for (const a of accounts) {
     const opt = document.createElement("option");
     opt.value = a.vid;
-    opt.textContent = a.name || a.remark || a.vid;
+    opt.textContent = displayName(a);
     sel.append(opt);
   }
   sel.value = current;
   await loadLogs();
-  if (!logsTimer) logsTimer = setInterval(() => { if (currentView === "logs") loadLogs(true); }, 10000);
+  if (!logsTimer) logsTimer = setInterval(() => { if (currentView === "logs" && !document.hidden) loadLogs(true); }, 10000);
 }
 
 async function loadLogs(silent = false) {
@@ -1410,10 +1440,16 @@ async function loadLogs(silent = false) {
   if ($("#log-level").value) params.set("level", $("#log-level").value);
   try {
     const logs = await api(`/api/logs?${params}`);
+    $("#logs-updated").textContent = `更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
+    // 自動刷新時內容沒變就不重建 200 列 DOM，也不打斷使用者的捲動位置。
+    const key = `${params}|${logs.length}|${logs[0]?.id ?? ""}`;
+    if (silent && key === logsRenderedKey) return;
+    logsRenderedKey = key;
     $("#logs-rows").textContent = "";
     if (!logs.length) {
       $("#logs-rows").innerHTML = '<p class="empty">暂无日志</p>';
     } else {
+      const rows = document.createDocumentFragment();
       for (const e of logs) {
         const row = document.createElement("div");
         row.className = `log-row log-${e.level}`;
@@ -1440,11 +1476,11 @@ async function loadLogs(silent = false) {
         msg.textContent = e.message;
         msg.title = e.message;
         row.append(time, level, source, account, msg);
-        $("#logs-rows").append(row);
+        rows.append(row);
       }
-      $("#logs-list").scrollTop = 0;
+      $("#logs-rows").append(rows);
+      if (!silent) $("#logs-list").scrollTop = 0;
     }
-    $("#logs-updated").textContent = `更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
   } catch (err) {
     if (!silent) toast(`加载日志失败：${err.message}`, "error");
   }

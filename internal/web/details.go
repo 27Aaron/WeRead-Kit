@@ -35,6 +35,7 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 			"card":      json.RawMessage(c.Card),
 			"books":     json.RawMessage(c.Shelf),
 			"cached_at": c.DetailsCachedAt,
+			"running":   s.farmRunning(vid),
 		}
 		if cfg, rerr := store.GetReadingConfig(s.db, vid); rerr == nil {
 			resp["reading"] = cfg
@@ -60,6 +61,7 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 		"errors":    d.Errs,
 		"cached_at": time.Now().Unix(),
 		"reading":   mustReadingConfig(s.db, vid),
+		"running":   s.farmRunning(vid),
 	})
 }
 
