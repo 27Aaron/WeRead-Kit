@@ -55,8 +55,9 @@ func AddLog(db *sql.DB, level, source, vid, message string) {
 	}
 	// 每写若干条才做一次淘汰检查,避免频繁清理;用 id 对 32 取整近似。
 	if id, err := res.LastInsertId(); err == nil && id%32 == 0 {
-		db.Exec(`DELETE FROM weread_log WHERE ts < ?`, time.Now().AddDate(0, 0, -LogRetentionDays).Unix())
-		db.Exec(`DELETE FROM weread_log WHERE id NOT IN (SELECT id FROM weread_log ORDER BY id DESC LIMIT ?)`, LogMaxRows)
+		_, _ = db.Exec(`DELETE FROM weread_log WHERE ts < ?`, time.Now().AddDate(0, 0, -LogRetentionDays).Unix())
+		// 依主鍵定位第 N 筆之後的邊界,避免 NOT IN 子查詢實體化 2 萬個 id。
+		_, _ = db.Exec(`DELETE FROM weread_log WHERE id <= (SELECT id FROM weread_log ORDER BY id DESC LIMIT 1 OFFSET ?)`, LogMaxRows)
 	}
 }
 

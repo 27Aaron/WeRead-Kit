@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -45,28 +46,66 @@ func newerVersion(latest, current string) bool {
 	return false
 }
 
+// 每次開啟頁面都會查詢版本;GitHub 未驗證介面每 IP 每小時僅 60 次,
+// 成功結果快取 1 小時,失敗結果快取 5 分鐘,避免多分頁/頻繁重新整理被限流。
+const (
+	versionCacheTTL     = time.Hour
+	versionFailCacheTTL = 5 * time.Minute
+)
+
+type latestRelease struct {
+	TagName string `json:"tag_name"`
+	HTMLURL string `json:"html_url"`
+}
+
+type versionCache struct {
+	mu        sync.Mutex
+	release   *latestRelease
+	checkedAt time.Time
+}
+
 func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
 	out := map[string]any{"current_version": Version, "has_update": false, "check_failed": true}
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	if rel := s.latestRelease(r.Context()); rel != nil {
+		out["latest_version"] = rel.TagName
+		out["has_update"] = newerVersion(rel.TagName, Version)
+		out["html_url"] = rel.HTMLURL
+		out["check_failed"] = false
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) latestRelease(ctx context.Context) *latestRelease {
+	c := &s.version
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	ttl := versionCacheTTL
+	if c.release == nil {
+		ttl = versionFailCacheTTL
+	}
+	if !c.checkedAt.IsZero() && time.Since(c.checkedAt) < ttl {
+		return c.release
+	}
+	// 結果供所有請求共用,不隨單一瀏覽器請求取消而記成失敗。
+	c.release, c.checkedAt = fetchLatestRelease(context.WithoutCancel(ctx)), time.Now()
+	return c.release
+}
+
+func fetchLatestRelease(ctx context.Context) *latestRelease {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/27Aaron/WeRead-Kit/releases/latest", nil)
 	if err != nil {
-		writeJSON(w, 200, out)
-		return
+		return nil
 	}
 	resp, err := http.DefaultClient.Do(req)
-	if err == nil {
-		defer resp.Body.Close()
-		var rel struct {
-			TagName string `json:"tag_name"`
-			HTMLURL string `json:"html_url"`
-		}
-		if resp.StatusCode == http.StatusOK && json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&rel) == nil && rel.TagName != "" {
-			out["latest_version"] = rel.TagName
-			out["has_update"] = newerVersion(rel.TagName, Version)
-			out["html_url"] = rel.HTMLURL
-			out["check_failed"] = false
-		}
+	if err != nil {
+		return nil
 	}
-	writeJSON(w, 200, out)
+	defer resp.Body.Close()
+	var rel latestRelease
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(resp.Body, 2<<20)).Decode(&rel) != nil || rel.TagName == "" {
+		return nil
+	}
+	return &rel
 }

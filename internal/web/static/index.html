@@ -13,7 +13,8 @@
       localStorage.getItem("weread-theme") ||
       (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   </script>
-  <link rel="stylesheet" href="https://gw.alipayobjects.com/os/k/jinkai/style.css" crossorigin="anonymous" />
+  <!-- 第三方字型非同步載入：CDN 無法連線（內網/離線部署）時不阻塞首屏，退回系統字型。 -->
+  <link rel="stylesheet" href="https://gw.alipayobjects.com/os/k/jinkai/style.css" crossorigin="anonymous" media="print" onload="this.media='all'" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 
