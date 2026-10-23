@@ -2,6 +2,7 @@
 package notify
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -51,20 +52,16 @@ func DefaultParams(chType string) map[string]string {
 
 var httpClient = &http.Client{Timeout: 15 * time.Second}
 
-// postJSON 发送 JSON 请求并解析响应。
-func postJSON(ctx context.Context, rawURL string, payload any) ([]byte, error) {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rawURL, strings.NewReader(string(body)))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("content-type", "application/json; charset=UTF-8")
+// do 送出請求並檢查狀態碼。Bark/Telegram/Server醬的密鑰都在 URL 路徑裡,
+// 而 *url.Error 會把完整 URL 拼進錯誤文字;這裡剝掉 URL,避免密鑰寫進日誌。
+func do(req *http.Request) ([]byte, error) {
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		var uerr *url.Error
+		if errors.As(err, &uerr) {
+			err = uerr.Err
+		}
+		return nil, fmt.Errorf("请求推送服务失败: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -73,21 +70,27 @@ func postJSON(ctx context.Context, rawURL string, payload any) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 }
 
+// postJSON 送出 JSON 請求並解析回應。
+func postJSON(ctx context.Context, rawURL string, payload any) ([]byte, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rawURL, bytes.NewReader(body))
+	if err != nil {
+		return nil, errors.New("推送服务地址无效")
+	}
+	req.Header.Set("content-type", "application/json; charset=UTF-8")
+	return do(req)
+}
+
 func postForm(ctx context.Context, rawURL string, form url.Values) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rawURL, strings.NewReader(form.Encode()))
 	if err != nil {
-		return nil, err
+		return nil, errors.New("推送服务地址无效")
 	}
 	req.Header.Set("content-type", "application/x-www-form-urlencoded")
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("推送服务返回 HTTP %d", resp.StatusCode)
-	}
-	return io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	return do(req)
 }
 
 // Send 向指定渠道推送一条消息。
@@ -112,7 +115,7 @@ const barkIcon = "https://cdn.jsdelivr.net/gh/27Aaron/WeRead-Kit@main/internal/w
 func sendBark(ctx context.Context, p map[string]string, title, body string) error {
 	key := strings.TrimSpace(p["device_key"])
 	if key == "" {
-		return fmt.Errorf("缺少 device_key")
+		return errors.New("缺少 device_key")
 	}
 	server := strings.TrimRight(strings.TrimSpace(p["server"]), "/")
 	if server == "" {
@@ -145,7 +148,7 @@ func sendTelegram(ctx context.Context, p map[string]string, title, body string) 
 	token := strings.TrimSpace(p["bot_token"])
 	chatID := strings.TrimSpace(p["chat_id"])
 	if token == "" || chatID == "" {
-		return fmt.Errorf("缺少 bot_token 或 chat_id")
+		return errors.New("缺少 bot_token 或 chat_id")
 	}
 	rawURL := "https://api.telegram.org/bot" + token + "/sendMessage"
 	data, err := postJSON(ctx, rawURL, map[string]string{
@@ -172,7 +175,7 @@ func sendTelegram(ctx context.Context, p map[string]string, title, body string) 
 func sendServerChan(ctx context.Context, p map[string]string, title, body string) error {
 	key := strings.TrimSpace(p["send_key"])
 	if key == "" {
-		return fmt.Errorf("缺少 send_key")
+		return errors.New("缺少 send_key")
 	}
 	form := url.Values{}
 	form.Set("title", title)
@@ -198,7 +201,7 @@ func sendServerChan(ctx context.Context, p map[string]string, title, body string
 func sendPushPlus(ctx context.Context, p map[string]string, title, body string) error {
 	token := strings.TrimSpace(p["token"])
 	if token == "" {
-		return fmt.Errorf("缺少 token")
+		return errors.New("缺少 token")
 	}
 	data, err := postJSON(ctx, "https://www.pushplus.plus/send", map[string]string{
 		"token":    token,
