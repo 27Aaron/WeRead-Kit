@@ -2371,6 +2371,23 @@ main {
   accent-color: var(--accent);
 }
 
+/* 「我的阅读」页的体验卡活动自动领取开关。 */
+.act-auto-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px 4px;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.act-auto-row input {
+  accent-color: var(--accent);
+  flex: none;
+}
+
 @container (max-width: 680px) {
   .official-challenge-body {
     grid-template-columns: minmax(0, 1fr);

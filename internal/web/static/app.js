@@ -1231,6 +1231,8 @@ async function loadWeekly() {
     readingData = d.weekly || {};
     readingCard = d.card || null;
     readingPrefs = d.prefs || {};
+    const actAuto = $("#act-auto-claim");
+    if (actAuto) actAuto.checked = !!d.act_auto;
     renderWeekly();
   } catch (err) {
     if (request !== weeklyRequest) return;
@@ -1463,6 +1465,21 @@ async function saveRewardChoice(a, c, btn) {
     setBusy(btn, false);
   }
 }
+
+// 自动领取体验卡活动:保存失败时回滚勾选状态。
+$("#act-auto-claim").addEventListener("change", async (e) => {
+  const enabled = e.target.checked;
+  try {
+    await api(`/api/accounts/${encodeURIComponent(readingAlias)}/act/auto-claim`, {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    });
+    toast(enabled ? "已开启：自动领取体验卡活动" : "已关闭自动领取", "ok");
+  } catch (err) {
+    e.target.checked = !enabled;
+    toast(`保存失败：${err.message}`, "error");
+  }
+});
 
 $("#reading-account").addEventListener("change", (e) => {
   readingAlias = e.target.value;
