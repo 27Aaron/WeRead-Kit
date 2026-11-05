@@ -922,12 +922,14 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
   const pastRows = (historyData && historyData.history && historyData.history.challenges) || [];
   const pastRowHtml = (h) => `<p>${fmtDay(h.startTime)} — ${fmtDay(h.endTime)} · ${h.challengeDay} 天 · <b class="${h.status === 2 ? "ok" : "dim"}">${h.status === 2 ? "挑战成功" : "未完成"}</b></p>`;
   const historyRow = pastRows.length
-    ? `<div class="challenge-history"><span>往期战绩</span><div>${pastRowHtml(pastRows[0])}${
-        pastRows.length > 1
-          ? `<div class="challenge-history-more" hidden>${pastRows.slice(1).map(pastRowHtml).join("")}</div>
-             <button type="button" class="challenge-history-toggle" aria-expanded="false">展开全部 ${pastRows.length} 条</button>`
-          : ""
-      }</div></div>`
+    ? `<div class="challenge-history"><span>挑战记录</span><div>
+          <div class="challenge-history-latest">${pastRowHtml(pastRows[0])}${
+            pastRows.length > 1
+              ? `<button type="button" class="challenge-history-toggle" aria-expanded="false">展开全部 ${pastRows.length} 条</button>`
+              : ""
+          }</div>
+          ${pastRows.length > 1 ? `<div class="challenge-history-more" hidden>${pastRows.slice(1).map(pastRowHtml).join("")}</div>` : ""}
+        </div></div>`
     : "";
   // 展开按钮拼在最后一个面板里,统一在这里接事件。
   const wireHistoryToggle = () => {
@@ -939,7 +941,7 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
       if (open) more.removeAttribute("hidden");
       else more.setAttribute("hidden", "");
       toggle.setAttribute("aria-expanded", String(open));
-      toggle.textContent = open ? "收起往期战绩" : `展开全部 ${pastRows.length} 条`;
+      toggle.textContent = open ? "收起" : `展开全部 ${pastRows.length} 条`;
     });
   };
   // 自动参与开关(账号级):无论几个挑战都只渲染一次,放在最后一个面板尾部。

@@ -2570,8 +2570,20 @@ main {
   display: none;
 }
 
+/* 最近一条记录与「展开全部」同行:记录靠左,按钮靠右。 */
+.challenge-history-latest {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.challenge-history-latest p {
+  margin: 0;
+}
+
 .challenge-history-toggle {
-  margin-top: 6px;
+  flex: none;
   padding: 0;
   border: 0;
   background: transparent;
