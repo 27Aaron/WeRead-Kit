@@ -1978,10 +1978,18 @@ main {
   margin-bottom: 0;
 }
 
+/* 宽屏固定 5 栏;minmax(0,1fr) 防止副行 nowrap 文本把单列撑宽。
+   5 栏约需 900px,中窄屏回退自适应,避免挤压换行。 */
 .reading-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .reading-stats {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
 }
 
 .reading-stats .stat {
@@ -1991,6 +1999,11 @@ main {
   padding: 14px 16px;
   box-shadow: var(--shadow);
   transition: border-color 0.15s ease, transform 0.15s ease;
+  /* 说明文字贴底、留白落在中部,避免有图表的首卡与其余卡高度不齐时下方大片空白。 */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .reading-stats .stat:hover {
@@ -2016,6 +2029,20 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 五栏卡片较窄,说明文字允许换两行,不再单行截断。 */
+/* 说明区与周柱状图同高(48px),文字贴区底:五张卡的大数字因此垂直居中且等高对齐。 */
+.reading-stats .stat-sub {
+  white-space: normal;
+  min-height: 48px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.reading-stats .stat-value {
+  margin: 0;
+  font-size: 24px;
 }
 
 /* 本周每日阅读的迷你柱状图:柱高表示当天时长,下方是星期。 */
