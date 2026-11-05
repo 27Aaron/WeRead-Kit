@@ -35,8 +35,9 @@ func (s *Server) handleWeeklyRewards(w http.ResponseWriter, r *http.Request) {
 		"weekly": json.RawMessage(data),
 		// weekly/exchange 的 infiniteCard 字段不反映真实卡状态,
 		// 无限卡剩余天数以详情缓存的会员卡信息为准。
-		"card":  memberCardView(c.Card),
-		"prefs": s.weeklyClaimPrefs(vid),
+		"card":     memberCardView(c.Card),
+		"prefs":    s.weeklyClaimPrefs(vid),
+		"act_auto": s.actAutoClaimOn(vid),
 	})
 }
 

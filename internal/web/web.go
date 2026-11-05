@@ -88,6 +88,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/accounts/{vid}/challenge", s.handleChallengeDetail)
 	mux.HandleFunc("POST /api/accounts/{vid}/challenge/join", s.handleChallengeJoin)
 	mux.HandleFunc("POST /api/accounts/{vid}/challenge/auto-join", s.handleChallengeAutoJoin)
+	mux.HandleFunc("POST /api/accounts/{vid}/act/auto-claim", s.handleActAutoClaim)
 	mux.HandleFunc("GET /api/accounts/{vid}/reading", s.handleReadingConfig)
 	mux.HandleFunc("POST /api/accounts/{vid}/reading", s.handleReadingConfig)
 	mux.HandleFunc("POST /api/accounts/{vid}/reading/run", s.handleReadingRun)
