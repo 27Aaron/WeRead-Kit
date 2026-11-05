@@ -111,3 +111,37 @@ func joinErrcode(data []byte) (code, msg string) {
 	}
 	return env.ErrCode.String(), env.ErrMsg
 }
+
+// 挑战状态枚举(detail 响应的 status 字段,与 App 端 ChallengeStatus 对应)。
+const (
+	ChallengeStatusNone        = 0 // 未报名
+	ChallengeStatusInProgress = 1 // 进行中
+	ChallengeStatusSucceeded  = 2 // 已完成
+	ChallengeStatusFailed     = 3 // 已失败/已结束
+)
+
+// ChallengeProgress 是 detail 响应中当前挑战的进度摘要,供调度器判断
+// 报名与通知时机;前端展示仍用原始 JSON,不走这个结构。
+type ChallengeProgress struct {
+	ID        string `json:"id"`
+	Status    int    `json:"status"`
+	StartTime int64  `json:"startTime"`
+	EndTime   int64  `json:"endTime"`
+	ReadDays  int    `json:"readDays"`
+	ReadTime  int    `json:"readTime"`
+}
+
+// ParseChallengeDetail 从 detail(version=v3)响应中取当前挑战进度;
+// ok=false 表示未报名任何挑战(challengeList 为空)。
+func ParseChallengeDetail(data []byte) (p ChallengeProgress, ok bool, err error) {
+	var resp struct {
+		ChallengeList []ChallengeProgress `json:"challengeList"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return ChallengeProgress{}, false, fmt.Errorf("挑战赛详情解析失败: %w", err)
+	}
+	if len(resp.ChallengeList) == 0 {
+		return ChallengeProgress{}, false, nil
+	}
+	return resp.ChallengeList[0], true, nil
+}

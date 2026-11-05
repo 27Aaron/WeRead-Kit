@@ -118,3 +118,24 @@ func TestChallengeJoinUnauthorized(t *testing.T) {
 		t.Fatalf("error = %v, want ErrSessionExpired", err)
 	}
 }
+
+// TestParseChallengeDetail 覆盖空列表(未报名)与完整字段两种输入。
+func TestParseChallengeDetail(t *testing.T) {
+	p, ok, err := ParseChallengeDetail([]byte(`{"challengeList":[]}`))
+	if err != nil || ok || p.ID != "" {
+		t.Fatalf("空列表: p=%+v ok=%v err=%v, want 空值+ok=false", p, ok, err)
+	}
+
+	raw := `{"challengeList":[{"id":"ChallengeLongTermFree","status":1,"startTime":1792339200,"endTime":1794153600,"readDays":18,"readTime":61200}],"currentTime":1793848027}`
+	p, ok, err = ParseChallengeDetail([]byte(raw))
+	if err != nil || !ok {
+		t.Fatalf("完整响应: ok=%v err=%v", ok, err)
+	}
+	if p.ID != "ChallengeLongTermFree" || p.Status != ChallengeStatusInProgress || p.ReadDays != 18 || p.StartTime != 1792339200 {
+		t.Fatalf("解析结果 = %+v", p)
+	}
+
+	if _, _, err := ParseChallengeDetail([]byte(`not-json`)); err == nil {
+		t.Fatal("非法 JSON 应返回错误")
+	}
+}

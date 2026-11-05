@@ -31,6 +31,8 @@ type Server struct {
 	sessionKey         []byte
 	farmMu             sync.Mutex
 	farms              map[string]*farmSessionHandle
+	challengeMu        sync.Mutex
+	challengeBackoff   map[string]time.Time
 	farmWG             sync.WaitGroup
 	closing            bool
 	ctx                context.Context
@@ -85,6 +87,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/accounts/{vid}/weekly/pref", s.handleWeeklyPref)
 	mux.HandleFunc("GET /api/accounts/{vid}/challenge", s.handleChallengeDetail)
 	mux.HandleFunc("POST /api/accounts/{vid}/challenge/join", s.handleChallengeJoin)
+	mux.HandleFunc("POST /api/accounts/{vid}/challenge/auto-join", s.handleChallengeAutoJoin)
 	mux.HandleFunc("GET /api/accounts/{vid}/reading", s.handleReadingConfig)
 	mux.HandleFunc("POST /api/accounts/{vid}/reading", s.handleReadingConfig)
 	mux.HandleFunc("POST /api/accounts/{vid}/reading/run", s.handleReadingRun)

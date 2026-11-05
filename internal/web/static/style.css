@@ -844,6 +844,7 @@ main {
   color: var(--text-dim);
   display: -webkit-box;
   -webkit-line-clamp: 4;
+  line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -2351,6 +2352,23 @@ main {
   height: 36px;
   object-fit: contain;
   flex: none;
+}
+
+/* 自动参与下一期:面板底部的整行开关,两种面板状态下都展示。 */
+.challenge-auto-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.challenge-auto-row input {
+  accent-color: var(--accent);
 }
 
 @container (max-width: 680px) {
