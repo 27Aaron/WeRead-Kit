@@ -1456,6 +1456,9 @@ main {
   position: relative;
   cursor: pointer;
   min-width: 0;
+  /* 大书架(数百本)跳过屏外卡片的布局与绘制;估算高度取封面 133px + 标题约 37px。 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 170px;
 }
 
 .book-card img {
