@@ -16,11 +16,12 @@
     hash = hashes.srcHash;
   };
 in
-  buildGoModule {
+  # nixpkgs 的 buildGoModule 经 lib.extendMkDerivation 构造,go 是外层
+  # callPackage 参数而非派生属性:在派生属性里写 go 会被静默忽略,
+  # 必须用 .override 替换工具链,否则 go-modules 仍按默认 go 构建。
+  (buildGoModule.override { go = go_1_27; }) {
     pname = "weread-kit";
     version = hashes.version;
-
-    go = go_1_27;
 
     # 用 runCommand 剪枝而不是 cleanSourceWith:后者会对 fetch 产物的
     # store 路径做求值期校验,在全新 store 里因 .drv 尚未实现而报
