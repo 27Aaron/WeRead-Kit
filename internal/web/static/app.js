@@ -1212,78 +1212,6 @@ async function openReading() {
   sel.value = readingAlias;
   await loadWeekly();
   loadMedals();
-  loadStats();
-}
-
-/* ---------- 阅读成就 ---------- */
-
-let statsRequest = 0;
-
-async function loadStats() {
-  if (!readingAlias) return;
-  const request = ++statsRequest;
-  $("#stats-metrics").innerHTML = skeletonCardsHTML(4, 96);
-  try {
-    const d = await api(`/api/accounts/${encodeURIComponent(readingAlias)}/stats`);
-    if (request !== statsRequest) return;
-    renderStats(d);
-  } catch (err) {
-    if (request !== statsRequest) return;
-    $("#stats-metrics").innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
-  }
-}
-
-function renderStats(d) {
-  const si = (d.milestone || {}).shareInfo || {};
-  const metric = (value, unit, label) => `
-    <div class="stat-metric">
-      <b>${value ?? "—"}<small>${unit}</small></b>
-      <span>${label}</span>
-    </div>`;
-  $("#stats-metrics").innerHTML = [
-    metric(si.wholeHours, "小时", "累计阅读"),
-    metric(si.wholeDays, "天", "累计阅读天数"),
-    metric(si.seqDay, "天", "连续阅读"),
-    metric(si.readedBookCount, "本", "读过"),
-  ].join("");
-
-  const b = d.balance || {};
-  $("#stats-balance").innerHTML = (b.balance || b.giftBalance)
-    ? `书币 <b>${b.balance ?? 0}</b> · 赠币 <b>${b.giftBalance ?? 0}</b>`
-    : "书币余额 0";
-
-  // 近 30 天每日阅读时长柱状图(日期戳 → 秒)。
-  const readTimes = (d.summary || {}).readTimes || {};
-  const days = [];
-  const today = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const d0 = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
-    days.push(Math.floor(d0.getTime() / 1000));
-  }
-  const values = days.map((ts) => readTimes[String(ts)] || 0);
-  const root = $("#stats-days");
-  root.textContent = "";
-  if (!values.some((s) => s > 0)) {
-    root.innerHTML = '<p class="empty">近 30 天还没有阅读记录</p>';
-    return;
-  }
-  const max = Math.max(...values, 1);
-  const bars = document.createElement("div");
-  bars.className = "stats-bars";
-  bars.setAttribute("role", "img");
-  bars.setAttribute("aria-label", "近 30 天每日阅读时长");
-  values.forEach((sec, i) => {
-    const col = document.createElement("span");
-    col.className = "stats-bar" + (i === values.length - 1 ? " today" : "");
-    col.style.height = (sec > 0 ? Math.max(3, Math.round((sec / max) * 36)) : 2) + "px";
-    col.dataset.tip = `${fmtDay(days[i])} · ${sec > 0 ? fmtDuration(sec) : "没有阅读"}`;
-    bars.append(col);
-  });
-  root.append(bars);
-  const note = document.createElement("p");
-  note.className = "stats-note";
-  note.textContent = "近 30 天每日阅读时长";
-  root.append(note);
 }
 
 /* ---------- 勋章墙 ---------- */
@@ -1616,12 +1544,10 @@ $("#reading-account").addEventListener("change", (e) => {
   readingAlias = e.target.value;
   loadWeekly();
   loadMedals();
-  loadStats();
 });
 $("#reading-reload").addEventListener("click", () => {
   loadWeekly();
   loadMedals();
-  loadStats();
 });
 $("#reading-goto-accounts").addEventListener("click", () => {
   setView("accounts");

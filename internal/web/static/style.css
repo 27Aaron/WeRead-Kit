@@ -2491,31 +2491,14 @@ main {
   cursor: pointer;
 }
 
-/* 勋章墙:并入阅读成就面板的子区块,分隔线隔开,标题行弱化。 */
-.medal-strip {
-  border-top: 1px solid var(--border);
-  padding: 14px 20px 18px;
-}
-
-.medal-strip-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.medal-strip-title {
-  font-size: 12px;
-  font-weight: 600;
-}
-
+/* 勋章墙:已获得勋章卡片 + 未解锁摘要,卡片紧凑居中。 */
 .medal-grid {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: stretch;
   gap: 10px;
+  padding: 18px 20px 22px;
 }
 
 .medal-grid .empty,
@@ -2751,9 +2734,7 @@ main {
     padding-inline: 16px;
   }
 
-  .stats-metrics,
-  .stats-days,
-  .medal-strip,
+  .medal-grid,
   .act-strip {
     padding-inline: 16px;
   }
@@ -3065,83 +3046,4 @@ button {
   .search {
     min-height: 44px;
   }
-}
-
-/* 阅读成就:指标块 + 近 30 天柱状图。 */
-.stats-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px;
-  padding: 18px 20px 0;
-}
-
-.stat-metric {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 14px;
-  min-width: 0;
-}
-
-.stat-metric b {
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.stat-metric small {
-  margin-left: 3px;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.stat-metric span {
-  display: block;
-  margin-top: 2px;
-  color: var(--text-dim);
-  font-size: 12px;
-}
-
-.stats-days {
-  margin-top: 12px;
-  padding: 0 20px 16px;
-}
-
-.stats-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 26px;
-}
-
-.stats-bar {
-  flex: 1;
-  min-width: 3px;
-  border-radius: 2px 2px 0 0;
-  background: var(--border);
-}
-
-.stats-bar.today {
-  background: var(--accent);
-}
-
-.stats-bar[data-tip]:hover::after {
-  content: attr(data-tip);
-  position: absolute;
-  transform: translateY(-30px);
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: var(--text);
-  color: var(--bg, #fff);
-  font-size: 12px;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.stats-bars {
-  position: relative;
-}
-
-.stats-note {
-  margin: 6px 0 0;
-  color: var(--text-dim);
-  font-size: 12px;
 }
