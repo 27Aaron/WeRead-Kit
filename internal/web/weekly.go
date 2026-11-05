@@ -254,23 +254,6 @@ func memberCardView(raw string) weeklyCardView {
 	}
 }
 
-// handleChallengeDetail 返回指定账号的官方挑战赛进度详情。
-// GET /api/accounts/{vid}/challenge
-func (s *Server) handleChallengeDetail(w http.ResponseWriter, r *http.Request) {
-	vid := r.PathValue("vid")
-	data, _, err := s.weeklyCall(r.Context(), vid, func(creds *weread.Credentials) (json.RawMessage, error) {
-		return s.client.ChallengeDetail(r.Context(), creds)
-	})
-	if err != nil {
-		writeWeeklyErr(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"vid":       vid,
-		"challenge": json.RawMessage(data),
-	})
-}
-
 func writeWeeklyErr(w http.ResponseWriter, err error) {
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, err)

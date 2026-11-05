@@ -84,6 +84,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/accounts/{vid}/weekly/claim", s.handleWeeklyClaim)
 	mux.HandleFunc("POST /api/accounts/{vid}/weekly/pref", s.handleWeeklyPref)
 	mux.HandleFunc("GET /api/accounts/{vid}/challenge", s.handleChallengeDetail)
+	mux.HandleFunc("POST /api/accounts/{vid}/challenge/join", s.handleChallengeJoin)
 	mux.HandleFunc("GET /api/accounts/{vid}/reading", s.handleReadingConfig)
 	mux.HandleFunc("POST /api/accounts/{vid}/reading", s.handleReadingConfig)
 	mux.HandleFunc("POST /api/accounts/{vid}/reading/run", s.handleReadingRun)
