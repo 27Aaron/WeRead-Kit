@@ -1,31 +1,33 @@
 /* ---------- 设计令牌 ---------- */
 :root {
   color-scheme: light;
-  --bg: #f6f4ef;
-  /* 页面底色:暖纸 */
-  --surface: #fffdf9;
-  /* 卡片表面 */
-  --surface-2: #f0ece3;
-  /* 次级表面:工具栏、表头 */
-  --text: #2a2620;
-  /* 主文字:墨色 */
-  --text-dim: #746e65;
-  /* 次级文字:对 --surface 对比度 4.97:1,满足 WCAG AA */
-  --border: #e6e1d5;
+  --bg: #fbf7f8;
+  /* 页面底色:微暖白 */
+  --surface: #ffffff;
+  /* 卡片表面:纯白,靠阴影与描边和底色分层 */
+  --surface-2: #f1f2f6;
+  /* 次级表面:工具栏、表头、内嵌卡 */
+  --text: #17171a;
+  /* 主文字:近黑 */
+  --text-dim: #6e6e76;
+  /* 次级文字:对 --surface 对比度 4.9:1,满足 WCAG AA */
+  --border: #e8e6ea;
   /* 分隔线 */
-  --border-strong: #948a77;
-  /* 输入控件边界:对 --surface 3.36:1、对 --bg 3.10:1(WCAG 1.4.11) */
-  --accent: #b45309;
-  /* 琥珀强调 */
-  --accent-strong: #8a3e06;
-  --accent-soft: #f7ead7;
+  --border-strong: #85858c;
+  /* 输入控件边界:对 --surface 对比度 3.2:1(WCAG 1.4.11) */
+  --accent: #007aff;
+  /* iOS 蓝,主操作与选中态 */
+  --accent-strong: #0066d6;
+  --accent-soft: #e8f1ff;
   /* 强调色浅底 */
-  --ok: #15803d;
-  --warn: #92400e;
-  --err: #b91c1c;
+  --on-accent: #ffffff;
+  /* 强调色之上的文字与图标 */
+  --ok: #14803c;
+  --warn: #9d4f00;
+  --err: #d70015;
   --radius: 10px;
   --radius-sm: 7px;
-  --shadow: 0 1px 3px rgba(41, 37, 32, 0.06), 0 4px 16px rgba(41, 37, 32, 0.05);
+  --shadow: 0 1px 3px rgba(28, 28, 34, 0.06), 0 4px 16px rgba(28, 28, 34, 0.05);
   --scroll-track: transparent;
   --scroll-thumb: color-mix(in srgb, var(--text-dim) 34%, transparent);
   --scroll-thumb-hover: var(--accent);
@@ -36,24 +38,38 @@
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #171512;
-  --surface: #201d19;
-  --surface-2: #292520;
-  --text: #eae5da;
-  --text-dim: #a39c8f;
-  --border: #383329;
-  --border-strong: #736a5a;
-  /* 输入控件边界:对 --surface 对比度 3.15:1(WCAG 1.4.11) */
-  --accent: #e0a458;
-  --accent-strong: #f0b869;
-  --accent-soft: #332a1c;
-  --ok: #4ade80;
-  --warn: #fbbf24;
-  --err: #f87171;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.2);
+  --bg: #100e0b;
+  /* 页面底色:暖调近黑,最深层 */
+  --surface: #292522;
+  /* 卡片表面:比底色抬升一档的暖灰 */
+  --surface-2: #37322f;
+  /* 次级表面:工具栏、表头、内嵌行,再抬升一档 */
+  --text: #f7f4f1;
+  --text-dim: #aea79f;
+  /* 次级文字:对 --surface 对比度约 6.4:1,满足 WCAG AA */
+  --border: #3a342f;
+  /* 分隔线:低存在感,层次主要靠表面明度差 */
+  --border-strong: #7d7166;
+  /* 输入控件边界:对 --surface 对比度约 3.1:1(WCAG 1.4.11) */
+  --accent: #ff9a49;
+  /* 柔和橙:主操作、选中态与图表线条 */
+  --accent-strong: #ffaf6b;
+  --accent-soft: #3f332a;
+  /* 强调色浅底:暖棕灰,衬托亮橙文字 */
+  --on-accent: #2f1a08;
+  /* 强调色之上的文字与图标:橙底配深字 */
+  --ok: #3fae4e;
+  --warn: #ffc53d;
+  --err: #ff5c49;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.42), 0 8px 26px rgba(0, 0, 0, 0.34);
   --scroll-track: transparent;
   --scroll-thumb: color-mix(in srgb, var(--text-dim) 48%, transparent);
   --scroll-thumb-hover: var(--accent);
+}
+
+/* 深色下侧边栏比卡片暗半档,让内容面板成为视觉主角。 */
+html[data-theme="dark"] .sidebar {
+  background: #1f1b18;
 }
 
 /* ---------- 基础重置 ---------- */
@@ -221,8 +237,22 @@ select:focus-visible {
 }
 
 .nav-item.active {
+  position: relative;
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+/* 激活项左缘的琥珀竖条,视线扫过侧边栏时的第一锚点。 */
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
 }
 
 /* 窄屏才显示的导航开关,桌面端隐藏 */
@@ -439,15 +469,16 @@ main {
 }
 
 .btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+  border-color: transparent;
+  color: var(--on-accent);
 }
 
 .btn.primary:hover {
-  background: var(--accent-strong);
-  border-color: var(--accent-strong);
-  color: #fff;
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+  border-color: transparent;
+  color: var(--on-accent);
+  box-shadow: 0 2px 14px color-mix(in srgb, var(--accent) 38%, transparent);
 }
 
 .btn.danger {
@@ -456,7 +487,7 @@ main {
 
 .btn.danger:hover {
   border-color: var(--err);
-  background: rgba(185, 28, 28, 0.06);
+  background: color-mix(in srgb, var(--err) 8%, transparent);
   color: var(--err);
 }
 
@@ -489,7 +520,7 @@ main {
 }
 
 .btn.primary.loading::after {
-  border-color: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--on-accent) 55%, transparent);
   border-top-color: transparent;
 }
 
@@ -659,6 +690,8 @@ main {
 
 .switch input:checked+i {
   background: var(--accent);
+  /* 选中态加一圈柔光,开关像被「点亮」。 */
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 42%, transparent);
 }
 
 .switch input:checked+i::before {
@@ -799,7 +832,7 @@ main {
   margin-left: 5px;
   vertical-align: 2px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--err);
   animation: version-pulse 1.6s ease-in-out infinite;
 }
 
@@ -807,11 +840,11 @@ main {
 
   0%,
   100% {
-    box-shadow: 0 0 0 0 #ef444466;
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--err) 40%, transparent);
   }
 
   50% {
-    box-shadow: 0 0 0 5px #ef444400;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--err) 0%, transparent);
   }
 }
 
@@ -941,6 +974,9 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
   font-size: 11px;
   font-weight: 600;
 }
@@ -957,8 +993,24 @@ main {
   color: var(--ok);
 }
 
+/* ok 徽章的圆点带呼吸脉冲,提示凭据状态是「活」的。 */
+.badge.ok::before {
+  animation: badge-pulse 2.4s ease-in-out infinite;
+}
+
 .badge.missing {
   color: var(--warn);
+}
+
+@keyframes badge-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent);
+  }
+
+  55% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 0%, transparent);
+  }
 }
 
 /* ---------- 登录弹窗 ---------- */
@@ -1270,6 +1322,34 @@ main {
   color: var(--ok);
 }
 
+/* 开启中的横幅:状态点呼吸脉冲,与凭据徽章同一节奏。 */
+.banner.on .banner-state::before {
+  animation: badge-pulse 2.4s ease-in-out infinite;
+}
+
+/* 开启中的横幅右上加一枚琥珀光斑,呼应仪表盘的活力感;
+   纯装饰,不响应指针,溢出部分随圆角裁掉。 */
+.banner.on {
+  position: relative;
+  overflow: hidden;
+}
+
+.banner.on::after {
+  content: "";
+  position: absolute;
+  top: -38px;
+  right: -16px;
+  width: 160px;
+  height: 130px;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--accent) 26%, transparent),
+    transparent
+  );
+  pointer-events: none;
+}
+
 .banner-item {
   font-size: 12px;
   color: var(--text-dim);
@@ -1395,7 +1475,7 @@ main {
   height: 21px;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   display: grid;
   place-items: center;
   font-size: 12px;
@@ -1900,6 +1980,12 @@ main {
   border-radius: var(--radius);
   padding: 14px 16px;
   box-shadow: var(--shadow);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.reading-stats .stat:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  transform: translateY(-1px);
 }
 
 .stat-label {
@@ -2064,7 +2150,12 @@ main {
   display: block;
   height: 100%;
   width: 100%;
-  background: var(--accent);
+  /* 起点淡、终点亮的渐变,进度条自带方向感。 */
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 62%, var(--surface-2)),
+    var(--accent)
+  );
   border-radius: 999px;
   transform-origin: left center;
   transform: scaleX(0);
@@ -2136,13 +2227,13 @@ main {
 
 .reward-btn.claimable {
   border-color: var(--accent);
-  background: var(--accent);
-  color: #fff;
+  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+  color: var(--on-accent);
 }
 
 .reward-btn.claimable:hover {
-  background: var(--accent-strong);
-  border-color: var(--accent-strong);
+  border-color: var(--accent);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 36%, transparent);
 }
 
 .reward-btn:disabled {
@@ -2545,7 +2636,7 @@ main {
 
 .panel {
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(42, 38, 32, .055);
+  box-shadow: 0 8px 24px rgba(28, 28, 34, .055);
 }
 
 .panel-bar {
@@ -2822,7 +2913,7 @@ button {
   height: 8px;
   margin-left: 5px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--err);
   color: transparent;
   font-size: 0;
   vertical-align: middle;
