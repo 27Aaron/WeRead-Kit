@@ -144,6 +144,14 @@
           <div id="reading-day-awards" class="reward-grid"></div>
         </div>
 
+        <!-- 体验卡活动:与奖励领取同义,收成一条居中的开关条,不再单独占一个面板。 -->
+        <div class="panel act-strip">
+          <label class="act-auto-row">
+            <span class="switch"><input type="checkbox" id="act-auto-claim" aria-label="自动领取体验卡活动" /><i></i></span>
+            <span>自动领取体验卡活动（热门书单、飙升榜等送体验卡的活动，出现可领奖励时自动领取并推送通知）</span>
+          </label>
+        </div>
+
         <div class="panel">
           <div class="panel-bar">
             <span class="panel-title">阅读成就</span>
@@ -151,14 +159,14 @@
           </div>
           <div id="stats-metrics" class="stats-metrics"></div>
           <div id="stats-days" class="stats-days"></div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-bar">
-            <span class="panel-title">勋章墙</span>
-            <span class="panel-note" id="medal-summary">—</span>
+          <!-- 勋章墙并入成就面板,作为带分隔线的子区块,少占一整段面板。 -->
+          <div class="medal-strip">
+            <div class="medal-strip-head">
+              <span class="medal-strip-title">勋章墙</span>
+              <span class="panel-note" id="medal-summary">—</span>
+            </div>
+            <div id="medal-list" class="medal-grid"></div>
           </div>
-          <div id="medal-list" class="medal-grid"></div>
         </div>
 
         <div class="panel">
@@ -166,16 +174,6 @@
             <span class="panel-title">活动规则</span>
           </div>
           <ul id="reading-rules" class="reading-rules"></ul>
-        </div>
-
-        <div class="panel">
-          <div class="panel-bar">
-            <span class="panel-title">体验卡活动</span>
-          </div>
-          <label class="act-auto-row">
-            <input type="checkbox" id="act-auto-claim">
-            <span>自动领取体验卡活动（热门书单、飙升榜等送体验卡的活动，出现可领奖励时自动领取并推送通知）</span>
-          </label>
         </div>
 
         <div id="reading-empty" class="empty hidden">

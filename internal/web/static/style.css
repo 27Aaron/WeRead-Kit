@@ -2475,36 +2475,60 @@ main {
 }
 
 /* 「我的阅读」页的体验卡活动自动领取开关。 */
+/* 体验卡活动开关条:纤细单行,内容整体居中,紧跟在奖励面板之后。 */
+.act-strip {
+  padding: 12px 20px;
+}
+
 .act-auto-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 2px 2px 4px;
+  justify-content: center;
+  gap: 10px;
   color: var(--text-dim);
   font-size: 13px;
   line-height: 1.6;
   cursor: pointer;
 }
 
-.act-auto-row input {
-  accent-color: var(--accent);
-  flex: none;
+/* 勋章墙:并入阅读成就面板的子区块,分隔线隔开,标题行弱化。 */
+.medal-strip {
+  border-top: 1px solid var(--border);
+  padding: 14px 20px 18px;
 }
 
-/* 勋章墙:已获得勋章卡片 + 未解锁摘要。 */
-.medal-grid {
-  display: grid;
-  /* 列宽封顶:勋章数量少时整组居中,不再在右侧留出成片空轨道 */
-  grid-template-columns: repeat(auto-fit, minmax(200px, 280px));
-  justify-content: center;
+.medal-strip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 12px;
-  padding: 18px 20px 22px;
+  margin-bottom: 12px;
+}
+
+.medal-strip-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.medal-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.medal-grid .empty,
+.medal-grid .skeleton-cards {
+  flex: 1 1 100%;
 }
 
 .medal-card {
+  flex: 0 1 auto;
+  max-width: 320px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 8px 14px;
   min-width: 0;
 }
 
@@ -2513,23 +2537,24 @@ main {
 }
 
 .medal-desc {
-  margin: 6px 0 0;
+  margin: 2px 0 0;
   color: var(--text-dim);
   font-size: 12px;
   line-height: 1.5;
 }
 
 .medal-meta {
-  margin: 6px 0 0;
+  margin: 2px 0 0;
   color: var(--text-dim);
   font-size: 12px;
 }
 
 .medal-locked {
-  grid-column: 1 / -1;
-  margin: 0;
+  flex: 1 1 100%;
+  margin: 2px 0 0;
   color: var(--text-dim);
   font-size: 12px;
+  text-align: center;
 }
 
 /* 挑战面板的往期战绩行。 */
@@ -2723,6 +2748,13 @@ main {
   }
 
   .reward-grid {
+    padding-inline: 16px;
+  }
+
+  .stats-metrics,
+  .stats-days,
+  .medal-strip,
+  .act-strip {
     padding-inline: 16px;
   }
 }
@@ -3069,15 +3101,15 @@ button {
 }
 
 .stats-days {
-  margin-top: 14px;
-  padding: 0 20px 22px;
+  margin-top: 12px;
+  padding: 0 20px 16px;
 }
 
 .stats-bars {
   display: flex;
   align-items: flex-end;
   gap: 3px;
-  height: 40px;
+  height: 26px;
 }
 
 .stats-bar {
