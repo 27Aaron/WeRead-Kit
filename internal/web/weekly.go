@@ -41,6 +41,32 @@ func (s *Server) handleWeeklyRewards(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleAccountBalance 返回指定账号的书币余额(含赠币)。
+// GET /api/accounts/{vid}/balance
+func (s *Server) handleAccountBalance(w http.ResponseWriter, r *http.Request) {
+	vid := r.PathValue("vid")
+	data, _, err := s.weeklyCall(r.Context(), vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+		return s.client.PayBalance(r.Context(), creds)
+	})
+	if err != nil {
+		writeWeeklyErr(w, err)
+		return
+	}
+	var b struct {
+		Balance     float64 `json:"balance"`
+		GiftBalance float64 `json:"giftBalance"`
+	}
+	if err := json.Unmarshal(data, &b); err != nil {
+		writeErr(w, http.StatusBadGateway, fmt.Errorf("书币余额响应解析失败: %w", err))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"vid":          vid,
+		"balance":      b.Balance,
+		"gift_balance": b.GiftBalance,
+	})
+}
+
 // handleWeeklyClaim 领取一档奖励。body: {"award_level_id":5,"choice_type":1}
 // choice_type: 1=体验卡天数 2=书币。领取成功后同时记下预约,以后每周自动领取同款。
 // POST /api/accounts/{vid}/weekly/claim
@@ -199,11 +225,11 @@ func (s *Server) autoClaimOnce(ctx context.Context) {
 					return s.client.PayBalance(ctx, creds)
 				}); err == nil {
 					var b struct {
-						Balance     int `json:"balance"`
-						GiftBalance int `json:"giftBalance"`
+						Balance     float64 `json:"balance"`
+						GiftBalance float64 `json:"giftBalance"`
 					}
 					if json.Unmarshal(bal, &b) == nil {
-						logMsg += fmt.Sprintf(",当前余额 %d(+赠币 %d)", b.Balance, b.GiftBalance)
+						logMsg += fmt.Sprintf(",当前余额 %s(+赠币 %s)", fmtCoin(b.Balance), fmtCoin(b.GiftBalance))
 					}
 				}
 			}
@@ -217,6 +243,11 @@ func weeklyChoiceName(choice int) string {
 		return "体验卡"
 	}
 	return "书币"
+}
+
+// fmtCoin 书币展示:上游余额带小数(如 1.00),去掉多余尾零(1.00 → 1,0.50 → 0.5)。
+func fmtCoin(v float64) string {
+	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
 // weeklyCall 加载账号凭据执行 op;会话过期时自动续期、落库并重试一次。

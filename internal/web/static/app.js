@@ -312,6 +312,7 @@ $$(".nav-item").forEach((el) => {
     closeMobileNav();
     const view = el.dataset.view;
     setView(view);
+    if (view === "accounts") loadAccounts();
     if (view === "reading") openReading();
     if (view === "challenge") openChallenge();
     if (view === "logs") openLogs();
@@ -368,7 +369,6 @@ let listRequest = 0;
 
 async function loadAccounts() {
   const request = ++listRequest;
-  setBusy($("#reload-btn"), true);
   try {
     allAccounts = await api("/api/accounts");
     if (request !== listRequest) return;
@@ -380,9 +380,7 @@ async function loadAccounts() {
     $("#account-count").textContent = "0";
     $("#empty").classList.remove("hidden");
     $("#empty-title").textContent = `无法加载账号：${err.message}`;
-    $("#empty-desc").textContent = "点击「刷新」重试";
-  } finally {
-    if (request === listRequest) setBusy($("#reload-btn"), false);
+    $("#empty-desc").textContent = "切换页面后自动重试";
   }
 }
 
@@ -525,7 +523,6 @@ function button(text, cls, onClick) {
 }
 
 $("#account-search").addEventListener("input", renderAccounts);
-$("#reload-btn").addEventListener("click", loadAccounts);
 
 /* ---------- 扫码登录 ---------- */
 
@@ -801,6 +798,10 @@ $("#detail-reload").addEventListener("click", () => showDetails(detailAccount, t
 /* ---------- 阅读挑战 ---------- */
 
 let challengeAlias = null;
+// 当前已渲染书架的账号:同账号重进保留旧内容避免骨架屏闪烁;换账号才重新显示骨架。
+let challengeRenderedFor = null;
+// 当前已渲染官方挑战面板的账号,语义同上。
+let officialRenderedFor = null;
 let challengeBooks = [];
 const challengePicked = new Set();
 let challengeSavedBooks = [];
@@ -818,6 +819,8 @@ async function openChallenge() {
     $("#official-challenge-wrap").hidden = true;
     $("#challenge-empty").classList.remove("hidden");
     challengeAlias = null;
+    challengeRenderedFor = null;
+    officialRenderedFor = null;
     return;
   }
   $("#challenge-panel").classList.remove("hidden");
@@ -839,13 +842,23 @@ async function openChallenge() {
 
 async function loadChallenge() {
   if (!challengeAlias) return;
-  $("#challenge-books").innerHTML = skeletonCardsHTML(18, 190, true);
+  const vid = challengeAlias;
+  // 同账号重进保留旧书架,数据到达后原位替换;换账号才显示骨架屏。
+  if (challengeRenderedFor !== vid) {
+    $("#challenge-books").innerHTML = skeletonCardsHTML(18, 190, true);
+  }
   try {
     // GET details 走本地缓存，瞬时返回；书架与阅读配置一次拿全。
-    const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/details`);
+    const d = await api(`/api/accounts/${encodeURIComponent(vid)}/details`);
+    if (vid !== challengeAlias) return; // 等待期间账号已切换,丢弃旧响应
+    challengeRenderedFor = vid;
     renderChallenge(d);
   } catch (err) {
-    $("#challenge-books").innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
+    if (challengeRenderedFor !== vid) {
+      $("#challenge-books").innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
+    } else {
+      toast(`书架刷新失败：${err.message}`, "error");
+    }
   }
   loadOfficialChallenge();
 }
@@ -853,18 +866,24 @@ async function loadChallenge() {
 /* ---------- 官方挑战赛进度 ---------- */
 
 async function loadOfficialChallenge() {
-  if (!challengeAlias) return;
+  const vid = challengeAlias;
+  if (!vid) return;
   const wrap = $("#official-challenge-wrap");
   // 加载期间保持隐藏:未参加挑战时面板最终不展示,先渲染骨架再隐藏会让页面抖动一下。
-  wrap.hidden = true;
-  wrap.textContent = "";
+  // 同账号重进时保留已渲染面板,数据到达后原位替换,避免面板闪现。
+  if (officialRenderedFor !== vid) {
+    wrap.hidden = true;
+    wrap.textContent = "";
+  }
   try {
-    const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge`);
+    const d = await api(`/api/accounts/${encodeURIComponent(vid)}/challenge`);
+    if (vid !== challengeAlias) return; // 等待期间账号已切换,丢弃旧响应
     // challengeList 携带账号参与的全部官方挑战;历史战绩并行拉取,互不阻塞。
-    const h = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge/history`).catch(() => null);
+    const h = await api(`/api/accounts/${encodeURIComponent(vid)}/challenge/history`).catch(() => null);
+    officialRenderedFor = vid;
     renderOfficialChallenge(((d.challenge || {}).challengeList || []), !!d.auto_join, h);
   } catch (err) {
-    // 面板属于辅助信息,加载失败时保持隐藏避免布局跳动;详情留给控制台。
+    // 面板属于辅助信息,首次加载失败时保持隐藏避免布局跳动;详情留给控制台。
     console.warn("官方挑战进度加载失败:", err.message);
   }
 }
@@ -1208,6 +1227,8 @@ let readingData = null;
 let readingCard = null;
 let readingPrefs = {};
 let weeklyRequest = 0;
+// 当前已渲染数据的账号:同账号重进/刷新时保留旧内容,数据到达后原位替换,避免骨架屏闪烁。
+let weeklyRenderedFor = null;
 
 async function openReading() {
   setView("reading");
@@ -1218,6 +1239,7 @@ async function openReading() {
     $("#reading-empty").classList.remove("hidden");
     $$("#view-reading .panel, #reading-stats").forEach((el) => el.classList.add("hidden"));
     readingAlias = null;
+    weeklyRenderedFor = null;
     return;
   }
   $("#reading-empty").classList.add("hidden");
@@ -1240,7 +1262,8 @@ function resetWeeklyUI() {
   readingCard = null;
   readingPrefs = {};
   for (const id of ["reading-stat-time", "reading-stat-week-detail", "reading-stat-days",
-    "reading-stat-month", "reading-stat-month-detail", "reading-stat-card", "reading-stat-card-sub"]) {
+    "reading-stat-month", "reading-stat-month-detail", "reading-stat-card", "reading-stat-card-sub",
+    "reading-stat-coin", "reading-stat-coin-sub"]) {
     $("#" + id).textContent = "—";
   }
   $("#reading-time-progress-label").textContent = "";
@@ -1251,23 +1274,50 @@ function resetWeeklyUI() {
 async function loadWeekly() {
   if (!readingAlias) return;
   const request = ++weeklyRequest;
-  resetWeeklyUI();
-  $("#reading-time-awards").innerHTML = skeletonCardsHTML(5, 148);
-  $("#reading-day-awards").innerHTML = skeletonCardsHTML(3, 148);
+  const vid = readingAlias;
+  // 换账号或尚无数据才清空+骨架;同账号重进保留旧内容,数据到达后原位替换,避免闪烁。
+  const firstLoad = weeklyRenderedFor !== vid;
+  if (firstLoad) {
+    resetWeeklyUI();
+    $("#reading-time-awards").innerHTML = skeletonCardsHTML(5, 148);
+    $("#reading-day-awards").innerHTML = skeletonCardsHTML(3, 148);
+  }
+  loadBalance(vid, request, firstLoad);
   try {
-    const d = await api(`/api/accounts/${encodeURIComponent(readingAlias)}/weekly`);
+    const d = await api(`/api/accounts/${encodeURIComponent(vid)}/weekly`);
     if (request !== weeklyRequest) return;
     readingData = d.weekly || {};
     readingCard = d.card || null;
     readingPrefs = d.prefs || {};
     const actAuto = $("#act-auto-claim");
     if (actAuto) actAuto.checked = !!d.act_auto;
+    weeklyRenderedFor = vid;
     renderWeekly();
   } catch (err) {
     if (request !== weeklyRequest) return;
-    const msg = `加载失败：${escapeHtml(err.message)}`;
-    $("#reading-time-awards").innerHTML = `<p class="empty">${msg}</p>`;
-    $("#reading-day-awards").innerHTML = `<p class="empty">${msg}</p>`;
+    if (firstLoad) {
+      const msg = `加载失败：${escapeHtml(err.message)}`;
+      $("#reading-time-awards").innerHTML = `<p class="empty">${msg}</p>`;
+      $("#reading-day-awards").innerHTML = `<p class="empty">${msg}</p>`;
+    } else {
+      toast(`刷新失败：${err.message}`, "error");
+    }
+  }
+}
+
+// 书币余额独立请求,失败只影响这一张卡,不阻塞奖励面板。
+// vid 与 request 在发起时捕获,配合 weeklyRequest 计数器防止切换账号后旧响应落卡;
+// 静默刷新(同账号重进)失败时保留旧值,不打扰。
+async function loadBalance(vid, request, firstLoad) {
+  try {
+    const b = await api(`/api/accounts/${encodeURIComponent(vid)}/balance`);
+    if (request !== weeklyRequest) return;
+    $("#reading-stat-coin").textContent = `${b.balance ?? 0} 个`;
+    $("#reading-stat-coin-sub").textContent = `含赠币 ${b.gift_balance ?? 0} 个`;
+  } catch (err) {
+    if (request !== weeklyRequest || !firstLoad) return;
+    $("#reading-stat-coin").textContent = "—";
+    $("#reading-stat-coin-sub").textContent = "加载失败";
   }
 }
 
@@ -1515,9 +1565,6 @@ $("#reading-account").addEventListener("change", (e) => {
   pickedAlias = readingAlias;
   loadWeekly();
 });
-$("#reading-reload").addEventListener("click", () => {
-  loadWeekly();
-});
 $("#reading-goto-accounts").addEventListener("click", () => {
   setView("accounts");
   loadAccounts();
@@ -1601,7 +1648,6 @@ async function loadLogs(silent = false) {
   }
 }
 
-$("#logs-reload").addEventListener("click", () => loadLogs());
 $("#log-alias").addEventListener("change", () => loadLogs());
 $("#log-level").addEventListener("change", () => loadLogs());
 $("#logs-clear").addEventListener("click", async () => {
