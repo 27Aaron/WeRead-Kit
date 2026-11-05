@@ -98,6 +98,10 @@
             <h1 class="page-title">我的阅读</h1>
           </div>
           <div class="page-actions">
+            <label class="act-mini" title="热门书单、飙升榜等送体验卡的活动，出现可领奖励时自动领取">
+              <span class="switch switch-sm"><input type="checkbox" id="act-auto-claim" aria-label="自动领取体验卡活动" /><i></i></span>
+              自动领体验卡
+            </label>
             <label class="field">账号
               <select id="reading-account" class="select"></select>
             </label>
@@ -142,14 +146,6 @@
             <span class="panel-note" id="reading-day-progress-label">—</span>
           </div>
           <div id="reading-day-awards" class="reward-grid"></div>
-        </div>
-
-        <!-- 体验卡活动:与奖励领取同义,收成一条居中的开关条,不再单独占一个面板。 -->
-        <div class="panel act-strip">
-          <label class="act-auto-row">
-            <span class="switch"><input type="checkbox" id="act-auto-claim" aria-label="自动领取体验卡活动" /><i></i></span>
-            <span>自动领取体验卡活动（热门书单、飙升榜等送体验卡的活动，出现可领奖励时自动领取并推送通知）</span>
-          </label>
         </div>
 
         <div class="panel">

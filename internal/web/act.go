@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -81,7 +80,7 @@ func (s *Server) StartSendInfiniteScheduler(ctx context.Context) {
 }
 
 // claimSendInfiniteOnce 执行一轮:对每个开启开关的账号,逐个活动查询,
-// 可领即领并记日志与推送。失败仅记日志,下一轮自然重试。
+// 可领即领并记日志。失败仅记日志,下一轮自然重试。
 func (s *Server) claimSendInfiniteOnce(ctx context.Context) {
 	accounts, err := store.List(s.db)
 	if err != nil {
@@ -128,5 +127,4 @@ func (s *Server) claimSendInfiniteFor(ctx context.Context, vid string, act werea
 	}
 	days := state.Days()
 	s.logf("info", "reading", vid, "自动领取体验卡:「%s」+ %d 天", act.Name, days)
-	s.notifyFarmResult(vid, "info", fmt.Sprintf("领取体验卡 %d 天", days), "体验卡活动「"+act.Name+"」有可领奖励,已自动领取并计入体验卡余额。")
 }
