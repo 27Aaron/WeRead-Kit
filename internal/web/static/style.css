@@ -2329,7 +2329,9 @@ main {
 .challenge-section-grid {
   display: grid;
   grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
-  align-items: center;
+  /* 环图列是行高锚:信息列内容经 .challenge-info 的间距压缩后不超过环图列,
+     行高即环图高度,各段分隔竖线一致;顶对齐避免居中产生额外浮动空隙。 */
+  align-items: start;
   gap: 28px;
 }
 
@@ -2415,10 +2417,13 @@ main {
 
 .challenge-info {
   min-width: 0;
+  /* 拉伸到与环图列等高,分隔竖线各段一致;行内容在列内保持居中。 */
+  align-self: stretch;
+  align-content: center;
   padding-left: 28px;
   border-left: 1px solid var(--border);
   display: grid;
-  gap: 12px;
+  gap: 8px;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -2449,7 +2454,7 @@ main {
 }
 
 .challenge-period {
-  padding-bottom: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -2485,7 +2490,9 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-top: 14px;
+  /* 与段间距同节奏:分隔线上下各 28px。 */
+  margin-top: 28px;
+  padding-top: 28px;
   border-top: 1px solid var(--border);
   color: var(--text-dim);
   font-size: 13px;
@@ -2529,7 +2536,8 @@ main {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   gap: 16px;
-  padding-top: 14px;
+  margin-top: 28px;
+  padding-top: 28px;
   border-top: 1px solid var(--border);
   font-size: 13px;
 }
