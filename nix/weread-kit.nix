@@ -2,6 +2,7 @@
   lib,
   buildGoModule,
   fetchFromGitHub,
+  go_1_27,
   runCommand,
 }: let
   hashes = builtins.fromJSON (builtins.readFile ./hashes.json);
@@ -18,6 +19,8 @@ in
   buildGoModule {
     pname = "weread-kit";
     version = hashes.version;
+
+    go = go_1_27;
 
     # 用 runCommand 剪枝而不是 cleanSourceWith:后者会对 fetch 产物的
     # store 路径做求值期校验,在全新 store 里因 .drv 尚未实现而报

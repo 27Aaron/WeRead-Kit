@@ -1,6 +1,6 @@
 # builder 固定跑在构建机原生平台($BUILDPLATFORM),用 Go 交叉编译产出
 # TARGETOS/TARGETARCH 产物,避免 CI 上 QEMU 模拟 arm64 整场编译。
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /src
