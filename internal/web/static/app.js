@@ -860,11 +860,28 @@ async function loadOfficialChallenge() {
   status.textContent = "—";
   try {
     const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge`);
-    renderOfficialChallenge(d.challenge || {});
+    // version=v3 的数据在 challengeList[0];未报名时为空数组。
+    renderOfficialChallenge(((d.challenge || {}).challengeList || [])[0] || {});
   } catch (err) {
     // 面板属于辅助信息,加载失败时保持隐藏避免布局跳动;详情留给控制台。
     console.warn("官方挑战进度加载失败:", err.message);
   }
+}
+
+// 报名免费的 21 天官方挑战;409(已在挑战中)按失败提示并刷新面板。
+async function joinOfficialChallenge(btn) {
+  setBusy(btn, true);
+  try {
+    await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge/join`, {
+      method: "POST",
+      body: JSON.stringify({ challenge_id: "ChallengeLongTermFree" }),
+    });
+    toast("已报名 21 天阅读挑战", "ok");
+  } catch (err) {
+    toast(`报名失败：${err.message}`, "error");
+    setBusy(btn, false);
+  }
+  await loadOfficialChallenge();
 }
 
 function renderOfficialChallenge(c) {
@@ -872,18 +889,29 @@ function renderOfficialChallenge(c) {
   const status = $("#official-challenge-status");
   const panel = $("#official-challenge");
   if (!c.id || !c.status) {
-    // 未参加官方挑战赛：整个面板不展示。
-    panel.classList.add("hidden");
+    // 未参加官方挑战赛：展示报名入口,不再隐藏整个面板。
+    panel.classList.remove("hidden");
+    status.textContent = "未参与";
+    body.innerHTML = `
+      <div class="challenge-join">
+        <div>
+          <b>21 天阅读挑战</b>
+          <p>连续 21 天累计阅读满 10 小时即挑战成功，勋章与奖励自动发放，免费参与。</p>
+        </div>
+        <button type="button" class="btn primary" id="official-join-btn">参与挑战</button>
+      </div>`;
+    $("#official-join-btn").addEventListener("click", (e) => joinOfficialChallenge(e.currentTarget));
     return;
   }
   panel.classList.remove("hidden");
   status.textContent = c.status === 1 ? "进行中" : c.status === 2 ? "已完成" : "已结束";
   const ch = c.challenge || {};
-  const signedDays = (c.readDateList || []).length;
+  const signedDays = c.readDays || (c.readDateList || []).length;
   const dayPct = Math.min(100, (signedDays / (ch.targetDay || 1)) * 100);
   const timePct = Math.min(100, ((c.readTime || 0) / (ch.targetTime || 1)) * 100);
   const now = c.currentTime || Math.floor(Date.now() / 1000);
-  const remainDays = c.endTime ? Math.max(0, Math.ceil((c.endTime - now) / 86400)) : 0;
+  // 剩余天数优先用服务端的 remainDays,缺失时按 endTime 估算。
+  const remainDays = c.remainDays ?? (c.endTime ? Math.max(0, Math.ceil((c.endTime - now) / 86400)) : 0);
 
   const R = 52;
   const circ = (2 * Math.PI * R).toFixed(1);
@@ -912,8 +940,10 @@ function renderOfficialChallenge(c) {
           <p>${fmtDay(c.startTime)} — ${fmtDay(c.endTime)}</p></div>
       </div>
       <div><span>达标条件</span><b>累计阅读 ${fmtDuration(ch.targetTime)} · 打卡 ${ch.targetDay} 天</b></div>
-      <div><span>报名费用</span><b>¥${(ch.price / 100).toFixed(0)}<small>报名即得体验卡 ${ch.initRewardCard} 天</small></b></div>
-      <div><span>达标奖励</span><b>体验卡 ${ch.reachRewardCard} 天 或 书币 ${ch.reachRewardCoin} 个</b></div>
+      ${c.baseMedalPicUrl ? `
+      <div><span>挑战勋章</span><b class="challenge-medal"><img src="${escapeHtml(c.baseMedalPicUrl)}" alt="挑战勋章" loading="lazy"><small>${c.status === 2 ? "已获得" : "完成挑战自动发放"}</small></b></div>` : ""}
+      <div><span>报名费用</span><b>${ch.price ? `¥${(ch.price / 100).toFixed(0)}<small>报名即得体验卡 ${ch.initRewardCard} 天</small>` : "免费"}</b></div>
+      ${(ch.reachRewardCard || ch.reachRewardCoin) ? `<div><span>达标奖励</span><b>体验卡 ${ch.reachRewardCard || 0} 天 或 书币 ${ch.reachRewardCoin || 0} 个</b></div>` : ""}
       <div><span>全站数据</span><b>${c.challengingCnt ?? 0} 人参赛 · ${c.succCnt ?? 0} 人成功</b></div>
     </div>`;
 }
