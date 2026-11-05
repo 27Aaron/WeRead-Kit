@@ -2288,6 +2288,18 @@ main {
 
 .official-challenge-body {
   padding: 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 一个官方挑战一个 section:多个挑战同面板堆叠,分隔线隔开。 */
+.challenge-section + .challenge-section {
+  border-top: 1px solid var(--border);
+  margin-top: 28px;
+  padding-top: 28px;
+}
+
+.challenge-section-grid {
   display: grid;
   grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
   align-items: center;
@@ -2540,9 +2552,12 @@ main {
 
 @container (max-width: 680px) {
   .official-challenge-body {
+    padding: 24px;
+  }
+
+  .challenge-section-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 24px;
-    padding: 24px;
   }
 
   .challenge-rings {

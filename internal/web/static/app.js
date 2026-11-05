@@ -930,20 +930,19 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
       </label>`;
   const statusText = (c) => (c.status === 1 ? "进行中" : c.status === 2 ? "已完成" : "已结束");
 
-  wrap.textContent = "";
-  // 每个进行中的官方挑战一个面板;往期战绩与自动参与开关是账号级的,拼在最后一个面板尾部。
-  active.forEach((c, index) => {
-    const ch = c.challenge || {};
-    const signedDays = c.readDays || (c.readDateList || []).length;
-    const dayPct = Math.min(100, (signedDays / (ch.targetDay || 1)) * 100);
-    const timePct = Math.min(100, ((c.readTime || 0) / (ch.targetTime || 1)) * 100);
-    const now = c.currentTime || Math.floor(Date.now() / 1000);
-    // 剩余天数优先用服务端的 remainDays,缺失时按 endTime 估算。
-    const remainDays = c.remainDays ?? (c.endTime ? Math.max(0, Math.ceil((c.endTime - now) / 86400)) : 0);
+  // 短周期在前:21 天挑战排上面,365 天等长周期排下面。
+  const ordered = [...active].sort((a, b) => ((a.challenge || {}).challengeDay || 0) - ((b.challenge || {}).challengeDay || 0));
+  // 往期战绩与自动参与下一期都是 21 天挑战专属,挂在对应 section;列表里没有 21 天时挂第一个。
+  const sharedIndex = Math.max(0, ordered.findIndex((c) => c.id === "ChallengeLongTermFree"));
+  const badge = ordered.some((c) => c.status === 1) ? "进行中" : statusText(ordered[0]);
 
-    const R = 52;
-    const circ = (2 * Math.PI * R).toFixed(1);
-    const ring = (pct, value, unit, label, target) => `
+  wrap.textContent = "";
+  // 全部官方挑战合并进一个面板,section 按周期天数升序堆叠,分隔线隔开。
+  const panel = document.createElement("div");
+  panel.className = "panel official-challenge-panel";
+  const R = 52;
+  const circ = (2 * Math.PI * R).toFixed(1);
+  const ring = (pct, value, unit, label, target) => `
     <div class="challenge-metric">
       <div class="challenge-ring" role="img" aria-label="${label} ${value} ${unit}，目标 ${target} ${unit}，完成 ${Math.round(pct)}%">
         <svg viewBox="0 0 120 120" aria-hidden="true">
@@ -955,16 +954,17 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
       </div>
       <div class="challenge-metric-label">${label}<span>目标 ${target} ${unit}</span></div>
     </div>`;
-
-    const shared = index === active.length - 1 ? `${historyRow}${autoRow}` : "";
-    const panel = document.createElement("div");
-    panel.className = "panel official-challenge-panel";
-    panel.innerHTML = `
-      <div class="panel-bar">
-        <span class="panel-title">官方挑战赛进度</span>
-        <span class="award-badge">${ch.challengeDay || "?"} 天 · ${statusText(c)}</span>
-      </div>
-      <div class="official-challenge-body">
+  const sectionHtml = (c, shared) => {
+    const ch = c.challenge || {};
+    const signedDays = c.readDays || (c.readDateList || []).length;
+    const dayPct = Math.min(100, (signedDays / (ch.targetDay || 1)) * 100);
+    const timePct = Math.min(100, ((c.readTime || 0) / (ch.targetTime || 1)) * 100);
+    const now = c.currentTime || Math.floor(Date.now() / 1000);
+    // 剩余天数优先用服务端的 remainDays,缺失时按 endTime 估算。
+    const remainDays = c.remainDays ?? (c.endTime ? Math.max(0, Math.ceil((c.endTime - now) / 86400)) : 0);
+    return `
+    <div class="challenge-section">
+      <div class="challenge-section-grid">
         <div class="challenge-rings">
           ${ring(dayPct, signedDays, "天", "累计打卡", ch.targetDay)}
           ${ring(timePct, ((c.readTime || 0) / 3600).toFixed(1), "小时", "阅读时长", (ch.targetTime || 0) / 3600)}
@@ -981,10 +981,19 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
           <div><span>报名费用</span><b>${ch.price ? `¥${(ch.price / 100).toFixed(0)}<small>报名即得体验卡 ${ch.initRewardCard} 天</small>` : "免费"}</b></div>
           ${(ch.reachRewardCard || ch.reachRewardCoin) ? `<div><span>达标奖励</span><b>体验卡 ${ch.reachRewardCard || 0} 天 或 书币 ${ch.reachRewardCoin || 0} 个</b></div>` : ""}
           <div><span>全站数据</span><b>${c.challengingCnt ?? 0} 人参赛 · ${c.succCnt ?? 0} 人成功</b></div>
-        </div>${shared}
-      </div>`;
-    wrap.append(panel);
-  });
+        </div>
+      </div>${shared}
+    </div>`;
+  };
+  panel.innerHTML = `
+    <div class="panel-bar">
+      <span class="panel-title">官方挑战赛进度</span>
+      <span class="award-badge">${badge}</span>
+    </div>
+    <div class="official-challenge-body">
+      ${ordered.map((c, index) => sectionHtml(c, index === sharedIndex ? `${historyRow}${autoRow}` : "")).join("")}
+    </div>`;
+  wrap.append(panel);
   wrap.hidden = false;
   wireHistoryToggle();
   wireAutoJoinSwitch();
