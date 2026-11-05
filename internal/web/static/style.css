@@ -2928,3 +2928,80 @@ button {
     min-height: 44px;
   }
 }
+
+/* 阅读成就:指标块 + 近 30 天柱状图。 */
+.stats-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.stat-metric {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  min-width: 0;
+}
+
+.stat-metric b {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.stat-metric small {
+  margin-left: 3px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.stat-metric span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.stats-days {
+  margin-top: 14px;
+}
+
+.stats-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 40px;
+}
+
+.stats-bar {
+  flex: 1;
+  min-width: 3px;
+  border-radius: 2px 2px 0 0;
+  background: var(--border);
+}
+
+.stats-bar.today {
+  background: var(--accent);
+}
+
+.stats-bar[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  transform: translateY(-30px);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--text);
+  color: var(--bg, #fff);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.stats-bars {
+  position: relative;
+}
+
+.stats-note {
+  margin: 6px 0 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}

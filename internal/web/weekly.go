@@ -192,7 +192,22 @@ func (s *Server) autoClaimOnce(ctx context.Context) {
 				s.logf("warn", "reading", acc.Vid, "自动领取失败(%s): %v", a.AwardLevelDesc, err)
 				continue
 			}
-			s.logf("info", "reading", acc.Vid, "自动领取周阅读奖励:%s → %s", a.AwardLevelDesc, weeklyChoiceName(choice))
+			logMsg := fmt.Sprintf("自动领取周阅读奖励:%s → %s", a.AwardLevelDesc, weeklyChoiceName(choice))
+			// 领的是书币时顺手带当前余额,方便对账;查询失败不影响领取日志。
+			if choice == weread.AwardChoiceBookCoin {
+				if bal, _, err := s.weeklyCall(ctx, acc.Vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+					return s.client.PayBalance(ctx, creds)
+				}); err == nil {
+					var b struct {
+						Balance     int `json:"balance"`
+						GiftBalance int `json:"giftBalance"`
+					}
+					if json.Unmarshal(bal, &b) == nil {
+						logMsg += fmt.Sprintf(",当前余额 %d(+赠币 %d)", b.Balance, b.GiftBalance)
+					}
+				}
+			}
+			s.logf("info", "reading", acc.Vid, "%s", logMsg)
 		}
 	}
 }
