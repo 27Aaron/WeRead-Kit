@@ -44,8 +44,7 @@
       in {
         default = pkgs.mkShell {
           packages = with pkgs; [
-            # Go backend
-            go
+            go_1_27
             gopls
             golangci-lint
 
