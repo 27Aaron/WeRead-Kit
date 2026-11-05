@@ -930,8 +930,8 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
       </label>`;
   const statusText = (c) => (c.status === 1 ? "进行中" : c.status === 2 ? "已完成" : "已结束");
 
-  // 短周期在前:21 天挑战排上面,365 天等长周期排下面。
-  const ordered = [...active].sort((a, b) => ((a.challenge || {}).challengeDay || 0) - ((b.challenge || {}).challengeDay || 0));
+  // 长周期在前:365 天挑战排上面,21 天排下面。
+  const ordered = [...active].sort((a, b) => ((b.challenge || {}).challengeDay || 0) - ((a.challenge || {}).challengeDay || 0));
   // 往期战绩与自动参与下一期都是 21 天挑战专属,挂在对应 section;列表里没有 21 天时挂第一个。
   const sharedIndex = Math.max(0, ordered.findIndex((c) => c.id === "ChallengeLongTermFree"));
   const badge = ordered.some((c) => c.status === 1) ? "进行中" : statusText(ordered[0]);
