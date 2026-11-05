@@ -861,11 +861,30 @@ async function loadOfficialChallenge() {
   try {
     const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge`);
     // version=v3 的数据在 challengeList[0];未报名时为空数组。
-    renderOfficialChallenge(((d.challenge || {}).challengeList || [])[0] || {});
+    renderOfficialChallenge(((d.challenge || {}).challengeList || [])[0] || {}, !!d.auto_join);
   } catch (err) {
     // 面板属于辅助信息,加载失败时保持隐藏避免布局跳动;详情留给控制台。
     console.warn("官方挑战进度加载失败:", err.message);
   }
+}
+
+// 自动参与下一期:开关落库由调度器执行,失败时回滚勾选状态。
+function wireAutoJoinSwitch() {
+  const el = $("#challenge-auto-join");
+  if (!el) return;
+  el.addEventListener("change", async () => {
+    const enabled = el.checked;
+    try {
+      await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge/auto-join`, {
+        method: "POST",
+        body: JSON.stringify({ enabled }),
+      });
+      toast(enabled ? "已开启：挑战结束后自动参与下一期" : "已关闭自动参与", "ok");
+    } catch (err) {
+      el.checked = !enabled;
+      toast(`保存失败：${err.message}`, "error");
+    }
+  });
 }
 
 // 报名免费的 21 天官方挑战;409(已在挑战中)按失败提示并刷新面板。
@@ -884,10 +903,16 @@ async function joinOfficialChallenge(btn) {
   await loadOfficialChallenge();
 }
 
-function renderOfficialChallenge(c) {
+function renderOfficialChallenge(c, autoJoin = false) {
   const body = $("#official-challenge-body");
   const status = $("#official-challenge-status");
   const panel = $("#official-challenge");
+  // 自动参与开关两种状态下都展示:开启后调度器会在没有进行中挑战时自动报名。
+  const autoRow = `
+      <label class="challenge-auto-row">
+        <input type="checkbox" id="challenge-auto-join"${autoJoin ? " checked" : ""}>
+        <span>挑战结束后自动参与下一期（免费 21 天挑战，勋章与奖励由官方自动发放）</span>
+      </label>`;
   if (!c.id || !c.status) {
     // 未参加官方挑战赛：展示报名入口,不再隐藏整个面板。
     panel.classList.remove("hidden");
@@ -899,8 +924,9 @@ function renderOfficialChallenge(c) {
           <p>连续 21 天累计阅读满 10 小时即挑战成功，勋章与奖励自动发放，免费参与。</p>
         </div>
         <button type="button" class="btn primary" id="official-join-btn">参与挑战</button>
-      </div>`;
+      </div>${autoRow}`;
     $("#official-join-btn").addEventListener("click", (e) => joinOfficialChallenge(e.currentTarget));
+    wireAutoJoinSwitch();
     return;
   }
   panel.classList.remove("hidden");
@@ -945,7 +971,8 @@ function renderOfficialChallenge(c) {
       <div><span>报名费用</span><b>${ch.price ? `¥${(ch.price / 100).toFixed(0)}<small>报名即得体验卡 ${ch.initRewardCard} 天</small>` : "免费"}</b></div>
       ${(ch.reachRewardCard || ch.reachRewardCoin) ? `<div><span>达标奖励</span><b>体验卡 ${ch.reachRewardCard || 0} 天 或 书币 ${ch.reachRewardCoin || 0} 个</b></div>` : ""}
       <div><span>全站数据</span><b>${c.challengingCnt ?? 0} 人参赛 · ${c.succCnt ?? 0} 人成功</b></div>
-    </div>`;
+    </div>${autoRow}`;
+  wireAutoJoinSwitch();
 }
 
 function renderChallenge(d) {
