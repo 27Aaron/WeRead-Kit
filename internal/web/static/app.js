@@ -1211,57 +1211,6 @@ async function openReading() {
   }
   sel.value = readingAlias;
   await loadWeekly();
-  loadMedals();
-}
-
-/* ---------- 勋章墙 ---------- */
-
-let medalsRequest = 0;
-
-async function loadMedals() {
-  if (!readingAlias) return;
-  const request = ++medalsRequest;
-  const grid = $("#medal-list");
-  grid.innerHTML = skeletonCardsHTML(4, 120);
-  $("#medal-summary").textContent = "—";
-  try {
-    const d = await api(`/api/accounts/${encodeURIComponent(readingAlias)}/medals`);
-    if (request !== medalsRequest) return;
-    renderMedals(d.medals || {});
-  } catch (err) {
-    if (request !== medalsRequest) return;
-    grid.innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
-  }
-}
-
-function renderMedals(m) {
-  const grid = $("#medal-list");
-  grid.textContent = "";
-  const owned = m.available || [];
-  const locked = m.notAvailable || [];
-  if (!owned.length && !locked.length) {
-    grid.innerHTML = '<p class="empty">还没有勋章数据</p>';
-    $("#medal-summary").textContent = "—";
-    return;
-  }
-  $("#medal-summary").innerHTML = `已获得 <b>${m.totalCount ?? owned.length}</b> 枚` +
-    (m.wear && m.wear.name ? ` · 佩戴「${escapeHtml(m.wear.name)}」` : "");
-  for (const medal of owned) {
-    const card = document.createElement("div");
-    card.className = "medal-card";
-    card.innerHTML = `
-      <div class="medal-name"><b>${escapeHtml(medal.name || medal.hint || "勋章")}</b></div>
-      <p class="medal-desc">${escapeHtml(medal.rankText || medal.availableCond || "")}</p>
-      <p class="medal-meta">${medal.ctime ? fmtDay(medal.ctime) : ""}</p>`;
-    grid.append(card);
-  }
-  if (locked.length) {
-    const cats = locked.map((c) => `${escapeHtml(c.title || "")}×${(c.list || []).length || 1}`).join(" / ");
-    const more = document.createElement("p");
-    more.className = "medal-locked";
-    more.textContent = `未解锁 ${locked.length} 组:${cats}`;
-    grid.append(more);
-  }
 }
 
 function resetWeeklyUI() {
@@ -1543,11 +1492,9 @@ $("#act-auto-claim").addEventListener("change", async (e) => {
 $("#reading-account").addEventListener("change", (e) => {
   readingAlias = e.target.value;
   loadWeekly();
-  loadMedals();
 });
 $("#reading-reload").addEventListener("click", () => {
   loadWeekly();
-  loadMedals();
 });
 $("#reading-goto-accounts").addEventListener("click", () => {
   setView("accounts");

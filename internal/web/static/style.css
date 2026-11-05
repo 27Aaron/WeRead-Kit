@@ -2491,55 +2491,6 @@ main {
   cursor: pointer;
 }
 
-/* 勋章墙:已获得勋章卡片 + 未解锁摘要,卡片紧凑居中。 */
-.medal-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: stretch;
-  gap: 10px;
-  padding: 18px 20px 22px;
-}
-
-.medal-grid .empty,
-.medal-grid .skeleton-cards {
-  flex: 1 1 100%;
-}
-
-.medal-card {
-  flex: 0 1 auto;
-  max-width: 320px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 14px;
-  min-width: 0;
-}
-
-.medal-name b {
-  font-weight: 600;
-}
-
-.medal-desc {
-  margin: 2px 0 0;
-  color: var(--text-dim);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.medal-meta {
-  margin: 2px 0 0;
-  color: var(--text-dim);
-  font-size: 12px;
-}
-
-.medal-locked {
-  flex: 1 1 100%;
-  margin: 2px 0 0;
-  color: var(--text-dim);
-  font-size: 12px;
-  text-align: center;
-}
-
 /* 挑战面板的往期战绩行。 */
 .challenge-history {
   grid-column: 1 / -1;
@@ -2734,7 +2685,6 @@ main {
     padding-inline: 16px;
   }
 
-  .medal-grid,
   .act-strip {
     padding-inline: 16px;
   }
