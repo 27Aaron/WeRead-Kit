@@ -2318,6 +2318,41 @@ main {
   font-size: 12px;
 }
 
+/* 未报名时的报名入口:占满 body 网格,文案与按钮两端对齐。 */
+.challenge-join {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  flex-wrap: wrap;
+}
+
+.challenge-join b {
+  display: block;
+  font-weight: 600;
+}
+
+.challenge-join p {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* 勋章行:小图 + 说明,与其它 challenge-info 行共用栅格。 */
+.challenge-medal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.challenge-medal img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  flex: none;
+}
+
 @container (max-width: 680px) {
   .official-challenge-body {
     grid-template-columns: minmax(0, 1fr);

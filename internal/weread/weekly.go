@@ -80,30 +80,6 @@ func ParseWeeklyRewards(data json.RawMessage) (*WeeklyRewards, error) {
 	return &rw, nil
 }
 
-// ChallengeDetail 查询官方阅读挑战赛的当前进度详情(报名中的那一场)。
-// 未报名任何挑战时返回 status=0 的空壳响应,由调用方自行判断。
-// 会话过期返回 ErrSessionExpired,由调用方续期后重试。
-func (c *Client) ChallengeDetail(ctx context.Context, creds *Credentials) (json.RawMessage, error) {
-	headers := versionHeaders()
-	for k, v := range authHeaders(creds) {
-		headers[k] = v
-	}
-	data, status, err := c.getJSON(ctx, BaseURL+"/challenge/detail?scene=1", headers)
-	if err != nil {
-		return nil, fmt.Errorf("挑战赛详情请求失败: %w", err)
-	}
-	if status == http.StatusUnauthorized {
-		return nil, ErrSessionExpired
-	}
-	if status != http.StatusOK {
-		return nil, fmt.Errorf("挑战赛详情请求失败: HTTP %d", status)
-	}
-	if err := checkBusinessCode(data); err != nil {
-		return nil, err
-	}
-	return json.RawMessage(data), nil
-}
-
 // WeeklyExchange 查询或领取周阅读奖励。
 // isExchangeAward=0 为查询(其余参数填 0);=1 时 awardLevelID 与 awardChooseType
 // 指定领取哪一档的哪种奖品(1=体验卡天数 2=书币)。
