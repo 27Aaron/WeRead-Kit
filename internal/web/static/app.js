@@ -1347,13 +1347,37 @@ function parseLevelGoal(desc) {
 // 奖品描述：优先用档位的 awardChoices 自行拼接（统一叫体验卡）,
 // 没有明细时退回服务端原文并把"无限卡"替换为"体验卡"。
 function choicesDesc(a) {
-  const choices = a.awardChoices || [];
+  const choices = rewardChoices(a);
   if (choices.length) {
     return "可得 " + choices
       .map((c) => (c.choiceType === 1 ? `体验卡 ${c.awardNum} 天` : `书币 ${c.awardNum} 个`))
       .join(" 或 ");
   }
   return String(a.awardChoicesDesc || "").replaceAll("无限卡", "体验卡");
+}
+
+// 各档位的书币数量。官方接口对墨水屏会话不再给普通账号下发 7 天档的书币选项
+// (issue #102),但 App 端仍然展示并允许领取;领取请求只带 choice_type,
+// 数量由服务端决定,这里只作按钮文案的兜底展示。
+const KNOWN_COIN_NUMS = {
+  1: 2, // 读 1 小时
+  2: 2, // 读 3 小时
+  3: 2, // 读 5 小时
+  4: 1, // 读 5 分钟
+  5: 1, // 读 30 分钟
+  11: 2, // 读 2 天
+  12: 4, // 读 4 天
+  13: 6, // 读 7 天
+};
+
+// 补全服务端可能省略的书币选项:App 端所有档位恒有"或 X 书币",
+// 缺失时按已知档位表补出,数量未知则 awardNum 记 0(文案只写"书币")。
+function rewardChoices(a) {
+  const choices = Array.isArray(a.awardChoices) ? a.awardChoices.slice() : [];
+  if (!choices.some((c) => c.choiceType === 2)) {
+    choices.push({ choiceType: 2, awardNum: KNOWN_COIN_NUMS[a.awardLevelId] || 0 });
+  }
+  return choices;
 }
 
 function weeklyCard(a, weekly, prefs) {
@@ -1405,12 +1429,13 @@ function weeklyCard(a, weekly, prefs) {
 
   // 双按钮：书币 / 体验卡。任何时候都可点击 —— 点击保存每周的自动领取设置，
   // 设置写入数据库；若当前正好可领取，保存后立即领取一次。选中项以描边色标识。
+  // 选项以 rewardChoices 补全：服务端对墨水屏普通账号可能省略书币档(issue #102)。
   const actions = document.createElement("div");
   actions.className = "reward-actions";
-  for (const c of a.awardChoices || []) {
+  for (const c of rewardChoices(a)) {
     const isCard = c.choiceType === 1;
     const name = isCard ? "体验卡" : "书币";
-    const val = `${c.awardNum}${isCard ? " 天" : " 个"}`;
+    const val = isCard ? `${c.awardNum} 天` : c.awardNum > 0 ? `${c.awardNum} 个` : "";
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "reward-btn";
@@ -1528,7 +1553,8 @@ function renderWeekly() {
 /* ---------- 奖品选择（保存每周设置，由调度器自动领取） ---------- */
 
 function choiceLabel(choiceType, num) {
-  return choiceType === 1 ? `体验卡 ${num} 天` : `书币 ${num} 个`;
+  if (choiceType === 1) return `体验卡 ${num} 天`;
+  return num > 0 ? `书币 ${num} 个` : "书币";
 }
 
 async function saveRewardChoice(a, c, btn) {
