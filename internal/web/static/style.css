@@ -2526,6 +2526,33 @@ main {
   color: var(--text-dim);
 }
 
+/* 折叠的历史记录:默认只露最近一条,展开后限制高度内部滚动。 */
+.challenge-history-more {
+  max-height: 132px;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+}
+
+.challenge-history-more[hidden] {
+  display: none;
+}
+
+.challenge-history-toggle {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.challenge-history-toggle:hover {
+  color: var(--accent-strong);
+}
+
 @container (max-width: 680px) {
   .official-challenge-body {
     grid-template-columns: minmax(0, 1fr);

@@ -908,13 +908,30 @@ function renderOfficialChallenge(c, autoJoin = false, historyData) {
   const body = $("#official-challenge-body");
   const status = $("#official-challenge-status");
   const panel = $("#official-challenge");
-  // 往期战绩:成功/未完成的场次摘要,报名前后都展示。
+  // 往期战绩:默认只显示最近一条,其余折叠进可滚动的展开区,避免长列表撑爆面板。
   const pastRows = (historyData && historyData.history && historyData.history.challenges) || [];
+  const pastRowHtml = (h) => `<p>${fmtDay(h.startTime)} — ${fmtDay(h.endTime)} · ${h.challengeDay} 天 · <b class="${h.status === 2 ? "ok" : "dim"}">${h.status === 2 ? "挑战成功" : "未完成"}</b></p>`;
   const historyRow = pastRows.length
-    ? `<div class="challenge-history"><span>往期战绩</span><div>${pastRows
-        .map((h) => `<p>${fmtDay(h.startTime)} — ${fmtDay(h.endTime)} · ${h.challengeDay} 天 · <b class="${h.status === 2 ? "ok" : "dim"}">${h.status === 2 ? "挑战成功" : "未完成"}</b></p>`)
-        .join("")}</div></div>`
+    ? `<div class="challenge-history"><span>往期战绩</span><div>${pastRowHtml(pastRows[0])}${
+        pastRows.length > 1
+          ? `<div class="challenge-history-more" hidden>${pastRows.slice(1).map(pastRowHtml).join("")}</div>
+             <button type="button" class="challenge-history-toggle" aria-expanded="false">展开全部 ${pastRows.length} 条</button>`
+          : ""
+      }</div></div>`
     : "";
+  // 展开按钮在报名前后两个分支都会渲染,统一在这里接事件。
+  const wireHistoryToggle = () => {
+    const toggle = body.querySelector(".challenge-history-toggle");
+    if (!toggle) return;
+    toggle.addEventListener("click", () => {
+      const more = body.querySelector(".challenge-history-more");
+      const open = more.hasAttribute("hidden");
+      if (open) more.removeAttribute("hidden");
+      else more.setAttribute("hidden", "");
+      toggle.setAttribute("aria-expanded", String(open));
+      toggle.textContent = open ? "收起往期战绩" : `展开全部 ${pastRows.length} 条`;
+    });
+  };
   // 自动参与开关两种状态下都展示:开启后调度器会在没有进行中挑战时自动报名。
   const autoRow = `
       <label class="challenge-auto-row">
@@ -934,6 +951,7 @@ function renderOfficialChallenge(c, autoJoin = false, historyData) {
         <button type="button" class="btn primary" id="official-join-btn">参与挑战</button>
       </div>${historyRow}${autoRow}`;
     $("#official-join-btn").addEventListener("click", (e) => joinOfficialChallenge(e.currentTarget));
+    wireHistoryToggle();
     wireAutoJoinSwitch();
     return;
   }
@@ -980,6 +998,7 @@ function renderOfficialChallenge(c, autoJoin = false, historyData) {
       ${(ch.reachRewardCard || ch.reachRewardCoin) ? `<div><span>达标奖励</span><b>体验卡 ${ch.reachRewardCard || 0} 天 或 书币 ${ch.reachRewardCoin || 0} 个</b></div>` : ""}
       <div><span>全站数据</span><b>${c.challengingCnt ?? 0} 人参赛 · ${c.succCnt ?? 0} 人成功</b></div>
     </div>${historyRow}${autoRow}`;
+  wireHistoryToggle();
   wireAutoJoinSwitch();
 }
 
