@@ -825,6 +825,7 @@ async function openChallenge() {
   $("#challenge-banner").classList.remove("hidden");
   // 官方挑战面板由数据决定是否展示:加载期间保持隐藏,避免"闪现再消失"造成抖动。
   $("#official-challenge-wrap").hidden = true;
+  if (pickedAlias && accounts.some((a) => a.vid === pickedAlias)) challengeAlias = pickedAlias;
   if (!accounts.some((a) => a.vid === challengeAlias)) challengeAlias = accounts[0].vid;
   for (const a of accounts) {
     const opt = document.createElement("option");
@@ -1091,6 +1092,7 @@ function updateChallengeButtons(running) {
 
 $("#challenge-account").addEventListener("change", (e) => {
   challengeAlias = e.target.value;
+  pickedAlias = challengeAlias;
   stopChallengePolling();
   loadChallenge();
 });
@@ -1200,6 +1202,8 @@ $("#challenge-goto-accounts").addEventListener("click", () => {
 /* ---------- 我的阅读（周阅读奖励） ---------- */
 
 let readingAlias = null;
+// 最近一次手动选择的账号:阅读页与挑战页共用,切页面时互相跟随,不再各自回到第一个账号。
+let pickedAlias = null;
 let readingData = null;
 let readingCard = null;
 let readingPrefs = {};
@@ -1218,6 +1222,7 @@ async function openReading() {
   }
   $("#reading-empty").classList.add("hidden");
   $$("#view-reading .panel, #reading-stats").forEach((el) => el.classList.remove("hidden"));
+  if (pickedAlias && accounts.some((a) => a.vid === pickedAlias)) readingAlias = pickedAlias;
   if (!accounts.some((a) => a.vid === readingAlias)) readingAlias = accounts[0].vid;
   for (const a of accounts) {
     const opt = document.createElement("option");
@@ -1507,6 +1512,7 @@ $("#act-auto-claim").addEventListener("change", async (e) => {
 
 $("#reading-account").addEventListener("change", (e) => {
   readingAlias = e.target.value;
+  pickedAlias = readingAlias;
   loadWeekly();
 });
 $("#reading-reload").addEventListener("click", () => {
