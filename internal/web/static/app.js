@@ -815,7 +815,7 @@ async function openChallenge() {
   if (!accounts.length) {
     // 一个账号都没有：隐藏整个配置面板，只显示引导
     $("#challenge-panel").classList.add("hidden");
-    $("#official-challenge").classList.add("hidden");
+    $("#official-challenge-wrap").hidden = true;
     $("#challenge-empty").classList.remove("hidden");
     challengeAlias = null;
     return;
@@ -824,7 +824,7 @@ async function openChallenge() {
   $("#challenge-empty").classList.add("hidden");
   $("#challenge-banner").classList.remove("hidden");
   // 官方挑战面板由数据决定是否展示:加载期间保持隐藏,避免"闪现再消失"造成抖动。
-  $("#official-challenge").classList.add("hidden");
+  $("#official-challenge-wrap").hidden = true;
   if (!accounts.some((a) => a.vid === challengeAlias)) challengeAlias = accounts[0].vid;
   for (const a of accounts) {
     const opt = document.createElement("option");
@@ -853,16 +853,15 @@ async function loadChallenge() {
 
 async function loadOfficialChallenge() {
   if (!challengeAlias) return;
-  const status = $("#official-challenge-status");
-  const panel = $("#official-challenge");
+  const wrap = $("#official-challenge-wrap");
   // 加载期间保持隐藏:未参加挑战时面板最终不展示,先渲染骨架再隐藏会让页面抖动一下。
-  panel.classList.add("hidden");
-  status.textContent = "—";
+  wrap.hidden = true;
+  wrap.textContent = "";
   try {
     const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge`);
-    // version=v3 的数据在 challengeList[0];未报名时为空数组。历史战绩并行拉取,互不阻塞。
+    // challengeList 携带账号参与的全部官方挑战;历史战绩并行拉取,互不阻塞。
     const h = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge/history`).catch(() => null);
-    renderOfficialChallenge(((d.challenge || {}).challengeList || [])[0] || {}, !!d.auto_join, h);
+    renderOfficialChallenge(((d.challenge || {}).challengeList || []), !!d.auto_join, h);
   } catch (err) {
     // 面板属于辅助信息,加载失败时保持隐藏避免布局跳动;详情留给控制台。
     console.warn("官方挑战进度加载失败:", err.message);
@@ -888,26 +887,17 @@ function wireAutoJoinSwitch() {
   });
 }
 
-// 报名免费的 21 天官方挑战;409(已在挑战中)按失败提示并刷新面板。
-async function joinOfficialChallenge(btn) {
-  setBusy(btn, true);
-  try {
-    await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge/join`, {
-      method: "POST",
-      body: JSON.stringify({ challenge_id: "ChallengeLongTermFree" }),
-    });
-    toast("已报名 21 天阅读挑战", "ok");
-  } catch (err) {
-    toast(`报名失败：${err.message}`, "error");
-    setBusy(btn, false);
-  }
-  await loadOfficialChallenge();
-}
+// 报名由「自动参与下一期」调度器负责;前端不再提供手动报名入口。
 
-function renderOfficialChallenge(c, autoJoin = false, historyData) {
-  const body = $("#official-challenge-body");
-  const status = $("#official-challenge-status");
-  const panel = $("#official-challenge");
+function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
+  const wrap = $("#official-challenge-wrap");
+  // 只展示有效挑战:id/status 齐全的才是真实参与记录,其余是官方接口的报名占位。
+  const active = challengeList.filter((c) => c.id && c.status);
+  if (!active.length) {
+    // 一个进行中的官方挑战都没有:整个区域不展示。
+    wrap.hidden = true;
+    return;
+  }
   // 往期战绩:默认只显示最近一条,其余折叠进可滚动的展开区,避免长列表撑爆面板。
   const pastRows = (historyData && historyData.history && historyData.history.challenges) || [];
   const pastRowHtml = (h) => `<p>${fmtDay(h.startTime)} — ${fmtDay(h.endTime)} · ${h.challengeDay} 天 · <b class="${h.status === 2 ? "ok" : "dim"}">${h.status === 2 ? "挑战成功" : "未完成"}</b></p>`;
@@ -919,12 +909,12 @@ function renderOfficialChallenge(c, autoJoin = false, historyData) {
           : ""
       }</div></div>`
     : "";
-  // 展开按钮在报名前后两个分支都会渲染,统一在这里接事件。
+  // 展开按钮拼在最后一个面板里,统一在这里接事件。
   const wireHistoryToggle = () => {
-    const toggle = body.querySelector(".challenge-history-toggle");
+    const toggle = wrap.querySelector(".challenge-history-toggle");
     if (!toggle) return;
     toggle.addEventListener("click", () => {
-      const more = body.querySelector(".challenge-history-more");
+      const more = wrap.querySelector(".challenge-history-more");
       const open = more.hasAttribute("hidden");
       if (open) more.removeAttribute("hidden");
       else more.setAttribute("hidden", "");
@@ -932,42 +922,28 @@ function renderOfficialChallenge(c, autoJoin = false, historyData) {
       toggle.textContent = open ? "收起往期战绩" : `展开全部 ${pastRows.length} 条`;
     });
   };
-  // 自动参与开关两种状态下都展示:开启后调度器会在没有进行中挑战时自动报名。
+  // 自动参与开关(账号级):无论几个挑战都只渲染一次,放在最后一个面板尾部。
   const autoRow = `
       <label class="challenge-auto-row">
         <input type="checkbox" id="challenge-auto-join"${autoJoin ? " checked" : ""}>
         <span>挑战结束后自动参与下一期（免费 21 天挑战，勋章与奖励由官方自动发放）</span>
       </label>`;
-  if (!c.id || !c.status) {
-    // 未参加官方挑战赛：展示报名入口,不再隐藏整个面板。
-    panel.classList.remove("hidden");
-    status.textContent = "未参与";
-    body.innerHTML = `
-      <div class="challenge-join">
-        <div>
-          <b>21 天阅读挑战</b>
-          <p>连续 21 天累计阅读满 10 小时即挑战成功，勋章与奖励自动发放，免费参与。</p>
-        </div>
-        <button type="button" class="btn primary" id="official-join-btn">参与挑战</button>
-      </div>${historyRow}${autoRow}`;
-    $("#official-join-btn").addEventListener("click", (e) => joinOfficialChallenge(e.currentTarget));
-    wireHistoryToggle();
-    wireAutoJoinSwitch();
-    return;
-  }
-  panel.classList.remove("hidden");
-  status.textContent = c.status === 1 ? "进行中" : c.status === 2 ? "已完成" : "已结束";
-  const ch = c.challenge || {};
-  const signedDays = c.readDays || (c.readDateList || []).length;
-  const dayPct = Math.min(100, (signedDays / (ch.targetDay || 1)) * 100);
-  const timePct = Math.min(100, ((c.readTime || 0) / (ch.targetTime || 1)) * 100);
-  const now = c.currentTime || Math.floor(Date.now() / 1000);
-  // 剩余天数优先用服务端的 remainDays,缺失时按 endTime 估算。
-  const remainDays = c.remainDays ?? (c.endTime ? Math.max(0, Math.ceil((c.endTime - now) / 86400)) : 0);
+  const statusText = (c) => (c.status === 1 ? "进行中" : c.status === 2 ? "已完成" : "已结束");
 
-  const R = 52;
-  const circ = (2 * Math.PI * R).toFixed(1);
-  const ring = (pct, value, unit, label, target) => `
+  wrap.textContent = "";
+  // 每个进行中的官方挑战一个面板;往期战绩与自动参与开关是账号级的,拼在最后一个面板尾部。
+  active.forEach((c, index) => {
+    const ch = c.challenge || {};
+    const signedDays = c.readDays || (c.readDateList || []).length;
+    const dayPct = Math.min(100, (signedDays / (ch.targetDay || 1)) * 100);
+    const timePct = Math.min(100, ((c.readTime || 0) / (ch.targetTime || 1)) * 100);
+    const now = c.currentTime || Math.floor(Date.now() / 1000);
+    // 剩余天数优先用服务端的 remainDays,缺失时按 endTime 估算。
+    const remainDays = c.remainDays ?? (c.endTime ? Math.max(0, Math.ceil((c.endTime - now) / 86400)) : 0);
+
+    const R = 52;
+    const circ = (2 * Math.PI * R).toFixed(1);
+    const ring = (pct, value, unit, label, target) => `
     <div class="challenge-metric">
       <div class="challenge-ring" role="img" aria-label="${label} ${value} ${unit}，目标 ${target} ${unit}，完成 ${Math.round(pct)}%">
         <svg viewBox="0 0 120 120" aria-hidden="true">
@@ -980,24 +956,36 @@ function renderOfficialChallenge(c, autoJoin = false, historyData) {
       <div class="challenge-metric-label">${label}<span>目标 ${target} ${unit}</span></div>
     </div>`;
 
-  body.innerHTML = `
-    <div class="challenge-rings">
-      ${ring(dayPct, signedDays, "天", "累计打卡", ch.targetDay)}
-      ${ring(timePct, ((c.readTime || 0) / 3600).toFixed(1), "小时", "阅读时长", ch.targetTime / 3600)}
-    </div>
-    <div class="challenge-info">
-      <div class="challenge-period">
-        <span>挑战周期</span>
-        <div><b>${ch.challengeDay} 天<span class="challenge-remaining">剩余 ${remainDays} 天</span></b>
-          <p>${fmtDay(c.startTime)} — ${fmtDay(c.endTime)}</p></div>
+    const shared = index === active.length - 1 ? `${historyRow}${autoRow}` : "";
+    const panel = document.createElement("div");
+    panel.className = "panel official-challenge-panel";
+    panel.innerHTML = `
+      <div class="panel-bar">
+        <span class="panel-title">官方挑战赛进度</span>
+        <span class="award-badge">${ch.challengeDay || "?"} 天 · ${statusText(c)}</span>
       </div>
-      <div><span>达标条件</span><b>累计阅读 ${fmtDuration(ch.targetTime)} · 打卡 ${ch.targetDay} 天</b></div>
-      ${c.baseMedalPicUrl ? `
-      <div><span>挑战勋章</span><b class="challenge-medal"><img src="${escapeHtml(c.baseMedalPicUrl)}" alt="挑战勋章" loading="lazy"><small>${c.status === 2 ? "已获得" : "完成挑战自动发放"}</small></b></div>` : ""}
-      <div><span>报名费用</span><b>${ch.price ? `¥${(ch.price / 100).toFixed(0)}<small>报名即得体验卡 ${ch.initRewardCard} 天</small>` : "免费"}</b></div>
-      ${(ch.reachRewardCard || ch.reachRewardCoin) ? `<div><span>达标奖励</span><b>体验卡 ${ch.reachRewardCard || 0} 天 或 书币 ${ch.reachRewardCoin || 0} 个</b></div>` : ""}
-      <div><span>全站数据</span><b>${c.challengingCnt ?? 0} 人参赛 · ${c.succCnt ?? 0} 人成功</b></div>
-    </div>${historyRow}${autoRow}`;
+      <div class="official-challenge-body">
+        <div class="challenge-rings">
+          ${ring(dayPct, signedDays, "天", "累计打卡", ch.targetDay)}
+          ${ring(timePct, ((c.readTime || 0) / 3600).toFixed(1), "小时", "阅读时长", (ch.targetTime || 0) / 3600)}
+        </div>
+        <div class="challenge-info">
+          <div class="challenge-period">
+            <span>挑战周期</span>
+            <div><b>${ch.challengeDay} 天<span class="challenge-remaining">剩余 ${remainDays} 天</span></b>
+              <p>${fmtDay(c.startTime)} — ${fmtDay(c.endTime)}</p></div>
+          </div>
+          <div><span>达标条件</span><b>累计阅读 ${fmtDuration(ch.targetTime)} · 打卡 ${ch.targetDay} 天</b></div>
+          ${c.baseMedalPicUrl ? `
+          <div><span>挑战勋章</span><b class="challenge-medal"><img src="${escapeHtml(c.baseMedalPicUrl)}" alt="挑战勋章" loading="lazy"><small>${c.status === 2 ? "已获得" : "完成挑战自动发放"}</small></b></div>` : ""}
+          <div><span>报名费用</span><b>${ch.price ? `¥${(ch.price / 100).toFixed(0)}<small>报名即得体验卡 ${ch.initRewardCard} 天</small>` : "免费"}</b></div>
+          ${(ch.reachRewardCard || ch.reachRewardCoin) ? `<div><span>达标奖励</span><b>体验卡 ${ch.reachRewardCard || 0} 天 或 书币 ${ch.reachRewardCoin || 0} 个</b></div>` : ""}
+          <div><span>全站数据</span><b>${c.challengingCnt ?? 0} 人参赛 · ${c.succCnt ?? 0} 人成功</b></div>
+        </div>${shared}
+      </div>`;
+    wrap.append(panel);
+  });
+  wrap.hidden = false;
   wireHistoryToggle();
   wireAutoJoinSwitch();
 }

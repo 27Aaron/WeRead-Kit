@@ -178,15 +178,9 @@
           <span class="banner-item">开始时间 <b id="challenge-runat">—</b></span>
           <span class="banner-item">每天时长 <b id="challenge-minutes">—</b></span>
         </div>
-        <div id="official-challenge" class="panel hidden">
-          <div class="panel-bar">
-            <span class="panel-title">官方挑战赛进度</span>
-            <span class="award-badge" id="official-challenge-status">—</span>
-          </div>
-          <div id="official-challenge-body" class="official-challenge-body">
-            <p class="empty">正在加载…</p>
-          </div>
-        </div>
+        <!-- 官方挑战赛进度:每个进行中的官方挑战渲染一个面板,由 JS 动态填充;
+             display:contents 让面板直接参与 .view 的间距布局。 -->
+        <div id="official-challenge-wrap" class="official-challenge-wrap" hidden></div>
         <div id="challenge-panel" class="panel">
           <div class="config-row">
             <label class="switch-label">
