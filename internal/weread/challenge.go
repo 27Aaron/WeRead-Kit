@@ -66,6 +66,29 @@ func (c *Client) ChallengeList(ctx context.Context, creds *Credentials) (json.Ra
 	return json.RawMessage(data), nil
 }
 
+// ChallengeHistory 查询往期挑战战绩列表(每场的起止时间、结果与全站数据)。
+// 会话过期返回 ErrSessionExpired,由调用方续期后重试。
+func (c *Client) ChallengeHistory(ctx context.Context, creds *Credentials) (json.RawMessage, error) {
+	headers := versionHeaders()
+	for k, v := range authHeaders(creds) {
+		headers[k] = v
+	}
+	data, status, err := c.getJSON(ctx, BaseURL+"/challenge/history", headers)
+	if err != nil {
+		return nil, fmt.Errorf("挑战赛历史请求失败: %w", err)
+	}
+	if status == http.StatusUnauthorized {
+		return nil, ErrSessionExpired
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("挑战赛历史请求失败: HTTP %d", status)
+	}
+	if err := checkBusinessCode(data); err != nil {
+		return nil, err
+	}
+	return json.RawMessage(data), nil
+}
+
 // ChallengeJoin 报名官方挑战赛。仅免费挑战可走此接口;付费挑战(如
 // readchallenge4/5)需应用内支付,服务端会以 -2003 拒绝纯 challengeId 报名。
 // 已在挑战中返回 ErrChallengeAlreadyJoined;会话过期返回 ErrSessionExpired。
