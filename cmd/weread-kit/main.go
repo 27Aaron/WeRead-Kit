@@ -48,6 +48,7 @@ func main() {
 	app.StartFarmScheduler(ctx)
 	app.StartWeeklyClaimScheduler(ctx)
 	app.StartChallengeAutoJoinScheduler(ctx)
+	app.StartSendInfiniteScheduler(ctx)
 	app.ResumeInterrupted()
 	store.AddLog(db, "info", "serve", "", "Web 服务已启动,监听 "+addr)
 	if !authEnabled && !isLoopback(host) {
