@@ -2092,9 +2092,7 @@ main {
 
 .reward-grid {
   display: grid;
-  /* 列宽封顶 320px:最后一行不满时整组居中,卡片不会在右侧甩出空轨道 */
-  grid-template-columns: repeat(auto-fit, minmax(215px, 320px));
-  justify-content: center;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
   gap: 12px;
   padding: 14px;
 }
