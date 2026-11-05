@@ -860,8 +860,9 @@ async function loadOfficialChallenge() {
   status.textContent = "—";
   try {
     const d = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge`);
-    // version=v3 的数据在 challengeList[0];未报名时为空数组。
-    renderOfficialChallenge(((d.challenge || {}).challengeList || [])[0] || {}, !!d.auto_join);
+    // version=v3 的数据在 challengeList[0];未报名时为空数组。历史战绩并行拉取,互不阻塞。
+    const h = await api(`/api/accounts/${encodeURIComponent(challengeAlias)}/challenge/history`).catch(() => null);
+    renderOfficialChallenge(((d.challenge || {}).challengeList || [])[0] || {}, !!d.auto_join, h);
   } catch (err) {
     // 面板属于辅助信息,加载失败时保持隐藏避免布局跳动;详情留给控制台。
     console.warn("官方挑战进度加载失败:", err.message);
@@ -903,10 +904,17 @@ async function joinOfficialChallenge(btn) {
   await loadOfficialChallenge();
 }
 
-function renderOfficialChallenge(c, autoJoin = false) {
+function renderOfficialChallenge(c, autoJoin = false, historyData) {
   const body = $("#official-challenge-body");
   const status = $("#official-challenge-status");
   const panel = $("#official-challenge");
+  // 往期战绩:成功/未完成的场次摘要,报名前后都展示。
+  const pastRows = (historyData && historyData.history && historyData.history.challenges) || [];
+  const historyRow = pastRows.length
+    ? `<div class="challenge-history"><span>往期战绩</span><div>${pastRows
+        .map((h) => `<p>${fmtDay(h.startTime)} — ${fmtDay(h.endTime)} · ${h.challengeDay} 天 · <b class="${h.status === 2 ? "ok" : "dim"}">${h.status === 2 ? "挑战成功" : "未完成"}</b></p>`)
+        .join("")}</div></div>`
+    : "";
   // 自动参与开关两种状态下都展示:开启后调度器会在没有进行中挑战时自动报名。
   const autoRow = `
       <label class="challenge-auto-row">
@@ -924,7 +932,7 @@ function renderOfficialChallenge(c, autoJoin = false) {
           <p>连续 21 天累计阅读满 10 小时即挑战成功，勋章与奖励自动发放，免费参与。</p>
         </div>
         <button type="button" class="btn primary" id="official-join-btn">参与挑战</button>
-      </div>${autoRow}`;
+      </div>${historyRow}${autoRow}`;
     $("#official-join-btn").addEventListener("click", (e) => joinOfficialChallenge(e.currentTarget));
     wireAutoJoinSwitch();
     return;
@@ -971,7 +979,7 @@ function renderOfficialChallenge(c, autoJoin = false) {
       <div><span>报名费用</span><b>${ch.price ? `¥${(ch.price / 100).toFixed(0)}<small>报名即得体验卡 ${ch.initRewardCard} 天</small>` : "免费"}</b></div>
       ${(ch.reachRewardCard || ch.reachRewardCoin) ? `<div><span>达标奖励</span><b>体验卡 ${ch.reachRewardCard || 0} 天 或 书币 ${ch.reachRewardCoin || 0} 个</b></div>` : ""}
       <div><span>全站数据</span><b>${c.challengingCnt ?? 0} 人参赛 · ${c.succCnt ?? 0} 人成功</b></div>
-    </div>${autoRow}`;
+    </div>${historyRow}${autoRow}`;
   wireAutoJoinSwitch();
 }
 
@@ -1203,6 +1211,57 @@ async function openReading() {
   }
   sel.value = readingAlias;
   await loadWeekly();
+  loadMedals();
+}
+
+/* ---------- 勋章墙 ---------- */
+
+let medalsRequest = 0;
+
+async function loadMedals() {
+  if (!readingAlias) return;
+  const request = ++medalsRequest;
+  const grid = $("#medal-list");
+  grid.innerHTML = skeletonCardsHTML(4, 120);
+  $("#medal-summary").textContent = "—";
+  try {
+    const d = await api(`/api/accounts/${encodeURIComponent(readingAlias)}/medals`);
+    if (request !== medalsRequest) return;
+    renderMedals(d.medals || {});
+  } catch (err) {
+    if (request !== medalsRequest) return;
+    grid.innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderMedals(m) {
+  const grid = $("#medal-list");
+  grid.textContent = "";
+  const owned = m.available || [];
+  const locked = m.notAvailable || [];
+  if (!owned.length && !locked.length) {
+    grid.innerHTML = '<p class="empty">还没有勋章数据</p>';
+    $("#medal-summary").textContent = "—";
+    return;
+  }
+  $("#medal-summary").innerHTML = `已获得 <b>${m.totalCount ?? owned.length}</b> 枚` +
+    (m.wear && m.wear.name ? ` · 佩戴「${escapeHtml(m.wear.name)}」` : "");
+  for (const medal of owned) {
+    const card = document.createElement("div");
+    card.className = "medal-card";
+    card.innerHTML = `
+      <div class="medal-name"><b>${escapeHtml(medal.name || medal.hint || "勋章")}</b></div>
+      <p class="medal-desc">${escapeHtml(medal.rankText || medal.availableCond || "")}</p>
+      <p class="medal-meta">${medal.ctime ? fmtDay(medal.ctime) : ""}</p>`;
+    grid.append(card);
+  }
+  if (locked.length) {
+    const cats = locked.map((c) => `${escapeHtml(c.title || "")}×${(c.list || []).length || 1}`).join(" / ");
+    const more = document.createElement("p");
+    more.className = "medal-locked";
+    more.textContent = `未解锁 ${locked.length} 组:${cats}`;
+    grid.append(more);
+  }
 }
 
 function resetWeeklyUI() {
@@ -1484,8 +1543,12 @@ $("#act-auto-claim").addEventListener("change", async (e) => {
 $("#reading-account").addEventListener("change", (e) => {
   readingAlias = e.target.value;
   loadWeekly();
+  loadMedals();
 });
-$("#reading-reload").addEventListener("click", loadWeekly);
+$("#reading-reload").addEventListener("click", () => {
+  loadWeekly();
+  loadMedals();
+});
 $("#reading-goto-accounts").addEventListener("click", () => {
   setView("accounts");
   loadAccounts();

@@ -82,6 +82,23 @@ func (s *Server) challengeAutoJoinOn(vid string) bool {
 	return err == nil && v == "1"
 }
 
+// handleChallengeHistory 返回指定账号的往期挑战战绩列表。
+// GET /api/accounts/{vid}/challenge/history
+func (s *Server) handleChallengeHistory(w http.ResponseWriter, r *http.Request) {
+	vid := r.PathValue("vid")
+	data, _, err := s.weeklyCall(r.Context(), vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+		return s.client.ChallengeHistory(r.Context(), creds)
+	})
+	if err != nil {
+		writeWeeklyErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"vid":     vid,
+		"history": json.RawMessage(data),
+	})
+}
+
 // handleChallengeJoin 报名免费的 21 天阅读挑战。body: {"challenge_id":"ChallengeLongTermFree"}
 // challenge_id 走白名单:付费挑战需要应用内支付,纯接口报名只会被服务端拒绝。
 // POST /api/accounts/{vid}/challenge/join
