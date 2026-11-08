@@ -1,5 +1,18 @@
 # 更新日志
 
+## [v0.4.6] - 2026-11-08
+
+### 变更
+
+- 「今日阅读完成」推送附带已勾选档位的本周奖励状态（已领取/达成将自动领取/差 X），合并为一条推送；未勾选奖励的账号推送内容不变
+- 阅读会话失败自动重试：间隔 5 分钟、最多 2 次，重试期间不再逐次推送，全部失败才推送一次并注明重试次数；阅读中断仍即时推送（不重试，保留进度）
+- 挑战完成后当场报名下一期：「挑战完成」与「已自动报名」合并为一条推送，报名失败会在文末注明并自动重试
+
+### 修复
+
+- 回退 v0.4.5 的奖励选项兜底展示：书币按钮恢复按官方接口下发的选项渲染（issue #102）——官方对受限会话不下发书币选项时按钮随之隐藏，避免展示必然被官方拒绝（-2417）的按钮
+- 周奖励自动领取遇官方拒绝奖品选择（errcode -2417，如墨水屏会话领取「读 7 天」档书币，issue #102）时，同一领取窗口内只记录一条日志并不再重试，避免每 5 分钟反复请求与日志刷屏；保留偏好设置，官方若恢复选择立即恢复自动领取
+
 ## [v0.4.5] - 2026-11-05
 
 ### 修复
@@ -291,6 +304,9 @@
 - 多平台二进制发布(linux/darwin/windows × amd64/arm64)、Docker 多架构镜像、Nix flake 开发环境
 - MIT 许可
 
+[v0.4.6]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.6
+[v0.4.5]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.5
+[v0.4.4]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.4
 [v0.4.3]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.3
 [v0.4.2]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.2
 [v0.4.1]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.1

@@ -5,6 +5,7 @@ package weread
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -71,6 +72,12 @@ type WeeklyRewards struct {
 	AwardStatusOuterDesc string             `json:"awardStatusOuterDesc"`
 }
 
+// ErrAwardChoiceRejected 表示服务端拒绝该档位所选的奖品类型(errcode -2417)。
+// 2026-10 底起官方对墨水屏等非手机会话封禁了普通账号「读 7 天」档的书币领取
+// (issue #102),菜单不下发选项、菜单外提交同样被拒,且与通道无关。
+// 调用方收到该错误后不应在同一领取窗口内对同一档位重复尝试。
+var ErrAwardChoiceRejected = errors.New("服务端拒绝了该档位的奖品选择")
+
 // ParseWeeklyRewards 解析查询模式的原始响应。
 func ParseWeeklyRewards(data json.RawMessage) (*WeeklyRewards, error) {
 	var rw WeeklyRewards
@@ -111,6 +118,10 @@ func (c *Client) WeeklyExchange(ctx context.Context, creds *Credentials, awardLe
 			ErrMsg  string      `json:"errmsg"`
 		}
 		if json.Unmarshal(data, &env) == nil && env.ErrCode.String() != "" {
+			// -2417 = 该档位不接受所选奖品类型,单独类型化供调度器抑制重试。
+			if env.ErrCode.String() == "-2417" {
+				return nil, fmt.Errorf("%w: HTTP %d errcode=%s", ErrAwardChoiceRejected, status, env.ErrCode.String())
+			}
 			return nil, fmt.Errorf("周阅读奖励请求失败: HTTP %d errcode=%s errmsg=%q", status, env.ErrCode.String(), env.ErrMsg)
 		}
 		return nil, fmt.Errorf("周阅读奖励请求失败: HTTP %d", status)
