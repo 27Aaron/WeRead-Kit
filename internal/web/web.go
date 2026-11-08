@@ -33,6 +33,10 @@ type Server struct {
 	farms              map[string]*farmSessionHandle
 	challengeMu        sync.Mutex
 	challengeBackoff   map[string]time.Time
+	// weeklyBlocks 记录本周已被官方拒绝领取的档位(vid|档位ID → ISO 周键),
+	// 避免调度器在同一领取窗口内反复重试被拒的奖品选择(issue #102)。
+	weeklyBlockMu sync.Mutex
+	weeklyBlocks  map[string]string
 	farmWG             sync.WaitGroup
 	closing            bool
 	ctx                context.Context
@@ -47,7 +51,7 @@ func New(db *sql.DB) *Server {
 	if err != nil {
 		panic(err)
 	}
-	s := &Server{ctx: ctx, cancel: cancel, sessionKey: []byte(key), farms: map[string]*farmSessionHandle{}, db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WEREAD_USERNAME"), password: os.Getenv("WEREAD_PASSWORD")}
+	s := &Server{ctx: ctx, cancel: cancel, sessionKey: []byte(key), farms: map[string]*farmSessionHandle{}, weeklyBlocks: map[string]string{}, db: db, client: client, logins: newLoginManager(db, client), username: os.Getenv("WEREAD_USERNAME"), password: os.Getenv("WEREAD_PASSWORD")}
 	client.OnRefresh = s.persistRefreshed
 	return s
 }

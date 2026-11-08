@@ -215,6 +215,16 @@ func (s *Server) autoClaimOnce(ctx context.Context) {
 			if _, _, err := s.weeklyCall(ctx, acc.Vid, func(creds *weread.Credentials) (json.RawMessage, error) {
 				return s.client.WeeklyExchange(ctx, creds, a.AwardLevelID, choice, 1)
 			}); err != nil {
+				if errors.Is(err, weread.ErrAwardChoiceRejected) {
+					// 官方拒绝该档位的奖品选择(如墨水屏会话领 7 天书币,issue #102):
+					// 本领取窗口内只记一条日志,后续轮次静默跳过,等待下周窗口重置。
+					if s.markWeeklyBlocked(acc.Vid, a.AwardLevelID) {
+						s.logf("warn", "reading", acc.Vid,
+							"自动领取被官方拒绝(%s → %s): 本周内不再重试;可将该档偏好改为体验卡继续自动领取,或在手机 App 内手动领取书币;保留偏好,官方恢复后自动生效",
+							a.AwardLevelDesc, weeklyChoiceName(choice))
+					}
+					continue
+				}
 				s.logf("warn", "reading", acc.Vid, "自动领取失败(%s): %v", a.AwardLevelDesc, err)
 				continue
 			}
@@ -243,6 +253,24 @@ func weeklyChoiceName(choice int) string {
 		return "体验卡"
 	}
 	return "书币"
+}
+
+// markWeeklyBlocked 把账号的某档位标记为本周已拒;首次标记返回 true(需要记日志),
+// 同一 ISO 周内的后续调用返回 false。跨周后键过期,重新允许尝试一次。
+func (s *Server) markWeeklyBlocked(vid string, level int) bool {
+	year, week := time.Now().ISOWeek()
+	key := fmt.Sprintf("%s|%d", vid, level)
+	s.weeklyBlockMu.Lock()
+	defer s.weeklyBlockMu.Unlock()
+	if s.weeklyBlocks == nil {
+		s.weeklyBlocks = map[string]string{}
+	}
+	weekKey := strconv.Itoa(year) + "-W" + strconv.Itoa(week)
+	if s.weeklyBlocks[key] == weekKey {
+		return false
+	}
+	s.weeklyBlocks[key] = weekKey
+	return true
 }
 
 // fmtCoin 书币展示:上游余额带小数(如 1.00),去掉多余尾零(1.00 → 1,0.50 → 0.5)。
