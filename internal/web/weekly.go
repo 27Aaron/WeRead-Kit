@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/27Aaron/weread-kit/internal/store"
@@ -299,6 +300,63 @@ func (s *Server) weeklyCall(ctx context.Context, vid string, op func(*weread.Cre
 		return nil, nil, err
 	}
 	return data, c, nil
+}
+
+// weeklyRewardSummary 汇总账号已勾选档位的周奖励状态,用于「今日阅读完成」
+// 推送的附录:每行「档位 → 奖品,状态」。未勾选或查询失败返回空串,
+// 推送退回纯阅读内容,不因奖励状态查询失败而阻塞。
+func (s *Server) weeklyRewardSummary(vid string) string {
+	prefs := s.weeklyClaimPrefs(vid)
+	if len(prefs) == 0 {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	data, _, err := s.weeklyCall(ctx, vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+		return s.client.WeeklyExchange(ctx, creds, 0, 0, 0)
+	})
+	if err != nil {
+		return ""
+	}
+	var rw weread.WeeklyRewards
+	if json.Unmarshal(data, &rw) != nil {
+		return ""
+	}
+	var lines []string
+	for _, a := range slices.Concat(rw.ReadtimeAwards, rw.ReaddayAwards, rw.ReadgoalAwards) {
+		choice, ok := prefs[strconv.Itoa(a.AwardLevelID)]
+		if !ok {
+			continue
+		}
+		num := 0
+		for _, c := range a.AwardChoices {
+			if c.ChoiceType == choice {
+				num = c.AwardNum
+				break
+			}
+		}
+		name := weeklyChoiceName(choice)
+		switch {
+		case num > 0 && choice == weread.AwardChoiceCard:
+			name = fmt.Sprintf("体验卡 %d 天", num)
+		case num > 0:
+			name = fmt.Sprintf("书币 %d 个", num)
+		}
+		var state string
+		switch a.AwardStatus {
+		case weread.AwardStatusClaimed:
+			state = "已领取"
+		case weread.AwardStatusClaimable:
+			state = "达成,将自动领取"
+		default:
+			state = a.AwardStatusDesc
+			if state == "" {
+				state = "未达成"
+			}
+		}
+		lines = append(lines, fmt.Sprintf("· %s → %s,%s", a.AwardLevelDesc, name, state))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // weeklyCardView 是体验卡的剩余状态,由详情缓存的会员卡信息计算。

@@ -192,8 +192,10 @@ func (s *Server) autoJoinAccount(ctx context.Context, vid string) {
 		return // 响应形态异常,静默跳过等待下一轮
 	}
 	if has {
-		s.notifyChallengeDone(vid, prog)
 		if prog.Status == weread.ChallengeStatusInProgress {
+			return
+		}
+		if prog.Status == weread.ChallengeStatusSucceeded && s.pushChallengeDoneAndJoin(ctx, vid, prog) {
 			return
 		}
 	}
@@ -213,22 +215,40 @@ func (s *Server) autoJoinAccount(ctx context.Context, vid string) {
 	s.notifyFarmResult(vid, "info", "已自动报名 21 天阅读挑战", "检测到没有进行中的官方挑战,已自动报名下一期(免费);勋章与奖励完成后由官方自动发放。")
 }
 
-// notifyChallengeDone 在检测到挑战完成(SUCCEEDED)时推送一次通知;
-// 用该期挑战的 startTime 去重,同一期只通知一次,重启后也不重复。
-func (s *Server) notifyChallengeDone(vid string, prog weread.ChallengeProgress) {
-	if prog.Status != weread.ChallengeStatusSucceeded {
-		return
-	}
+// pushChallengeDoneAndJoin 在检测到 21 天挑战完成时推送通知;开启自动参与的账号
+// 当场报名下一期,把「完成 + 已报名」合并为一条推送,报名失败时文末注明重试,
+// 由后续调度轮次的常规报名路径补齐。用该期 startTime 去重,同一期只推送一次。
+// 返回 true 表示本轮无需再走常规报名路径。
+func (s *Server) pushChallengeDoneAndJoin(ctx context.Context, vid string, prog weread.ChallengeProgress) bool {
 	key := challengeNotifiedStartKey + vid
 	start := strconv.FormatInt(prog.StartTime, 10)
 	if v, err := store.GetSetting(s.db, key); err == nil && v == start {
-		return
+		return false // 之前已推送过:交回常规流程补齐报名状态
 	}
 	if err := store.SetSetting(s.db, key, start); err != nil {
-		return
+		return false
 	}
 	s.logf("info", "reading", vid, "挑战自动参与:21 天阅读挑战已完成,勋章与奖励已发放")
-	s.notifyFarmResult(vid, "info", "21 天阅读挑战完成", "本期挑战已完成,勋章与奖励已由官方发放;下一期将自动报名。")
+	if !s.challengeAutoJoinOn(vid) {
+		// 调度器只处理开启自动参与的账号,此分支仅防御:只报完成,不代报名。
+		s.notifyFarmResult(vid, "info", "21 天阅读挑战完成", "本期挑战已完成,勋章与奖励已由官方发放。")
+		return true
+	}
+	_, _, err := s.weeklyCall(ctx, vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+		return s.client.ChallengeJoin(ctx, creds, weread.ChallengeLongTermFree)
+	})
+	if errors.Is(err, weread.ErrChallengeAlreadyJoined) {
+		s.notifyFarmResult(vid, "info", "21 天阅读挑战完成", "本期挑战已完成,勋章与奖励已由官方发放;下一期已在进行中。")
+		return true
+	}
+	if err != nil {
+		s.logf("warn", "reading", vid, "挑战自动参与:完成后的报名失败(%v),将自动重试", err)
+		s.notifyFarmResult(vid, "info", "21 天阅读挑战完成", "本期挑战已完成,勋章与奖励已由官方发放;下一期自动报名失败,将自动重试。")
+		return true
+	}
+	s.logf("info", "reading", vid, "挑战自动参与:本期完成,已自动报名下一期")
+	s.notifyFarmResult(vid, "info", "21 天阅读挑战完成", "本期挑战已完成,勋章与奖励已由官方发放;下一期已自动报名,结束后将再次自动报名。")
+	return true
 }
 
 // setChallengeBackoff / challengeBackoffUntil 维护失败退避的内存状态;

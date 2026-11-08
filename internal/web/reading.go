@@ -150,9 +150,10 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 		return errFarmAlreadyRunning
 	}
 	ctrl := weread.NewFarmControl()
-	// 会话 ctx 与句柄共享同一个 cancel:「停止」按钮调用它即可终止整场会话。
-	sessCtx, cancel := context.WithTimeout(s.ctx, time.Duration(task.Total-task.Done+10)*time.Minute)
-	s.farms[vid] = &farmSessionHandle{cancel: cancel, ctrl: ctrl}
+	// 会话 ctx 与句柄共享同一个 cancel:「停止」按钮调用它即可终止整场会话,
+	// 包括失败重试的等待期;单次尝试的超时在循环内按剩余进度单独计算。
+	runCtx, runCancel := context.WithCancel(s.ctx)
+	s.farms[vid] = &farmSessionHandle{cancel: runCancel, ctrl: ctrl}
 	s.farmWG.Add(1)
 	s.farmMu.Unlock()
 
@@ -164,7 +165,7 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 		s.farmMu.Lock()
 		delete(s.farms, vid)
 		s.farmMu.Unlock()
-		cancel()
+		runCancel()
 		s.farmWG.Done()
 		return fmt.Errorf("保存阅读任务状态失败: %w", err)
 	}
@@ -177,17 +178,40 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 			s.farmMu.Lock()
 			delete(s.farms, vid)
 			s.farmMu.Unlock()
-			cancel()
+			runCancel()
 		}()
 
 		// 會話中途輪換的憑據已由 client.OnRefresh 即時落庫。
-		result, _, err := s.client.FarmSession(sessCtx, creds, task, func(done, total int, msg string) {
-			// 断点与日志每次心跳(30 秒)记一条,粒度 0.5 分钟。
-			if err := store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total}); err != nil {
-				s.logf("error", "farm", vid, "阅读进度保存失败: %v", err)
+		// 会话失败(网络等)自动重试:间隔 5 分钟,最多 2 次,重试期间不打扰推送;
+		// 中断(服务端中途拒绝)可能是风控信号,不重试,保留进度交用户处理。
+		const maxRetries = 2
+		var result *weread.FarmResult
+		var err error
+		retries := 0
+		for {
+			attemptCtx, attemptCancel := context.WithTimeout(runCtx, time.Duration(task.Total-task.Done+10)*time.Minute)
+			result, _, err = s.client.FarmSession(attemptCtx, creds, task, func(done, total int, msg string) {
+				// 断点与日志每次心跳(30 秒)记一条,粒度 0.5 分钟。
+				if err := store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total}); err != nil {
+					s.logf("error", "farm", vid, "阅读进度保存失败: %v", err)
+				}
+				s.logf("info", "farm", vid, "正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2)
+			}, ctrl)
+			attemptCancel()
+			if err == nil || retries >= maxRetries || ctrl.Stopped() || runCtx.Err() != nil {
+				break
 			}
-			s.logf("info", "farm", vid, "正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2)
-		}, ctrl)
+			retries++
+			task.Done = result.Done // 保留已记录进度续跑
+			note := fmt.Sprintf("%s会话失败(%s),5 分钟后第 %d/%d 次重试", book, err, retries, maxRetries)
+			s.logf("warn", "farm", vid, "%s", note)
+			_ = store.SaveReadingRunState(s.db, vid, today, note, &store.RunProgress{BookID: task.BookID, Done: task.Done, Total: task.Total})
+			select {
+			case <-runCtx.Done():
+				// 等待期间被停止或服务退出:交由下方既有分支收尾。
+			case <-time.After(5 * time.Minute):
+			}
+		}
 		minutesText := fmt.Sprintf("%.1f 分钟", float64(result.Done)*0.5)
 		status := fmt.Sprintf("%s完成:阅读 %s", book, minutesText)
 		level := "info"
@@ -196,7 +220,7 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 			status = fmt.Sprintf("%s已停止(已记 %s)", book, minutesText)
 			level = "warn"
 		case err != nil:
-			status = book + "失败:" + err.Error()
+			status = fmt.Sprintf("%s失败(已重试 %d 次):%v", book, retries, err)
 			level = "error"
 		case result.Err != "":
 			status = fmt.Sprintf("%s中断(已记 %s):%s", book, minutesText, result.Err)
@@ -213,12 +237,18 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 		switch {
 		case ctrl.Stopped():
 		case err != nil:
-			s.notifyFarmResult(vid, "error", "阅读会话失败", status)
+			s.notifyFarmResult(vid, "error", "阅读会话失败",
+				fmt.Sprintf("%s自动阅读失败(已重试 %d 次):%v;明日将自动重试", book, retries, err))
 		case result.Err != "":
-			s.notifyFarmResult(vid, "warn", "阅读中断", status)
+			s.notifyFarmResult(vid, "warn", "阅读中断",
+				fmt.Sprintf("%s记录 %s 后中断:%s;进度已保留,可在页面继续", book, minutesText, result.Err))
 		default:
-			s.notifyFarmResult(vid, "info", "今日阅读完成",
-				fmt.Sprintf("%s\n已阅读 %s", s.readingBookTitle(vid, task.BookID), minutesText))
+			body := fmt.Sprintf("%s\n已阅读 %s", s.readingBookTitle(vid, task.BookID), minutesText)
+			// 账号勾选了周奖励偏好时,顺手把本周奖励状态并进同一条推送(一次查询)。
+			if reward := s.weeklyRewardSummary(vid); reward != "" {
+				body += "\n\n本周奖励:\n" + reward
+			}
+			s.notifyFarmResult(vid, "info", "今日阅读完成", body)
 		}
 	}()
 	return nil
