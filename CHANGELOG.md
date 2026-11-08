@@ -1,6 +1,6 @@
 # 更新日志
 
-## [未发布]
+## [v0.4.6] - 2026-11-08
 
 ### 变更
 
@@ -304,6 +304,9 @@
 - 多平台二进制发布(linux/darwin/windows × amd64/arm64)、Docker 多架构镜像、Nix flake 开发环境
 - MIT 许可
 
+[v0.4.6]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.6
+[v0.4.5]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.5
+[v0.4.4]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.4
 [v0.4.3]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.3
 [v0.4.2]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.2
 [v0.4.1]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.1
