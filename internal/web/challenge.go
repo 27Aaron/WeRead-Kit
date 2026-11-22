@@ -177,7 +177,6 @@ func (s *Server) autoJoinChallenges(ctx context.Context) {
 	}
 }
 
-// autoJoinAccount 处理单个账号的一轮检查。
 func (s *Server) autoJoinAccount(ctx context.Context, vid string) {
 	data, _, err := s.weeklyCall(ctx, vid, func(creds *weread.Credentials) (json.RawMessage, error) {
 		return s.client.ChallengeDetail(ctx, creds)
@@ -215,9 +214,9 @@ func (s *Server) autoJoinAccount(ctx context.Context, vid string) {
 	s.notifyFarmResult(vid, "info", "已自动报名 21 天阅读挑战", "检测到没有进行中的官方挑战,已自动报名下一期(免费);勋章与奖励完成后由官方自动发放。")
 }
 
-// pushChallengeDoneAndJoin 在检测到 21 天挑战完成时推送通知;开启自动参与的账号
-// 当场报名下一期,把「完成 + 已报名」合并为一条推送,报名失败时文末注明重试,
-// 由后续调度轮次的常规报名路径补齐。用该期 startTime 去重,同一期只推送一次。
+// pushChallengeDoneAndJoin 检测到 21 天挑战完成时推送通知;开启自动参与的账号
+// 当场报名下一期,「完成 + 已报名」合并为一条推送,报名失败文末注明重试,
+// 由后续常规报名路径补齐。用该期 startTime 去重,同一期只推送一次;
 // 返回 true 表示本轮无需再走常规报名路径。
 func (s *Server) pushChallengeDoneAndJoin(ctx context.Context, vid string, prog weread.ChallengeProgress) bool {
 	key := challengeNotifiedStartKey + vid

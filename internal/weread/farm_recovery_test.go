@@ -51,7 +51,6 @@ func (n *readerTestCalls) transport(t *testing.T) roundTripFunc {
 
 		switch r.URL.Path {
 		case "/web/login/session/init":
-			// 关键:无论凭据是否有效都返回 200 + wr_skey,死 Cookie 正来源于此。
 			n.bridge.Add(1)
 			raw, _ := io.ReadAll(r.Body)
 			var payload struct {
@@ -70,7 +69,6 @@ func (n *readerTestCalls) transport(t *testing.T) roundTripFunc {
 			n.renewal.Add(1)
 			return unauthorized(), nil
 		case "/login":
-			// 移动端刷新接口:正常轮换出可用凭据。
 			n.refresh.Add(1)
 			return ok(`{"vid":"v1","accessToken":"fresh-access","refreshToken":"fresh-refresh"}`, nil), nil
 		case "/web/book/chapterInfos":
@@ -94,10 +92,9 @@ func (n *readerTestCalls) transport(t *testing.T) roundTripFunc {
 	}
 }
 
-// TestFarmSessionRecoversFromExpiredCredentialsAtStartup 复现「启动瞬间凭据已失效」:
-// 移动端凭据在会话启动时已经过期(预热失败或隔夜失效时会真实发生),而桥接接口对过期凭据
-// 同样返回成功,于是第一级续期只能拿到死 Cookie。修复前 FarmSession 会立即以
-// 「会话已过期」结束;修复后应刷新凭据、重新桥接并正常读完。
+// TestFarmSessionRecoversFromExpiredCredentialsAtStartup 复现「启动瞬间凭据已失效」
+// (预热失败或隔夜失效时会真实发生):桥接对过期凭据同样返回成功,第一级续期只拿到
+// 死 Cookie,修复前 FarmSession 会立即以「会话已过期」结束。背景详见 initReader 注释。
 func TestFarmSessionRecoversFromExpiredCredentialsAtStartup(t *testing.T) {
 	var calls readerTestCalls
 	client := NewClient()
@@ -124,8 +121,8 @@ func TestFarmSessionRecoversFromExpiredCredentialsAtStartup(t *testing.T) {
 	}
 }
 
-// TestFarmSessionKeepsCredentialsWhenSessionIsAlive 保证恢复逻辑只在必要时介入:
-// 凭据有效时不应触发任何续期,避免无谓的 refreshToken 轮换。
+// TestFarmSessionKeepsCredentialsWhenSessionIsAlive 凭据有效时不应触发任何续期,
+// 避免无谓的 refreshToken 轮换。
 func TestFarmSessionKeepsCredentialsWhenSessionIsAlive(t *testing.T) {
 	var calls readerTestCalls
 	client := NewClient()

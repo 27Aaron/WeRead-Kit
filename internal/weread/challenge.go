@@ -18,7 +18,7 @@ const ChallengeLongTermFree = "ChallengeLongTermFree"
 var ErrChallengeAlreadyJoined = errors.New("已参与官方挑战赛")
 
 // ChallengeDetail 查询官方阅读挑战的当前进度详情(报名中的那一场)。
-// version=v3 返回 challengeList 数组,未报名时为空数组,由调用方自行判断;
+// version=v3 返回 challengeList 数组,未报名时为空;
 // 早前用的 scene=1 实为签到接口,数据恒为空壳,已弃用。
 // 会话过期返回 ErrSessionExpired,由调用方续期后重试。
 func (c *Client) ChallengeDetail(ctx context.Context, creds *Credentials) (json.RawMessage, error) {
@@ -43,7 +43,6 @@ func (c *Client) ChallengeDetail(ctx context.Context, creds *Credentials) (json.
 }
 
 // ChallengeList 列出官方挑战赛的可参与项目。
-// 注意:列表只包含付费挑战;免费的 21 天挑战用 ChallengeLongTermFree 直接报名。
 // 会话过期返回 ErrSessionExpired,由调用方续期后重试。
 func (c *Client) ChallengeList(ctx context.Context, creds *Credentials) (json.RawMessage, error) {
 	headers := versionHeaders()
@@ -137,7 +136,7 @@ func joinErrcode(data []byte) (code, msg string) {
 
 // 挑战状态枚举(detail 响应的 status 字段,与 App 端 ChallengeStatus 对应)。
 const (
-	ChallengeStatusNone        = 0 // 未报名
+	ChallengeStatusNone       = 0 // 未报名
 	ChallengeStatusInProgress = 1 // 进行中
 	ChallengeStatusSucceeded  = 2 // 已完成
 	ChallengeStatusFailed     = 3 // 已失败/已结束

@@ -85,7 +85,6 @@ function iconSvg(name) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 }
 
-// 把静态 HTML 里 data-icon 占位替换为 SVG 图标。
 function renderIcons(root = document) {
   root.querySelectorAll("[data-icon]").forEach((el) => {
     el.innerHTML = iconSvg(el.dataset.icon);
@@ -117,26 +116,26 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-// 异步操作期间禁用按钮并显示加载指示，避免重复提交时界面毫无反馈。
+// 异步操作期间禁用按钮并显示加载态，避免重复提交毫无反馈。
 function setBusy(btn, busy) {
   if (!btn) return;
   btn.disabled = busy;
   btn.classList.toggle("loading", busy);
 }
 
-// 加载占位骨架：屏幕阅读器仍读到"正在加载"，视觉上是脉冲色块，等待期间布局不跳动。
+// 加载占位骨架:屏幕阅读器仍读到"正在加载"，等待期间布局不跳动。
 function skeletonHTML(lines = 3) {
   const rows = Array.from({ length: lines }, () => '<div class="skeleton-line" aria-hidden="true"></div>').join("");
   return `<div class="skeleton-lines"><span class="sr-only" role="status">正在加载…</span>${rows}</div>`;
 }
 
-// 卡片形状的骨架：高度贴近真实卡片，加载完成时下方内容不发生跳动。
+// 卡片形状的骨架:高度贴近真实卡片。
 function skeletonCardsHTML(count, height, cover = false) {
   const cards = Array.from({ length: count }, () => `<div class="skeleton-card" style="height:${height}px" aria-hidden="true"></div>`).join("");
   return `<div class="skeleton-cards${cover ? " covers" : ""}"><span class="sr-only" role="status">正在加载…</span>${cards}</div>`;
 }
 
-// 自定义确认框：返回 Promise<boolean>，替代原生 confirm，与界面风格保持一致。
+// 自定义确认框替代原生 confirm，与界面风格保持一致。
 function confirmAction({ title = "确认操作", message = "", confirmText = "确定", danger = true } = {}) {
   return new Promise((resolve) => {
     const dlg = $("#confirm-dialog");
@@ -194,8 +193,8 @@ $("#nav-toggle").addEventListener("click", () => {
 
 /* ---------- 自绘下拉 ---------- */
 
-// 用自绘弹层替换原生 select:select 本体隐藏但仍保存值、派发 change,
-// 选项被外部重建时自动刷新弹层与按钮文案。
+// 自绘弹层替换原生 select:本体隐藏但仍保存值、派发 change,
+// 选项被外部重建时自动刷新弹层与文案。
 function enhanceSelect(sel) {
   if (sel.dataset.dd) return;
   sel.dataset.dd = "1";
@@ -279,7 +278,7 @@ function enhanceSelect(sel) {
   toggle.addEventListener("keydown", (e) => {
     if (["Enter", " ", "ArrowDown"].includes(e.key)) { e.preventDefault(); open(); }
   });
-  // 外部代码程序化设置 sel.value 后派发 change，即可同步按钮文案。
+  // 程序化设置 sel.value 后派发 change，即可同步按钮文案。
   sel.addEventListener("change", sync);
   document.addEventListener("click", (e) => {
     if (!dd.contains(e.target)) close();
@@ -294,7 +293,6 @@ function enhanceSelect(sel) {
   renderMenu();
 }
 
-// 开始时间下拉：30 分钟一档
 const runatSel = $("#challenge-runat-input");
 for (let h = 0; h < 24; h++) {
   for (const m of [0, 30]) {
@@ -395,7 +393,7 @@ function renderAccounts() {
   );
   $("#account-count").textContent = accounts.length;
   $("#account-count-label").textContent = query ? "搜索结果" : "全部账号";
-  // 无账号时的空态由 #empty 承载：未添加任何账号，或搜索无匹配
+  // 空态由 #empty 承载:无账号或搜索无匹配
   $("#empty").classList.toggle("hidden", accounts.length > 0);
   if (!accounts.length && query) {
     $("#empty-title").textContent = `没有找到「${query}」`;
@@ -411,7 +409,6 @@ function renderAccounts() {
     const row = document.createElement("div");
     row.className = "account-row";
 
-    // 头像：优先微信头像，否则取显示名首字
     const avatar = document.createElement("div");
     avatar.className = "avatar";
     if (a.avatar) {
@@ -424,7 +421,6 @@ function renderAccounts() {
       avatar.textContent = Array.from(displayName(a))[0] || "读";
     }
 
-    // 信息列：可编辑昵称/备注 + 别名与 ID
     const info = document.createElement("div");
     info.className = "account-info";
     const name = document.createElement("input");
@@ -460,7 +456,6 @@ function renderAccounts() {
     info.append(name, sub);
     row.append(avatar, info);
 
-    // 凭据状态 + 上次刷新时间
     const cred = document.createElement("div");
     cred.className = "account-meta";
     const badge = document.createElement("span");
@@ -472,7 +467,6 @@ function renderAccounts() {
     rotated.textContent = fmtTime(a.rotated_at);
     cred.append(badge, rotated);
 
-    // 操作：详情 / 刷新 / 删除
     const ops = document.createElement("div");
     ops.className = "ops";
     const detailBtn = button("详情", "btn", () => showDetails(a));
@@ -508,7 +502,7 @@ function renderAccounts() {
     ops.append(detailBtn, refreshBtn, delBtn);
 
     row.append(cred, ops);
-    // 让操作区最右侧：info 占满剩余宽度
+    // info 占满剩余宽度,操作区靠右
     info.style.flex = "1";
     list.append(row);
   }
@@ -537,7 +531,7 @@ function stopLoginPolling() {
   }
 }
 
-// 關閉彈窗或換新 QR 碼時通知後端結束舊會話，避免它繼續長輪詢微信 5 分鐘。
+// 关闭弹窗或换新二维码时通知后端结束旧会话,避免后端继续长轮询微信 5 分钟。
 function cancelLoginSession() {
   if (!loginId) return;
   fetch(`/api/login/${encodeURIComponent(loginId)}`, { method: "DELETE" }).catch(() => {});
@@ -556,9 +550,9 @@ const loginStatusText = {
 
 function setLoginStatus(status, errMsg) {
   const el = $("#login-status");
-  // 注意用 in 判断：某些状态的文案就是空串，不能用真值回退，否则状态码会漏到界面。
+  // 用 in 判断:部分状态的文案就是空串,真值回退会让状态码漏到界面。
   const label = status in loginStatusText ? loginStatusText[status] : status;
-  // 错误详情与状态文案相同时只展示一次，避免重复。
+  // 错误详情与状态文案重复时只展示一次。
   const duplicated = !errMsg || errMsg === label || label.includes(errMsg) || errMsg.includes(label);
   el.textContent = duplicated ? label : `${label}:${errMsg}`;
   el.className = "status" + (status === "success" ? " ok" : ["expired", "declined", "error", "canceled"].includes(status) ? " err" : "");
@@ -589,7 +583,6 @@ async function startLogin() {
     loginId = data.id;
     $("#qr-area").classList.remove("hidden");
     $("#qr-img").src = `${data.qr_url}?t=${Date.now()}`;
-    // 二维码已就绪，按钮常驻底部，随时可刷新换新码
     $("#login-start").disabled = false;
     setStartBtnText("刷新二维码");
     setLoginStatus("pending");
@@ -632,7 +625,7 @@ async function pollLogin(generation) {
 function openLogin() {
   resetLoginUI();
   $("#login-dialog").showModal();
-  startLogin(); // 打开弹窗即自动生成二维码
+  startLogin();
 }
 
 $("#add-btn").addEventListener("click", openLogin);
@@ -703,7 +696,7 @@ function detailSection(title, el) {
   return sec;
 }
 
-// 微信读书接口返回有的把对象包在子字段里，有的直接平铺，这里做兼容。
+// 微信读书接口有的把对象包在子字段里，有的直接平铺，此处做兼容。
 function nested(obj, ...keys) {
   if (!obj || typeof obj !== "object") return null;
   for (const k of keys) {
@@ -752,7 +745,7 @@ function userCard(u) {
   return wrap;
 }
 
-// 会员卡只展示对用户有意义的四项，其余接口字段一律不展示。
+// 会员卡只展示对用户有意义的四项，其余接口字段不展示。
 function memberCardBlock(c) {
   return kvListEl([
     ["起始日期", fmtDay(c.startTime)],
@@ -798,9 +791,9 @@ $("#detail-reload").addEventListener("click", () => showDetails(detailAccount, t
 /* ---------- 阅读挑战 ---------- */
 
 let challengeAlias = null;
-// 当前已渲染书架的账号:同账号重进保留旧内容避免骨架屏闪烁;换账号才重新显示骨架。
+// 已渲染书架的账号:同账号重进保留旧内容,换账号才显示骨架,避免闪烁。
 let challengeRenderedFor = null;
-// 当前已渲染官方挑战面板的账号,语义同上。
+// 已渲染官方挑战面板的账号,语义同上。
 let officialRenderedFor = null;
 let challengeBooks = [];
 const challengePicked = new Set();
@@ -814,7 +807,6 @@ async function openChallenge() {
   const sel = $("#challenge-account");
   sel.textContent = "";
   if (!accounts.length) {
-    // 一个账号都没有：隐藏整个配置面板，只显示引导
     $("#challenge-panel").classList.add("hidden");
     $("#official-challenge-wrap").hidden = true;
     $("#challenge-empty").classList.remove("hidden");
@@ -843,12 +835,11 @@ async function openChallenge() {
 async function loadChallenge() {
   if (!challengeAlias) return;
   const vid = challengeAlias;
-  // 同账号重进保留旧书架,数据到达后原位替换;换账号才显示骨架屏。
   if (challengeRenderedFor !== vid) {
     $("#challenge-books").innerHTML = skeletonCardsHTML(18, 190, true);
   }
   try {
-    // GET details 走本地缓存，瞬时返回；书架与阅读配置一次拿全。
+    // GET details 走本地缓存,书架与阅读配置一次拿全。
     const d = await api(`/api/accounts/${encodeURIComponent(vid)}/details`);
     if (vid !== challengeAlias) return; // 等待期间账号已切换,丢弃旧响应
     challengeRenderedFor = vid;
@@ -869,8 +860,7 @@ async function loadOfficialChallenge() {
   const vid = challengeAlias;
   if (!vid) return;
   const wrap = $("#official-challenge-wrap");
-  // 加载期间保持隐藏:未参加挑战时面板最终不展示,先渲染骨架再隐藏会让页面抖动一下。
-  // 同账号重进时保留已渲染面板,数据到达后原位替换,避免面板闪现。
+  // 同账号重进时保留已渲染面板,数据到达后原位替换。
   if (officialRenderedFor !== vid) {
     wrap.hidden = true;
     wrap.textContent = "";
@@ -878,17 +868,17 @@ async function loadOfficialChallenge() {
   try {
     const d = await api(`/api/accounts/${encodeURIComponent(vid)}/challenge`);
     if (vid !== challengeAlias) return; // 等待期间账号已切换,丢弃旧响应
-    // challengeList 携带账号参与的全部官方挑战;历史战绩并行拉取,互不阻塞。
+    // challengeList 携带全部官方挑战;历史战绩独立拉取,失败不阻塞主面板。
     const h = await api(`/api/accounts/${encodeURIComponent(vid)}/challenge/history`).catch(() => null);
     officialRenderedFor = vid;
     renderOfficialChallenge(((d.challenge || {}).challengeList || []), !!d.auto_join, h);
   } catch (err) {
-    // 面板属于辅助信息,首次加载失败时保持隐藏避免布局跳动;详情留给控制台。
+    // 面板属辅助信息,首次加载失败保持隐藏;详情留给控制台。
     console.warn("官方挑战进度加载失败:", err.message);
   }
 }
 
-// 自动参与下一期:开关落库由调度器执行,失败时回滚勾选状态。
+// 自动参与下一期:开关只落库,执行由调度器负责;失败时回滚勾选。
 function wireAutoJoinSwitch() {
   const el = $("#challenge-auto-join");
   if (!el) return;
@@ -914,11 +904,10 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
   // 只展示有效挑战:id/status 齐全的才是真实参与记录,其余是官方接口的报名占位。
   const active = challengeList.filter((c) => c.id && c.status);
   if (!active.length) {
-    // 一个进行中的官方挑战都没有:整个区域不展示。
     wrap.hidden = true;
     return;
   }
-  // 往期战绩:默认只显示最近一条,其余折叠进可滚动的展开区,避免长列表撑爆面板。
+  // 往期战绩默认只显示最近一条,其余折叠,避免长列表撑爆面板。
   const pastRows = (historyData && historyData.history && historyData.history.challenges) || [];
   const pastRowHtml = (h) => `<p>${fmtDay(h.startTime)} — ${fmtDay(h.endTime)} · ${h.challengeDay} 天 · <b class="${h.status === 2 ? "ok" : "dim"}">${h.status === 2 ? "挑战成功" : "未完成"}</b></p>`;
   const historyRow = pastRows.length
@@ -931,7 +920,7 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
           ${pastRows.length > 1 ? `<div class="challenge-history-more" hidden>${pastRows.slice(1).map(pastRowHtml).join("")}</div>` : ""}
         </div></div>`
     : "";
-  // 展开按钮拼在最后一个面板里,统一在这里接事件。
+  // 展开按钮统一在这里接事件。
   const wireHistoryToggle = () => {
     const toggle = wrap.querySelector(".challenge-history-toggle");
     if (!toggle) return;
@@ -944,7 +933,7 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
       toggle.textContent = open ? "收起" : `展开全部 ${pastRows.length} 条`;
     });
   };
-  // 自动参与开关(账号级):无论几个挑战都只渲染一次,放在最后一个面板尾部。
+  // 自动参与开关(账号级)只渲染一次,放在最后一个面板尾部。
   const autoRow = `
       <label class="challenge-auto-row">
         <input type="checkbox" id="challenge-auto-join"${autoJoin ? " checked" : ""}>
@@ -952,14 +941,14 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
       </label>`;
   const statusText = (c) => (c.status === 1 ? "进行中" : c.status === 2 ? "已完成" : "已结束");
 
-  // 长周期在前:365 天挑战排上面,21 天排下面。
+  // 长周期在前。
   const ordered = [...active].sort((a, b) => ((b.challenge || {}).challengeDay || 0) - ((a.challenge || {}).challengeDay || 0));
-  // 往期战绩与自动参与下一期都是 21 天挑战专属,挂在对应 section;列表里没有 21 天时挂第一个。
+  // 往期战绩与自动参与开关是 21 天挑战专属;列表里没有 21 天时挂第一个 section。
   const sharedIndex = Math.max(0, ordered.findIndex((c) => c.id === "ChallengeLongTermFree"));
   const badge = ordered.some((c) => c.status === 1) ? "进行中" : statusText(ordered[0]);
 
   wrap.textContent = "";
-  // 全部官方挑战合并进一个面板,section 按周期天数升序堆叠,分隔线隔开。
+  // 全部官方挑战合并进一个面板,分隔线隔开。
   const panel = document.createElement("div");
   panel.className = "panel official-challenge-panel";
   const R = 52;
@@ -1048,9 +1037,9 @@ function renderChallenge(d) {
     runatInput.dispatchEvent(new Event("change"));
   }
   $("#challenge-minutes-input").value = cfg.minutes || 30;
-  // 「当天已读过就跳过」开关:服务端未存过该值时回显 true(默认开启),仅旧数据缺失字段时按默认勾选。
+  // 「当天已读过就跳过」开关:服务端未存过该值时按默认(开启)勾选。
   $("#challenge-skip-if-read").checked = cfg.skip_if_read !== false;
-  // running 是服務端行程內狀態，不在閱讀設定裡；進行中的會話（含排程器觸發的）開啟頁面即開始追蹤進度。
+  // running 是服务端进程内状态,不在阅读配置里;进行中的会话(含调度器触发的)打开页面即开始追踪进度。
   updateChallengeButtons(!!d.running);
   if (d.running) startChallengePolling(challengeAlias);
   else stopChallengePolling();
@@ -1176,8 +1165,8 @@ function stopChallengePolling() {
   }
 }
 
-// 輪詢綁定發起時的帳號：切換帳號或離開頁面即停止，避免把 A 帳號的狀態渲染到 B 帳號上。
-// 會話最長 8 小時，不設輪詢次數上限；分頁隱藏時略過請求。
+// 轮询绑定发起账号:切账号或离开页面即停,避免状态串到别的账号。
+// 会话最长 8 小时,不设轮询次数上限;分页隐藏时跳过请求。
 function startChallengePolling(vid) {
   stopChallengePolling();
   challengeRunTimer = setInterval(async () => {
@@ -1190,7 +1179,6 @@ function startChallengePolling(vid) {
       const cfg = await api(`/api/accounts/${encodeURIComponent(vid)}/reading`);
       if (vid !== challengeAlias) return;
       updateChallengeButtons(!!cfg.running);
-      // 会话是否结束以 running 为准；结束后按钮回到「立即执行」。
       $("#challenge-laststatus").textContent = cfg.last_status || (cfg.running ? "阅读中…" : "已结束");
       if (!cfg.running) stopChallengePolling();
     } catch { /* 单次轮询失败忽略 */ }
@@ -1222,13 +1210,13 @@ $("#challenge-goto-accounts").addEventListener("click", () => {
 /* ---------- 我的阅读（周阅读奖励） ---------- */
 
 let readingAlias = null;
-// 最近一次手动选择的账号:阅读页与挑战页共用,切页面时互相跟随,不再各自回到第一个账号。
+// 最近一次手动选择的账号:阅读页与挑战页共用,切页面互相跟随。
 let pickedAlias = null;
 let readingData = null;
 let readingCard = null;
 let readingPrefs = {};
 let weeklyRequest = 0;
-// 当前已渲染数据的账号:同账号重进/刷新时保留旧内容,数据到达后原位替换,避免骨架屏闪烁。
+// 已渲染周数据的账号,语义同 challengeRenderedFor。
 let weeklyRenderedFor = null;
 
 async function openReading() {
@@ -1258,7 +1246,7 @@ async function openReading() {
 }
 
 function resetWeeklyUI() {
-  // 加载前清空全部动态区域：切换账号后不能残留上一账号的数据。
+  // 加载前清空动态区域,不残留上一账号数据。
   readingData = null;
   readingCard = null;
   readingPrefs = {};
@@ -1276,7 +1264,7 @@ async function loadWeekly() {
   if (!readingAlias) return;
   const request = ++weeklyRequest;
   const vid = readingAlias;
-  // 换账号或尚无数据才清空+骨架;同账号重进保留旧内容,数据到达后原位替换,避免闪烁。
+  // 换账号或尚无数据才清空+骨架。
   const firstLoad = weeklyRenderedFor !== vid;
   if (firstLoad) {
     resetWeeklyUI();
@@ -1306,9 +1294,8 @@ async function loadWeekly() {
   }
 }
 
-// 书币余额独立请求,失败只影响这一张卡,不阻塞奖励面板。
-// vid 与 request 在发起时捕获,配合 weeklyRequest 计数器防止切换账号后旧响应落卡;
-// 静默刷新(同账号重进)失败时保留旧值,不打扰。
+// 书币余额独立请求,失败不阻塞奖励面板;vid 与 request 在发起时捕获,
+// 防止切换账号后旧响应落卡;静默刷新失败时保留旧值。
 async function loadBalance(vid, request, firstLoad) {
   try {
     const b = await api(`/api/accounts/${encodeURIComponent(vid)}/balance`);
@@ -1322,7 +1309,6 @@ async function loadBalance(vid, request, firstLoad) {
   }
 }
 
-// 秒数 → 「X 小时 Y 分钟」；不足 1 分钟按秒展示。
 function fmtDuration(sec) {
   sec = Math.max(0, Math.floor(sec || 0));
   if (sec === 0) return "0 分钟";
@@ -1343,8 +1329,8 @@ function parseLevelGoal(desc) {
   return {};
 }
 
-// 奖品描述：优先用档位的 awardChoices 自行拼接（统一叫体验卡）,
-// 没有明细时退回服务端原文并把"无限卡"替换为"体验卡"。
+// 奖品描述:优先用 awardChoices 拼接(统一叫体验卡),无明细时用服务端原文
+// 并把"无限卡"替换为"体验卡"。
 function choicesDesc(a) {
   const choices = a.awardChoices || [];
   if (choices.length) {
@@ -1379,8 +1365,7 @@ function weeklyCard(a, weekly, prefs) {
   desc.textContent = choicesDesc(a);
   card.append(desc);
 
-  // 进度条：时长奖励按本周秒数，天数奖励按本周天数；右侧标注当前进度。
-  // 达成/已领取的档位进度条保持 100% 展示。
+  // 进度条:时长奖励按本周秒数,天数奖励按本周天数,封顶 100%。
   if (goal.seconds || goal.days) {
     const done = goal.seconds ? weekly.readingTime : weekly.readingDay;
     const need = goal.seconds || goal.days;
@@ -1389,7 +1374,6 @@ function weeklyCard(a, weekly, prefs) {
       ? `${Math.floor(done / 60)} / ${need / 60} 分钟`
       : `${done} / ${need} 天`;
     if (goal.seconds && need >= 3600) {
-      // 小时档位用小时计（"1 / 3 小时")，分钟档位用分钟计。
       label = `${Math.round((done / 3600) * 10) / 10} / ${need / 3600} 小时`;
     }
     const row = document.createElement("div");
@@ -1402,8 +1386,8 @@ function weeklyCard(a, weekly, prefs) {
     card.append(row);
   }
 
-  // 双按钮：书币 / 体验卡。任何时候都可点击 —— 点击保存每周的自动领取设置，
-  // 设置写入数据库；若当前正好可领取，保存后立即领取一次。选中项以描边色标识。
+  // 双按钮:书币 / 体验卡,点击保存每周的自动领取设置(写入数据库)。
+  // 选中项以描边色标识。
   const actions = document.createElement("div");
   actions.className = "reward-actions";
   for (const c of a.awardChoices || []) {
@@ -1418,8 +1402,7 @@ function weeklyCard(a, weekly, prefs) {
       btn.classList.add("claimable");
       btn.textContent = `${name} ${val}`;
     } else {
-      // 选中描边由保存的设置决定，与本周是否领取过无关：已领取的档位换选另
-      // 一种后，描边移动到新选项上，表示下周起自动领取它。
+      // 描边由保存的设置决定,与本周领取与否无关;换选后移到新选项,表示下周起自动领取它。
       const selected = prefChoice === c.choiceType;
       const claimedThisWeek = claimed && a.awardChooseType === c.choiceType;
       btn.classList.add(selected ? "selected" : "plain");
@@ -1437,8 +1420,7 @@ function weeklyCard(a, weekly, prefs) {
   return card;
 }
 
-// 把本周每日阅读秒数渲染成迷你柱状图：柱高是当天时长，柱下标注星期，
-// 今天用强调色标出。每根柱子可聚焦，悬停或键盘聚焦时显示具体时长。
+// 本周每日阅读秒数渲染成迷你柱状图;柱子可聚焦,悬停或键盘聚焦时显示具体时长。
 // readDays 为周一到周日 7 项。
 function renderWeekBars(root, readDays) {
   const labels = ["一", "二", "三", "四", "五", "六", "日"];
@@ -1450,7 +1432,7 @@ function renderWeekBars(root, readDays) {
     return;
   }
   const max = Math.max(...days, 1);
-  // 仅当拿到完整一周时才能把下标当作星期；今天是周几（0=周一）。
+  // 仅拿到完整一周时才能把下标当作星期;今天为周几(0=周一)。
   const today = days.length === labels.length ? (new Date().getDay() + 6) % 7 : -1;
   const bars = document.createElement("div");
   bars.className = "week-bars";
@@ -1484,8 +1466,7 @@ function renderWeekly() {
   $("#reading-stat-month").textContent = fmtDuration((w.monthReadDaysDetail || {}).readTimes);
   const monthDays = ((w.monthReadDaysDetail || {}).readDays || []).filter((s) => s > 0).length;
   $("#reading-stat-month-detail").textContent = `本月有 ${monthDays} 天读过`;
-  // 无限卡剩余天数以详情缓存的会员卡信息为准（官方 memberCardSummary 接口）,
-  // weekly 里的 infiniteCard 字段不反映真实余额，仅作兜底。
+  // 无限卡剩余天数以详情缓存的会员卡信息为准;weekly 的 infiniteCard 不反映真实余额,仅兜底。
   const mc = readingCard || {};
   const ic = w.infiniteCard || {};
   if (mc.has) {
@@ -1499,7 +1480,6 @@ function renderWeekly() {
     $("#reading-stat-card-sub").textContent = "还没有可用的体验卡";
   }
 
-  // 时长奖励按档位秒数从小到大排序，天数奖励同理。
   const byGoal = (a, b) => {
     const ga = parseLevelGoal(a.awardLevelDesc) || {};
     const gb = parseLevelGoal(b.awardLevelDesc) || {};
@@ -1604,7 +1584,7 @@ async function loadLogs(silent = false) {
   try {
     const logs = await api(`/api/logs?${params}`);
     $("#logs-updated").textContent = `更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
-    // 自動刷新時內容沒變就不重建 200 列 DOM，也不打斷使用者的捲動位置。
+    // 自动刷新时内容没变就不重建 200 条 DOM,也不打断用户滚动位置。
     const key = `${params}|${logs.length}|${logs[0]?.id ?? ""}`;
     if (silent && key === logsRenderedKey) return;
     logsRenderedKey = key;
@@ -1716,7 +1696,6 @@ async function loadPushChannels() {
     desc.textContent = meta.desc;
     info.append(name, desc);
 
-    // 开关：切换即保存
     const sw = document.createElement("label");
     sw.className = "switch";
     const swInput = document.createElement("input");

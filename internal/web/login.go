@@ -17,8 +17,7 @@ import (
 // 并给前端足够时间读到最终状态。
 const sessionTTL = 15 * time.Minute
 
-// loginSession 表示一次进行中的扫码登录。
-// 扫码前不知道账号身份,确认后按 creds.Vid 定位账号。
+// loginSession 表示一次进行中的扫码登录;扫码前不知道账号身份,确认后按 creds.Vid 定位账号。
 type loginSession struct {
 	confirmURL string
 	status     string // pending | scanned | success | expired | declined | canceled | error
@@ -187,7 +186,7 @@ func (m *loginManager) warmDetails(record *store.Credential) {
 	persistDetails(m.db, record.Vid, d)
 }
 
-// cancel 終止一次掃碼登入:使用者關閉彈窗或換新 QR 碼後,舊會話不必再長輪詢微信。
+// cancel 终止一次扫码登录:用户关闭弹窗或换新 QR 码后,旧会话不必再长轮询微信。
 func (m *loginManager) cancel(id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -196,7 +195,7 @@ func (m *loginManager) cancel(id string) {
 	}
 }
 
-// gc 清理逾時會話,釋放記憶體並取消仍在輪詢的 goroutine。
+// gc 清理超时会话,释放内存并取消仍在轮询的 goroutine。
 func (m *loginManager) gc() {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -58,7 +58,7 @@ func syncProfile(ctx context.Context, db *sql.DB, client *weread.Client, c *stor
 		}
 		return cookie, nil
 	}
-	// 續期結果由 client.OnRefresh 落庫,這裡只需換用新憑據。
+	// 续期结果由 client.OnRefresh 落库,这里只需换用新凭据。
 	refresh := func() error {
 		next, err := client.Refresh(ctx, creds)
 		if err != nil {

@@ -1,6 +1,5 @@
 // 网页版阅读上报协议:POST /web/book/read。
-// 签名算法(sg/s)与 appId 生成规则复刻微信读书网页前端,已与社区参考实现逐字对齐;
-// 常量与算法须与前端保持一致,不可改动。
+// 签名算法(sg/s)与 appId 生成规则复刻微信读书网页前端,已与社区参考实现逐字对齐,不可改动。
 package weread
 
 import (
@@ -19,8 +18,8 @@ import (
 	"time"
 )
 
-// readSignatureKey 是当前网页接口仍兼容的固定 sg 盐。部分响应会返回
-// readerToken，优先使用 token；旧版/实际接口只返回 succ/synckey 时使用此盐。
+// readSignatureKey 是当前网页接口仍兼容的固定 sg 盐(线上实测已验证):常见响应为
+// {succ:1,synckey:...},不回传 readerToken,此时用它兜底;有 readerToken 时优先用 token。
 const readSignatureKey = "3c5c8717f3daf09iop3423zafeqoi"
 
 // ReaderSession 是一次网页版阅读会话。
@@ -192,8 +191,6 @@ func (c *Client) readInit(ctx context.Context, cookie, bookID string, chapterUID
 		if err := checkBusinessCode(data); err != nil {
 			return nil, err
 		}
-		// 线上 /web/book/read 常见响应为 {succ:1,synckey:...}，
-		// 并不回传 readerToken。保留已验证的固定盐兼容这类响应。
 		var okResp struct {
 			Succ    json.RawMessage `json:"succ"`
 			Synckey json.RawMessage `json:"synckey"`
@@ -244,7 +241,7 @@ func (c *Client) readHeartbeat(ctx context.Context, cookie string, session *Read
 	_, hasSucc := resp["succ"]
 	_, hasSyncKey := resp["synckey"]
 	if !hasSucc && !hasSyncKey {
-		// 既没有 succ 也没有 synckey:大概率会话失效,交给上层续期重试。
+		// 大概率会话失效:交给上层续期重试。
 		var envelope struct {
 			ErrCode json.Number `json:"errCode"`
 			ErrMsg  string      `json:"errMsg"`

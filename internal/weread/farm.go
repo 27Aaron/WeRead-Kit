@@ -77,14 +77,13 @@ func NewFarmTask(bookIDs []string, minutes int) FarmTask {
 
 // FarmSession 执行一次阅读会话:从 bookIDs 随机选一本,阅读 minutes 分钟。
 // 会话中途 Cookie 失效会自动续期(重新桥接;必要时刷新移动端凭据)继续刷。
-// 回傳的 next 是會話結束時使用的憑據;中途輪換已在刷新當下經 OnRefresh 持久化。
+// 返回的 next 是会话结束时使用的凭据;中途轮换已在刷新当下经 OnRefresh 持久化。
 // ctrl 可为 nil(如 CLI 场景);非 nil 时可由外部标记停止。
 func (c *Client) FarmSession(ctx context.Context, creds *Credentials, task FarmTask, onProgress FarmProgress, ctrl *FarmControl) (*FarmResult, *Credentials, error) {
 	if task.BookID == "" {
 		return &FarmResult{Done: task.Done, Total: task.Total}, nil, errors.New("未选择要阅读的书籍")
 	}
 	if task.Total <= task.Done {
-		// 续跑时发现已刷满,直接返回完成状态。
 		return &FarmResult{BookID: task.BookID, Done: task.Done, Total: task.Total}, nil, nil
 	}
 	result := &FarmResult{BookID: task.BookID, Done: task.Done, Total: task.Total}
@@ -272,11 +271,10 @@ func (c *Client) refreshAndBridge(ctx context.Context, active *Credentials) (str
 // initReader 建立阅读会话;失败时按「续期现有 Cookie → 刷新移动端凭据重新桥接」两级恢复,
 // 返回的凭据可能已被轮换,调用方须继续沿用。
 //
-// 为什么需要第二级:桥接接口 /web/login/session/init 对**已过期**的移动端凭据同样会返回
-// 成功并下发格式正确的 Cookie(线上实测如此),于是第一级 renewSession 拿到的只是一个
-// 「桥接成功、后续鉴权必然被拒」的死 Cookie,重试 readInit 仍报会话过期。心跳路径已由
-// readWithRecovery 覆盖了这一点,启动路径此前只有第一级,导致「启动瞬间凭据恰好已失效」时
-// 阅读会话初始化会立即以「会话已过期」结束(实测:数秒内失败,且凭据未被轮换)。
+// 需要第二级的原因:桥接接口 /web/login/session/init 对已过期的移动端凭据同样返回成功
+// 并下发格式正确的 Cookie(线上实测),第一级 renewSession 拿到的只是后续鉴权必然被拒的
+// 死 Cookie。心跳路径已由 readWithRecovery 覆盖;启动路径此前只有第一级,启动瞬间凭据
+// 恰好已失效时会立即以「会话已过期」结束(实测数秒内失败,且凭据未被轮换)。
 func (c *Client) initReader(ctx context.Context, cookie string, active *Credentials, bookID string, chapterUID, offset, percent int) (string, *Credentials, *ReaderSession, error) {
 	reader, err := c.readInit(ctx, cookie, bookID, chapterUID, offset, percent)
 	if err == nil || !errors.Is(err, ErrSessionExpired) {

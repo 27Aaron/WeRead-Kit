@@ -2305,7 +2305,6 @@ main {
 
 /* ---------- 官方挑战赛进度 ---------- */
 
-/* Use panel width, including when the sidebar reduces available space. */
 /* 官方挑战容器不占布局(display:contents),面板直接参与 .view 的间距;
    container 查询挂在每个面板上,窄容器时进度区折叠为单列。 */
 .official-challenge-wrap {
@@ -2506,8 +2505,7 @@ main {
   accent-color: var(--accent);
 }
 
-/* 「我的阅读」页的体验卡活动自动领取开关。 */
-/* 页头小开关:自动领体验卡。紧凑单行,完整说明放在 title 悬浮提示里。 */
+/* 「我的阅读」页头的体验卡活动自动领取开关:紧凑单行,完整说明放在 title 悬浮提示里。 */
 .act-mini {
   display: inline-flex;
   align-items: center;

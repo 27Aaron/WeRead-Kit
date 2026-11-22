@@ -37,11 +37,11 @@ type Server struct {
 	// 避免调度器在同一领取窗口内反复重试被拒的奖品选择(issue #102)。
 	weeklyBlockMu sync.Mutex
 	weeklyBlocks  map[string]string
-	farmWG             sync.WaitGroup
-	closing            bool
-	ctx                context.Context
-	cancel             context.CancelFunc
-	version            versionCache
+	farmWG        sync.WaitGroup
+	closing       bool
+	ctx           context.Context
+	cancel        context.CancelFunc
+	version       versionCache
 }
 
 func New(db *sql.DB) *Server {
@@ -56,8 +56,8 @@ func New(db *sql.DB) *Server {
 	return s
 }
 
-// persistRefreshed 是所有憑據刷新的唯一落庫點:無論刷新發生在閱讀會話、詳情採集
-// 還是獎勵領取中,輪換出的 refreshToken 都立即寫庫,行程隨後崩潰也不會丟會話。
+// persistRefreshed 是所有凭据刷新的唯一落库点:无论刷新发生在阅读会话、详情采集
+// 还是奖励领取中,轮换出的 refreshToken 都立即写库,进程随后崩溃也不会丢会话。
 func (s *Server) persistRefreshed(next *weread.Credentials) {
 	if err := store.UpdateTokens(s.db, next.Vid, next.AccessToken, next.RefreshToken, next.DeviceID); err != nil {
 		s.logf("error", "auth", next.Vid, "续期凭据落库失败: %v", err)

@@ -11,7 +11,7 @@ import (
 	"github.com/27Aaron/weread-kit/internal/store"
 )
 
-// logf 是 Server 内所有组件写日志的统一入口:同时落库与打 stdout。
+// logf 是 Server 内所有组件写日志的统一入口。
 func (s *Server) logf(level, source, vid, format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
 	store.AddLog(s.db, level, source, vid, message)

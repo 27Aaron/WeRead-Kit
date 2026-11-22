@@ -111,8 +111,8 @@ func weeklyStubBody(t *testing.T, seconds int) string {
 	return string(b)
 }
 
-// TestReadingSkipIfReadSetting 校验「当天已读过就跳过」开关:未存过按默认开启
-// (issue #134),POST 显式传入才覆盖,不带该字段的旧客户端不改动已存值。
+// TestReadingSkipIfReadSetting 校验「当天已读过就跳过」开关:未存过按默认开启,
+// POST 显式传入才覆盖,不带该字段的旧客户端不改动已存值。
 func TestReadingSkipIfReadSetting(t *testing.T) {
 	db, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -324,7 +324,6 @@ func TestTickFarmEmptyBookListShelfFailureSkipsDay(t *testing.T) {
 	}
 }
 
-// TestReadingRunEmptyBookListUsesShelf 校验「立即执行」在未选书单时实时拉书架随机选一本。
 func TestReadingRunEmptyBookListUsesShelf(t *testing.T) {
 	s := newReadingServer(t, stubTransport(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path == "/shelf/sync" {

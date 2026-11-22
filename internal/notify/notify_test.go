@@ -48,7 +48,7 @@ func TestSendBarkRejectsHTTPError(t *testing.T) {
 	}
 }
 
-// TestSendErrorDoesNotLeakSecret 保證網路錯誤不把帶密鑰的 URL 寫進錯誤文字(進而寫進日誌)。
+// 回归:错误文字不得包含 URL 里的密钥,避免写进日志。
 func TestSendErrorDoesNotLeakSecret(t *testing.T) {
 	err := Send(t.Context(), TypeBark, map[string]string{
 		"server":     "http://127.0.0.1:1",

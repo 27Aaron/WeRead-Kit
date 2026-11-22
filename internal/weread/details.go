@@ -16,7 +16,7 @@ type Details struct {
 }
 
 // Details 采集用户信息、会员卡与书架。
-// 任一路會話過期時自動用 refreshToken 續期一次;輪換出的憑據經 OnRefresh 持久化。
+// 任一路会话过期时自动用 refreshToken 续期一次;轮换出的凭据经 OnRefresh 持久化。
 func (c *Client) Details(ctx context.Context, creds *Credentials) (*Details, error) {
 	if d, expired := c.collectDetails(ctx, creds); !expired {
 		return d, nil
@@ -32,7 +32,7 @@ func (c *Client) Details(ctx context.Context, creds *Credentials) (*Details, err
 	return d, nil
 }
 
-// collectDetails 依序採集三路資料;任一路判定會話過期即回傳 expired=true。
+// collectDetails 依序采集三路数据;任一路判定会话过期即返回 expired=true。
 func (c *Client) collectDetails(ctx context.Context, creds *Credentials) (*Details, bool) {
 	d := &Details{Shelf: []ShelfBook{}, Errs: map[string]string{}}
 

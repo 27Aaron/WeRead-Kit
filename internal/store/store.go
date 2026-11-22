@@ -1,5 +1,4 @@
-// Package store 负责把微信读书凭据持久化到 SQLite。
-// 账号以 vid(微信读书用户 ID)为唯一键。
+// Package store 把微信读书凭据持久化到 SQLite,账号以 vid(微信读书用户 ID)为唯一键。
 package store
 
 import (
@@ -14,7 +13,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// ErrNotFound 表示该账号不存在。
 var ErrNotFound = errors.New("账号不存在")
 
 const schema = `
@@ -33,9 +31,8 @@ func Open(path string) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("创建数据目录失败: %w", err)
 	}
-	// modernc.org/sqlite 的 DSN 通过 _pragma 传连接级编译指令。
-	// 相对路径必须先转绝对:否则 url.URL 会把首段当成 URI authority(file://data/...),
-	// 驱动直接报 invalid uri authority。
+	// modernc.org/sqlite 的 DSN 通过 _pragma 传连接级编译指令;相对路径必须先转绝对,
+	// 否则 url.URL 把首段当作 URI authority(file://data/...),驱动报 invalid uri authority。
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("解析数据库路径失败: %w", err)
@@ -212,9 +209,8 @@ func List(db *sql.DB) ([]*Credential, error) {
 	return out, rows.Err()
 }
 
-// Save 按 vid UPSERT 凭据,rotated_at 记录本次写入时间。
-// 每次续期拿到新 refreshToken 后都必须立刻调用,否则丢了轮换值会话就断了。
-// 注意冲突分支不更新 remark/name:token 轮换不能清掉用户设置的展示信息。
+// Save 按 vid UPSERT 凭据。每次续期拿到新 refreshToken 后必须立刻调用,
+// 否则丢了轮换值会话就断了;冲突分支不更新 remark/name,token 轮换不能清掉用户设置的展示信息。
 func Save(db *sql.DB, c *Credential) error {
 	if c.Vid == "" || c.RefreshToken == "" || c.DeviceID == "" {
 		return errors.New("凭据字段不完整,拒绝写入")
@@ -232,8 +228,7 @@ func Save(db *sql.DB, c *Credential) error {
 	return err
 }
 
-// UpdateTokens 寫入續期後的憑據,只更新已存在的帳號:
-// 刷新與刪除並行時不能把剛刪掉的帳號重新插回來。
+// UpdateTokens 只更新已存在的账号:刷新与删除并行时不能把刚删掉的账号重新插回来。
 func UpdateTokens(db *sql.DB, vid, accessToken, refreshToken, deviceID string) error {
 	if vid == "" || refreshToken == "" || deviceID == "" {
 		return errors.New("凭据字段不完整,拒绝写入")
@@ -286,7 +281,7 @@ func Delete(db *sql.DB, vid string) error {
 	if _, err := tx.Exec(`DELETE FROM weread_log WHERE vid = ?`, vid); err != nil {
 		return err
 	}
-	// 帳號級設定(如週獎勵預約)以 ":<vid>" 結尾,同一帳號重新掃碼時不應復活舊預約。
+	// 账号级设置(如周奖励预约)以 ":<vid>" 结尾,同一账号重新扫码时不应复活旧预约。
 	if _, err := tx.Exec(`DELETE FROM weread_setting WHERE key LIKE '%:' || ?`, vid); err != nil {
 		return err
 	}

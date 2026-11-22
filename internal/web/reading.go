@@ -100,15 +100,13 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"vid": cfg.Vid, "enabled": cfg.Enabled, "book_ids": cfg.BookIDs,
 		"minutes": cfg.Minutes, "run_at": cfg.RunAt,
-		"skip_if_read": s.readingSkipIfReadOn(vid),
+		"skip_if_read":  s.readingSkipIfReadOn(vid),
 		"last_run_date": cfg.LastRunDate, "last_run_at": cfg.LastRunAt, "last_status": cfg.LastStatus,
 		"run_book_id": cfg.RunBookID, "run_done": cfg.RunDone, "run_total": cfg.RunTotal,
 		"running": running,
 	})
 }
 
-// readingSkipIfReadOn 读取「当天已读过就跳过」开关;未设置时默认开启:
-// 到点先查当日阅读,已读就不代读,仅在忘记阅读时补读(issue #134)。
 func (s *Server) readingSkipIfReadOn(vid string) bool {
 	if v, err := store.GetSetting(s.db, readingSkipIfReadKey+vid); err == nil {
 		return v == "1"
@@ -118,7 +116,7 @@ func (s *Server) readingSkipIfReadOn(vid string) bool {
 
 // todayAlreadyRead 查询账号今天的阅读秒数(weekReadDaysDetail,与官方口径同源)。
 // ok=false 表示无法判定(查询失败或明细缺失):调用方按未读处理(fail-open),
-// 宁可多读不可漏读——工具的本职是保住打卡,不能因判定失败反而漏掉一天。
+// 宁可多读不可漏读:工具的本职是保住打卡,不能因判定失败反而漏掉一天。
 func (s *Server) todayAlreadyRead(ctx context.Context, vid string) (int, bool) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
@@ -263,7 +261,7 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 			runCancel()
 		}()
 
-		// 會話中途輪換的憑據已由 client.OnRefresh 即時落庫。
+		// 会话中途轮换的凭据已由 client.OnRefresh 即时落库。
 		// 会话失败(网络等)自动重试:间隔 5 分钟,最多 2 次,重试期间不打扰推送;
 		// 中断(服务端中途拒绝)可能是风控信号,不重试,保留进度交用户处理。
 		const maxRetries = 2
@@ -413,8 +411,7 @@ func (s *Server) tickFarm(ctx context.Context) {
 		if nowHM < cfg.RunAt {
 			continue
 		}
-		// 当日已读判定(issue #134):到点先查今天的阅读秒数,已读就不代读,
-		// 仅在忘记阅读时补读。查询失败按未读处理照常执行(fail-open)。
+		// 当日已读判定:已读就不代读,查询失败按未读处理照常执行(fail-open)。
 		if s.readingSkipIfReadOn(cfg.Vid) {
 			if sec, ok := s.todayAlreadyRead(ctx, cfg.Vid); ok && sec >= todayReadSkipMinSeconds {
 				status := fmt.Sprintf("今日已阅读 %.1f 分钟,跳过自动阅读", float64(sec)/60)

@@ -117,7 +117,7 @@ func TestOpenCreatesOperationalIndexes(t *testing.T) {
 	}
 }
 
-// TestDeletePurgesLogs 回归:删除账号须连带清理其历史日志,其他账号日志不受影响。
+// 回归:其他账号日志不受影响。
 func TestDeletePurgesLogs(t *testing.T) {
 	db, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -151,8 +151,7 @@ func TestDeletePurgesLogs(t *testing.T) {
 	}
 }
 
-// TestOpenRelativePath 回归:相对路径经 url.URL 构造 DSN 时,
-// 首段会被当成 URI authority(file://data/...),驱动报 invalid uri authority。
+// 回归:相对路径经 url.URL 构造 DSN 曾报 invalid uri authority。
 func TestOpenRelativePath(t *testing.T) {
 	dir := "weread-kit-testdata-relative"
 	defer os.RemoveAll(dir)

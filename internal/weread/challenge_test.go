@@ -16,7 +16,6 @@ func jsonResponse(status int, body string) *http.Response {
 	}
 }
 
-// TestChallengeDetailUsesV3 确保 detail 走 version=v3 而不是旧的无数据 scene=1 签到接口。
 func TestChallengeDetailUsesV3(t *testing.T) {
 	client := NewClient()
 	var query string
@@ -41,7 +40,6 @@ func TestChallengeDetailUsesV3(t *testing.T) {
 	}
 }
 
-// TestChallengeListUsesV3 同样校验列表接口的查询参数与鉴权头。
 func TestChallengeListUsesV3(t *testing.T) {
 	client := NewClient()
 	client.HTTP.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -58,7 +56,6 @@ func TestChallengeListUsesV3(t *testing.T) {
 	}
 }
 
-// TestChallengeJoinRequestShape 断言 join 的方法、路径与请求体。
 func TestChallengeJoinRequestShape(t *testing.T) {
 	client := NewClient()
 	client.HTTP.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -96,7 +93,6 @@ func TestChallengeJoinAlreadyJoined(t *testing.T) {
 	}
 }
 
-// TestChallengeJoinOtherBusinessError 验证其余 errcode 原样带回错误信息。
 func TestChallengeJoinOtherBusinessError(t *testing.T) {
 	client := NewClient()
 	client.HTTP.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -108,7 +104,6 @@ func TestChallengeJoinOtherBusinessError(t *testing.T) {
 	}
 }
 
-// TestChallengeJoinUnauthorized 映射为会话过期供上层续期重试。
 func TestChallengeJoinUnauthorized(t *testing.T) {
 	client := NewClient()
 	client.HTTP.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -119,7 +114,6 @@ func TestChallengeJoinUnauthorized(t *testing.T) {
 	}
 }
 
-// TestParseChallengeDetail 覆盖空列表(未报名)与完整字段两种输入。
 func TestParseChallengeDetail(t *testing.T) {
 	p, ok, err := ParseChallengeDetail([]byte(`{"challengeList":[]}`))
 	if err != nil || ok || p.ID != "" {

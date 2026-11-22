@@ -170,7 +170,6 @@ func (c *Client) pollForCode(ctx context.Context, uuid string, onStatus func(str
 		case 403:
 			return "", ErrQRDeclined
 		case 408:
-			// 服务端长轮询保持中,稍候再问。
 			if err := sleepCtx(ctx, pollIdleDelay); err != nil {
 				return "", err
 			}

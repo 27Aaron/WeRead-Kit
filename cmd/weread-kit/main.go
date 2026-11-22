@@ -52,7 +52,6 @@ func main() {
 	app.ResumeInterrupted()
 	store.AddLog(db, "info", "serve", "", "Web 服务已启动,监听 "+addr)
 	if !authEnabled && !isLoopback(host) {
-		// 未設密碼且監聽非回環位址:能存取連接埠的人都能讀取帳號 Token,必須明確提醒。
 		msg := "未设置 WEREAD_USERNAME/WEREAD_PASSWORD,且监听地址 " + host + " 不是本机回环,能访问该端口的任何人都可管理账号并读取凭据"
 		store.AddLog(db, "warn", "serve", "", msg)
 		fmt.Fprintln(os.Stderr, "警告: "+msg)
@@ -83,7 +82,7 @@ func isLoopback(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// loadDotEnv loads simple KEY=VALUE entries without overriding real environment variables.
+// loadDotEnv 读取简单的 KEY=VALUE 条目,不覆盖已有环境变量。
 func loadDotEnv(path string) {
 	b, err := os.ReadFile(path)
 	if err != nil {

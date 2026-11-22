@@ -29,7 +29,6 @@ func TestSessionToken(t *testing.T) {
 	}
 }
 
-// TestSessionKeyPersistsAcrossRestart 验证密钥落库:同一数据库重新"启动"后,重启前签发的 cookie 仍有效。
 func TestSessionKeyPersistsAcrossRestart(t *testing.T) {
 	db, err := store.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -110,7 +109,6 @@ func TestHandleLoginPost(t *testing.T) {
 	}
 }
 
-// TestSessionInvalidatedByCredentialChange 驗證修改登入帳號或密碼後舊會話失效。
 func TestSessionInvalidatedByCredentialChange(t *testing.T) {
 	before := &Server{username: "u", password: "p", sessionKey: []byte("k")}
 	token := before.sessionToken(time.Now().Add(time.Hour).Unix())

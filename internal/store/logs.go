@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// 日志滚动保留:超过 30 天的淘汰,同时保留 2 万条硬上限兜底。
+// 双重上限:天数淘汰加行数硬上限兜底。
 const (
 	LogRetentionDays = 30
 	LogMaxRows       = 20000
@@ -18,7 +18,7 @@ type LogEntry struct {
 	Level   string `json:"level"`
 	Source  string `json:"source"`
 	Vid     string `json:"vid"`
-	Name    string `json:"name"` // 帳號暱稱,關聯帳號表取得,供介面顯示
+	Name    string `json:"name"` // 账号昵称,查询时关联账号表取得,供界面显示
 	Message string `json:"message"`
 }
 
@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_weread_log_ts ON weread_log (ts DESC);
 CREATE INDEX IF NOT EXISTS idx_weread_log_vid_id ON weread_log (vid, id DESC);
 `
 
-// AddLog 写入一条日志(尽力而为:日志失败不影响主流程),并按保留条数淘汰最旧的。
+// AddLog 写入一条日志;尽力而为,失败不影响主流程。
 func AddLog(db *sql.DB, level, source, vid, message string) {
 	if message == "" {
 		return
@@ -52,10 +52,10 @@ func AddLog(db *sql.DB, level, source, vid, message string) {
 	if err != nil {
 		return
 	}
-	// 每写若干条才做一次淘汰检查,避免频繁清理;用 id 对 32 取整近似。
+	// 每写若干条才检查一次淘汰,避免频繁清理。
 	if id, err := res.LastInsertId(); err == nil && id%32 == 0 {
 		_, _ = db.Exec(`DELETE FROM weread_log WHERE ts < ?`, time.Now().AddDate(0, 0, -LogRetentionDays).Unix())
-		// 依主鍵定位第 N 筆之後的邊界,避免 NOT IN 子查詢實體化 2 萬個 id。
+		// 按主键定位第 N 条之后的边界,避免 NOT IN 子查询物化 2 万个 id。
 		_, _ = db.Exec(`DELETE FROM weread_log WHERE id <= (SELECT id FROM weread_log ORDER BY id DESC LIMIT 1 OFFSET ?)`, LogMaxRows)
 	}
 }
@@ -65,7 +65,7 @@ func ListLogs(db *sql.DB, vid, level string, limit int) ([]*LogEntry, error) {
 	if limit <= 0 || limit > LogMaxRows {
 		limit = 200
 	}
-	// 展示名优先取备注(可能为用户手动设置,也可能由昵称自动填充),昵称兜底。
+	// 展示名优先取备注,昵称兜底。
 	query := `SELECT l.id, l.ts, l.level, l.source, l.vid, COALESCE(NULLIF(a.remark, ''), a.name, '') AS name, l.message
 		FROM weread_log l
 		LEFT JOIN weread_account a ON a.vid = l.vid

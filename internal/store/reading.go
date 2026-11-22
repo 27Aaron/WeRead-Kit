@@ -72,7 +72,7 @@ func scanReadingConfig(scan func(...any) error) (*ReadingConfig, error) {
 	return cfg, nil
 }
 
-// GetReadingConfig 讀取設定;沒有記錄時回傳預設值。
+// GetReadingConfig 没有记录时返回默认值。
 func GetReadingConfig(db *sql.DB, vid string) (*ReadingConfig, error) {
 	cfg, err := scanReadingConfig(db.QueryRow(`SELECT `+readingCols+` FROM weread_reading WHERE vid = ?`, vid).Scan)
 	if errors.Is(err, sql.ErrNoRows) {
