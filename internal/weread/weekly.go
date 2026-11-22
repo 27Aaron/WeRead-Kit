@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 // weeklyPF 是奖励接口的平台标识,与服务端示例保持一致。
@@ -85,6 +86,26 @@ func ParseWeeklyRewards(data json.RawMessage) (*WeeklyRewards, error) {
 		return nil, fmt.Errorf("周阅读奖励响应解析失败: %w", err)
 	}
 	return &rw, nil
+}
+
+// TodayReadSeconds 从周奖励查询结果里取「今天」的阅读秒数。
+// weekReadDaysDetail.readDays 是本周每日阅读秒数,周一→周日 7 项,
+// 与「我的阅读」页周柱状图同源同序;服务端偶尔下发超过 7 项时取最后 7 项,
+// 与前端 slice(-7) 口径一致。明细缺失或拿不到今天的位置时 ok=false,
+// 调用方按「无法判定」自行兜底。
+func (rw *WeeklyRewards) TodayReadSeconds(now time.Time) (int, bool) {
+	days := rw.WeekReadDaysDetail.ReadDays
+	if len(days) == 0 {
+		return 0, false
+	}
+	if len(days) > 7 {
+		days = days[len(days)-7:]
+	}
+	idx := (int(now.Weekday()) + 6) % 7 // 今天是周几(0=周一),与前端柱状图同口径
+	if idx >= len(days) {
+		return 0, false
+	}
+	return days[idx], true
 }
 
 // WeeklyExchange 查询或领取周阅读奖励。
