@@ -68,10 +68,7 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		body.BookIDs = ids
-		if len(body.BookIDs) == 0 {
-			writeErr(w, http.StatusBadRequest, errors.New("请至少选择一本书籍"))
-			return
-		}
+		// 书单允许为空:留空即「每天从书架随机挑一本」,调度与会话启动时实时解析。
 		if err := store.SaveReadingConfig(s.db, &store.ReadingConfig{
 			Vid:     vid,
 			Enabled: body.Enabled,
@@ -138,6 +135,33 @@ func (s *Server) todayAlreadyRead(ctx context.Context, vid string) (int, bool) {
 	return rw.TodayReadSeconds(time.Now())
 }
 
+// shelfBookIDs 拉取书架的可读书目 ID 列表,供「未选书单」时随机挑一本。
+// 会话过期时自动续期并重试一次,轮换出的凭据经 client.OnRefresh 落库;
+// ShelfSync 已过滤听书专辑等无 bookId 的条目。
+func (s *Server) shelfBookIDs(ctx context.Context, vid string) ([]string, error) {
+	c, err := store.Load(s.db, vid)
+	if err != nil {
+		return nil, err
+	}
+	creds := toWeread(c)
+	shelf, err := s.client.ShelfSync(ctx, creds)
+	if errors.Is(err, weread.ErrSessionExpired) {
+		next, rerr := s.client.Refresh(ctx, creds)
+		if rerr != nil {
+			return nil, fmt.Errorf("会话已过期且续期失败: %w", rerr)
+		}
+		shelf, err = s.client.ShelfSync(ctx, next)
+	}
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(shelf.Books))
+	for _, b := range shelf.Books {
+		ids = append(ids, b.BookID)
+	}
+	return ids, nil
+}
+
 // handleReadingRun 立即执行一次阅读会话(异步),执行状态写库,前端轮询配置接口可见。
 func (s *Server) handleReadingRun(w http.ResponseWriter, r *http.Request) {
 	vid := r.PathValue("vid")
@@ -155,16 +179,26 @@ func (s *Server) handleReadingRun(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	if len(cfg.BookIDs) == 0 {
-		writeErr(w, http.StatusBadRequest, errors.New("请先选择要阅读的书籍并保存配置"))
-		return
-	}
 	// 当日有未完成的会话(误停/中断)则续跑,否则开一场新的。
+	bookIDs := cfg.BookIDs
+	if len(bookIDs) == 0 {
+		// 未选书单:从书架随机挑一本(实时拉取,保证新书也能选到)。
+		ids, err := s.shelfBookIDs(r.Context(), vid)
+		if err != nil {
+			writeErr(w, http.StatusBadGateway, fmt.Errorf("书架获取失败: %w", err))
+			return
+		}
+		if len(ids) == 0 {
+			writeErr(w, http.StatusBadRequest, errors.New("书架为空,无法随机选择书籍"))
+			return
+		}
+		bookIDs = ids
+	}
 	var task weread.FarmTask
 	if bookID, done, total, ok := cfg.ResumeTask(); ok {
 		task = weread.FarmTask{BookID: bookID, Done: done, Total: total}
 	} else {
-		task = weread.NewFarmTask(cfg.BookIDs, cfg.Minutes)
+		task = weread.NewFarmTask(bookIDs, cfg.Minutes)
 	}
 	if err := s.startFarm(vid, task, toWeread(c)); err != nil {
 		if errors.Is(err, errFarmAlreadyRunning) {
@@ -392,20 +426,31 @@ func (s *Server) tickFarm(ctx context.Context) {
 				continue
 			}
 		}
-		if len(cfg.BookIDs) == 0 {
-			// 記下當日已處理,否則每 30 秒掃描都會重複寫這條警告。
-			if err := store.SaveReadingRunState(s.db, cfg.Vid, today, "未选择书籍,已跳过今日调度", nil); err != nil {
-				s.logf("error", "farm", cfg.Vid, "保存调度状态失败: %v", err)
+		bookIDs := cfg.BookIDs
+		if len(bookIDs) == 0 {
+			// 未选书单:从书架随机挑一本(每天一换,实时拉取)。
+			// 获取失败/书架为空是持续状态,记下当日已处理,否则每 30 秒扫描都会重复打请求与告警。
+			ids, err := s.shelfBookIDs(ctx, cfg.Vid)
+			if err != nil || len(ids) == 0 {
+				status := "书架为空,跳过今日调度"
+				if err != nil {
+					status = fmt.Sprintf("书架获取失败(%v),跳过今日调度", err)
+				}
+				if err := store.SaveReadingRunState(s.db, cfg.Vid, today, status, nil); err != nil {
+					s.logf("error", "farm", cfg.Vid, "保存调度状态失败: %v", err)
+				}
+				s.logf("warn", "farm", cfg.Vid, "%s", status)
+				continue
 			}
-			s.logf("warn", "farm", cfg.Vid, "配置未选择书籍,跳过今日调度")
-			continue
+			bookIDs = ids
+			s.logf("info", "farm", cfg.Vid, "未选择书单,今日从书架随机选一本(共 %d 本可选)", len(ids))
 		}
 		c, err := store.Load(s.db, cfg.Vid)
 		if err != nil {
 			s.logf("error", "farm", cfg.Vid, "凭据加载失败: %v", err)
 			continue
 		}
-		task := weread.NewFarmTask(cfg.BookIDs, cfg.Minutes)
+		task := weread.NewFarmTask(bookIDs, cfg.Minutes)
 		s.logf("info", "farm", cfg.Vid, "调度器触发每日阅读:%s(计划 %s,目标 %.1f 分钟)",
 			"《"+s.readingBookTitle(cfg.Vid, task.BookID)+"》", cfg.RunAt, float64(task.Total)*0.5)
 		if err := s.startFarm(cfg.Vid, task, toWeread(c)); err != nil {
