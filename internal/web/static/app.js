@@ -1048,6 +1048,8 @@ function renderChallenge(d) {
     runatInput.dispatchEvent(new Event("change"));
   }
   $("#challenge-minutes-input").value = cfg.minutes || 30;
+  // 「当天已读过就跳过」开关:服务端未存过该值时回显 true(默认开启),仅旧数据缺失字段时按默认勾选。
+  $("#challenge-skip-if-read").checked = cfg.skip_if_read !== false;
   // running 是服務端行程內狀態，不在閱讀設定裡；進行中的會話（含排程器觸發的）開啟頁面即開始追蹤進度。
   updateChallengeButtons(!!d.running);
   if (d.running) startChallengePolling(challengeAlias);
@@ -1134,6 +1136,7 @@ $("#challenge-save").addEventListener("click", async () => {
         book_ids: Array.from(challengePicked),
         minutes: Number($("#challenge-minutes-input").value) || 30,
         run_at: $("#challenge-runat-input").value || "03:00",
+        skip_if_read: $("#challenge-skip-if-read").checked,
       }),
     });
     $("#challenge-state").textContent = $("#challenge-enabled").checked ? "已开启" : "未开启";
@@ -1142,7 +1145,9 @@ $("#challenge-save").addEventListener("click", async () => {
     $("#challenge-banner").classList.toggle("off", !$("#challenge-enabled").checked);
     $("#challenge-runat").textContent = $("#challenge-runat-input").value || "03:00";
     $("#challenge-minutes").textContent = `${$("#challenge-minutes-input").value || 30} 分钟`;
-    toast($("#challenge-enabled").checked ? "已保存，到点自动参与阅读挑战" : "配置已保存（未开启）", "ok");
+    toast($("#challenge-enabled").checked
+      ? ($("#challenge-skip-if-read").checked ? "已保存，到点检查当日阅读，未读时自动补读" : "已保存，到点自动参与阅读挑战")
+      : "配置已保存（未开启）", "ok");
   } catch (err) {
     toast(`保存失败：${err.message}`, "error");
   }

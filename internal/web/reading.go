@@ -15,11 +15,20 @@ import (
 )
 
 type readingConfigBody struct {
-	Enabled bool     `json:"enabled"`
-	BookIDs []string `json:"book_ids"`
-	Minutes int      `json:"minutes"`
-	RunAt   string   `json:"run_at"`
+	Enabled    bool     `json:"enabled"`
+	BookIDs    []string `json:"book_ids"`
+	Minutes    int      `json:"minutes"`
+	RunAt      string   `json:"run_at"`
+	SkipIfRead *bool    `json:"skip_if_read"` // 缺省时沿用已存值,未存过按默认开启处理
 }
+
+// readingSkipIfReadKey 是「当天已读过就跳过」开关在 weread_setting 的键前缀,
+// 值为 "1"/"0";未写入时视为开启(issue #134:仅在当日忘记阅读时才补读)。
+const readingSkipIfReadKey = "reading_skip_if_read:"
+
+// todayReadSkipMinSeconds 是「当日已读」的判定门槛,与官方「阅读天数」口径一致
+// (当日阅读 ≥1 分钟记为 1 天):不足 1 分钟视为没读,照常补读,避免打卡缺天。
+const todayReadSkipMinSeconds = 60
 
 func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 	vid := r.PathValue("vid")
@@ -73,6 +82,16 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusInternalServerError, err)
 			return
 		}
+		if body.SkipIfRead != nil {
+			v := "0"
+			if *body.SkipIfRead {
+				v = "1"
+			}
+			if err := store.SetSetting(s.db, readingSkipIfReadKey+vid, v); err != nil {
+				writeErr(w, http.StatusInternalServerError, err)
+				return
+			}
+		}
 	}
 
 	cfg, err := store.GetReadingConfig(s.db, vid)
@@ -84,10 +103,39 @@ func (s *Server) handleReadingConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"vid": cfg.Vid, "enabled": cfg.Enabled, "book_ids": cfg.BookIDs,
 		"minutes": cfg.Minutes, "run_at": cfg.RunAt,
+		"skip_if_read": s.readingSkipIfReadOn(vid),
 		"last_run_date": cfg.LastRunDate, "last_run_at": cfg.LastRunAt, "last_status": cfg.LastStatus,
 		"run_book_id": cfg.RunBookID, "run_done": cfg.RunDone, "run_total": cfg.RunTotal,
 		"running": running,
 	})
+}
+
+// readingSkipIfReadOn 读取「当天已读过就跳过」开关;未设置时默认开启:
+// 到点先查当日阅读,已读就不代读,仅在忘记阅读时补读(issue #134)。
+func (s *Server) readingSkipIfReadOn(vid string) bool {
+	if v, err := store.GetSetting(s.db, readingSkipIfReadKey+vid); err == nil {
+		return v == "1"
+	}
+	return true
+}
+
+// todayAlreadyRead 查询账号今天的阅读秒数(weekReadDaysDetail,与官方口径同源)。
+// ok=false 表示无法判定(查询失败或明细缺失):调用方按未读处理(fail-open),
+// 宁可多读不可漏读——工具的本职是保住打卡,不能因判定失败反而漏掉一天。
+func (s *Server) todayAlreadyRead(ctx context.Context, vid string) (int, bool) {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	data, _, err := s.weeklyCall(ctx, vid, func(creds *weread.Credentials) (json.RawMessage, error) {
+		return s.client.WeeklyExchange(ctx, creds, 0, 0, 0)
+	})
+	if err != nil {
+		return 0, false
+	}
+	var rw weread.WeeklyRewards
+	if json.Unmarshal(data, &rw) != nil {
+		return 0, false
+	}
+	return rw.TodayReadSeconds(time.Now())
 }
 
 // handleReadingRun 立即执行一次阅读会话(异步),执行状态写库,前端轮询配置接口可见。
@@ -330,6 +378,19 @@ func (s *Server) tickFarm(ctx context.Context) {
 		}
 		if nowHM < cfg.RunAt {
 			continue
+		}
+		// 当日已读判定(issue #134):到点先查今天的阅读秒数,已读就不代读,
+		// 仅在忘记阅读时补读。查询失败按未读处理照常执行(fail-open)。
+		if s.readingSkipIfReadOn(cfg.Vid) {
+			if sec, ok := s.todayAlreadyRead(ctx, cfg.Vid); ok && sec >= todayReadSkipMinSeconds {
+				status := fmt.Sprintf("今日已阅读 %.1f 分钟,跳过自动阅读", float64(sec)/60)
+				// 记下当日已处理,否则每 30 秒扫描都会重复查询与写这条状态。
+				if err := store.SaveReadingRunState(s.db, cfg.Vid, today, status, nil); err != nil {
+					s.logf("error", "farm", cfg.Vid, "保存调度状态失败: %v", err)
+				}
+				s.logf("info", "farm", cfg.Vid, "%s", status)
+				continue
+			}
 		}
 		if len(cfg.BookIDs) == 0 {
 			// 記下當日已處理,否則每 30 秒掃描都會重複寫這條警告。
