@@ -274,6 +274,11 @@ func (c *Client) ChapterUIDs(ctx context.Context, cookie, bookID string) ([]int,
 	if status != http.StatusOK {
 		return nil, fmt.Errorf("章节信息失败: HTTP %d", status)
 	}
+	// 业务码检查不能省:Cookie 已死但网关回 200+errCode -2012 时,
+	// 不检查会把过期静默降级成"只有第 1 章",下游要多绕一轮才触发恢复。
+	if err := checkBusinessCode(data); err != nil {
+		return nil, err
+	}
 	var resp struct {
 		Data []struct {
 			BookID  string `json:"bookId"`

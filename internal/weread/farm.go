@@ -225,7 +225,9 @@ func (c *Client) webSession(ctx context.Context, creds *Credentials) (string, *C
 		// 桥接失败未必是凭据过期,也重试一次刷新路径。
 		next, rerr := c.Refresh(ctx, creds)
 		if rerr != nil {
-			return "", creds, fmt.Errorf("桥接网页会话失败: %w", err)
+			// 续期失败可能是"需要重新扫码"的终态,必须与瞬态桥接错误一起暴露,
+			// 只留后者会误导排查方向。
+			return "", creds, fmt.Errorf("桥接网页会话失败: %w;续期亦失败: %v", err, rerr)
 		}
 		cookie, err = c.WebCookie(ctx, next)
 		if err != nil {

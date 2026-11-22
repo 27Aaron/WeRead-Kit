@@ -64,7 +64,10 @@ func do(req *http.Request) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("推送服务返回 HTTP %d", resp.StatusCode)
+		// 非 2xx 的 body 里通常带具体原因(key 无效、配额超限),截 2KB 拼进
+		// 错误方便排查;顺带排干 body 让连接可以复用。
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<10))
+		return nil, fmt.Errorf("推送服务返回 HTTP %d %s", resp.StatusCode, strings.TrimSpace(string(detail)))
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 }

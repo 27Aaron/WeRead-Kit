@@ -75,10 +75,13 @@ func migrate(db *sql.DB) error {
 	if version > 1 {
 		return fmt.Errorf("数据库版本 %d 高于程序支持的版本 1", version)
 	}
+	// baseline 全程幂等(CREATE IF NOT EXISTS + ensureColumn 逐列检查),对已存在
+	// 的 v1 库重跑即可补齐后续新增的列;新库跑完记为版本 1。此后新增列时把列加进
+	// migrateBaseline 的 ensureColumn 列表即可,已版本化的库也会被补到。
+	if err := migrateBaseline(tx); err != nil {
+		return err
+	}
 	if version == 0 {
-		if err := migrateBaseline(tx); err != nil {
-			return err
-		}
 		if _, err := tx.Exec(`INSERT INTO weread_schema(version) VALUES (1)`); err != nil {
 			return err
 		}

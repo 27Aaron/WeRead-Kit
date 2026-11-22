@@ -59,12 +59,12 @@ async function checkAppVersion() {
 
     if (v.has_update) {
       const latest = escapeHtml(v.latest_version || "新版本");
-      pop.innerHTML = `<strong>发现新版本 ${latest}</strong><p>当前版本 ${current}。建议更新以获得最新功能和修复。</p>${v.html_url ? `<a href="${escapeHtml(v.html_url)}" target="_blank" rel="noreferrer">查看发布说明 <span aria-hidden="true">→</span></a>` : ""}`;
+      pop.innerHTML = `<strong>发现新版本 ${latest}</strong><p>当前版本 ${escapeHtml(current)}。建议更新以获得最新功能和修复。</p>${v.html_url ? `<a href="${escapeHtml(v.html_url)}" target="_blank" rel="noreferrer">查看发布说明 <span aria-hidden="true">→</span></a>` : ""}`;
     } else if (v.check_failed) {
       pop.innerHTML = `<strong>暂时无法检查更新</strong><p>网络不可用或更新服务暂时没有响应。</p><button type="button" class="version-retry" id="version-retry">重新检查</button>`;
       pop.querySelector("#version-retry")?.addEventListener("click", () => checkAppVersion());
     } else {
-      pop.innerHTML = `<strong>已是最新版本</strong><p>当前版本 ${current}，暂时不需要更新。</p>`;
+      pop.innerHTML = `<strong>已是最新版本</strong><p>当前版本 ${escapeHtml(current)}，暂时不需要更新。</p>`;
     }
   };
 
@@ -166,9 +166,13 @@ function confirmAction({ title = "确认操作", message = "", confirmText = "�
 
 let currentView = "accounts";
 
+const VIEW_NAMES = ["accounts", "reading", "challenge", "logs", "settings"];
+
 function setView(view) {
   currentView = view;
-  for (const name of ["accounts", "reading", "challenge", "logs", "settings"]) {
+  // hash 与视图互相同步:刷新/前进后退保持在当前页,#challenge 这类深链可直接打开。
+  if (location.hash !== "#" + view) location.hash = view;
+  for (const name of VIEW_NAMES) {
     $("#view-" + name).classList.toggle("hidden", view !== name);
   }
   $$(".nav-item").forEach((el) => {
@@ -284,7 +288,8 @@ function enhanceSelect(sel) {
     if (!dd.contains(e.target)) close();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { close(); toggle.focus(); }
+    // 只在弹层打开时接管 Esc:否则全局 Esc(如关对话框)会把焦点拽走。
+    if (e.key === "Escape" && dd.classList.contains("open")) { close(); toggle.focus(); }
   });
   new MutationObserver(() => {
     sync();
@@ -304,18 +309,28 @@ for (let h = 0; h < 24; h++) {
 runatSel.value = "03:00";
 document.querySelectorAll("select.select").forEach(enhanceSelect);
 
+function routeView(view) {
+  setView(view);
+  if (view === "accounts") loadAccounts();
+  if (view === "reading") openReading();
+  if (view === "challenge") openChallenge();
+  if (view === "logs") openLogs();
+  if (view === "settings") loadPushChannels();
+}
+
 $$(".nav-item").forEach((el) => {
   el.addEventListener("click", (e) => {
     e.preventDefault();
     closeMobileNav();
-    const view = el.dataset.view;
-    setView(view);
-    if (view === "accounts") loadAccounts();
-    if (view === "reading") openReading();
-    if (view === "challenge") openChallenge();
-    if (view === "logs") openLogs();
-    if (view === "settings") loadPushChannels();
+    routeView(el.dataset.view);
   });
+});
+
+// 浏览器前进/后退与手动改 hash 都走同一套路由;自身 setView 引发的
+// hashchange 因视图已一致而空转,不会重复加载。
+window.addEventListener("hashchange", () => {
+  const view = location.hash.slice(1);
+  if (VIEW_NAMES.includes(view) && view !== currentView) routeView(view);
 });
 
 /* ---------- 主题切换 ---------- */
@@ -523,6 +538,7 @@ $("#account-search").addEventListener("input", renderAccounts);
 let loginId = null;
 let loginPollTimer = null;
 let loginGeneration = 0;
+let loginCloseTimer = null;
 
 function stopLoginPolling() {
   if (loginPollTimer) {
@@ -610,10 +626,8 @@ async function pollLogin(generation) {
     stopLoginPolling();
     loginId = null;
     toast(`账号「${data.account.vid}」登录成功`, "ok");
-    setTimeout(() => {
-      $("#login-dialog").close();
-      loadAccounts();
-    }, 900);
+    // 只延迟关窗;列表刷新交给 dialog 的 close 事件,避免同刻请求两次。
+    loginCloseTimer = setTimeout(() => $("#login-dialog").close(), 900);
   } else if (["expired", "declined", "canceled", "error"].includes(data.status)) {
     stopLoginPolling();
     $("#login-start").classList.remove("hidden");
@@ -623,6 +637,11 @@ async function pollLogin(generation) {
 }
 
 function openLogin() {
+  // 上一轮登录成功安排的延迟关窗如果还没执行,不能让它关掉刚打开的新弹窗。
+  if (loginCloseTimer) {
+    clearTimeout(loginCloseTimer);
+    loginCloseTimer = null;
+  }
   resetLoginUI();
   $("#login-dialog").showModal();
   startLogin();
@@ -813,6 +832,8 @@ async function openChallenge() {
     challengeAlias = null;
     challengeRenderedFor = null;
     officialRenderedFor = null;
+    // 删光账号后横幅还留着上一账号的开关状态,一并收起。
+    $("#challenge-banner").classList.add("hidden");
     return;
   }
   $("#challenge-panel").classList.remove("hidden");
@@ -837,6 +858,9 @@ async function loadChallenge() {
   const vid = challengeAlias;
   if (challengeRenderedFor !== vid) {
     $("#challenge-books").innerHTML = skeletonCardsHTML(18, 190, true);
+    // 首次加载/加载失败期间禁用配置区:表单里还是上一账号的值,
+    // 放开保存会把 A 的配置写进 B。
+    setChallengePanelEnabled(false);
   }
   try {
     // GET details 走本地缓存,书架与阅读配置一次拿全。
@@ -845,6 +869,7 @@ async function loadChallenge() {
     challengeRenderedFor = vid;
     renderChallenge(d);
   } catch (err) {
+    if (vid !== challengeAlias) return; // 迟到的错误响应不得覆盖当前账号
     if (challengeRenderedFor !== vid) {
       $("#challenge-books").innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
     } else {
@@ -852,6 +877,14 @@ async function loadChallenge() {
     }
   }
   loadOfficialChallenge();
+}
+
+// 首次加载与失败期间整体禁用挑战配置区,渲染成功后恢复。
+function setChallengePanelEnabled(enabled) {
+  for (const id of ["challenge-enabled", "challenge-runat-input", "challenge-minutes-input", "challenge-skip-if-read", "challenge-save", "challenge-run"]) {
+    const el = $("#" + id);
+    if (el) el.disabled = !enabled;
+  }
 }
 
 /* ---------- 官方挑战赛进度 ---------- */
@@ -866,10 +899,12 @@ async function loadOfficialChallenge() {
     wrap.textContent = "";
   }
   try {
-    const d = await api(`/api/accounts/${encodeURIComponent(vid)}/challenge`);
+    // 挑战进度与历史战绩并行拉取;历史失败不阻塞主面板(catch 吞掉记 null)。
+    const [d, h] = await Promise.all([
+      api(`/api/accounts/${encodeURIComponent(vid)}/challenge`),
+      api(`/api/accounts/${encodeURIComponent(vid)}/challenge/history`).catch(() => null),
+    ]);
     if (vid !== challengeAlias) return; // 等待期间账号已切换,丢弃旧响应
-    // challengeList 携带全部官方挑战;历史战绩独立拉取,失败不阻塞主面板。
-    const h = await api(`/api/accounts/${encodeURIComponent(vid)}/challenge/history`).catch(() => null);
     officialRenderedFor = vid;
     renderOfficialChallenge(((d.challenge || {}).challengeList || []), !!d.auto_join, h);
   } catch (err) {
@@ -909,7 +944,7 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
   }
   // 往期战绩默认只显示最近一条,其余折叠,避免长列表撑爆面板。
   const pastRows = (historyData && historyData.history && historyData.history.challenges) || [];
-  const pastRowHtml = (h) => `<p>${fmtDay(h.startTime)} — ${fmtDay(h.endTime)} · ${h.challengeDay} 天 · <b class="${h.status === 2 ? "ok" : "dim"}">${h.status === 2 ? "挑战成功" : "未完成"}</b></p>`;
+  const pastRowHtml = (h) => `<p>${fmtDay(h.startTime)} — ${fmtDay(h.endTime)} · ${escapeHtml(h.challengeDay)} 天 · <b class="${h.status === 2 ? "ok" : "dim"}">${h.status === 2 ? "挑战成功" : "未完成"}</b></p>`;
   const historyRow = pastRows.length
     ? `<div class="challenge-history"><span>挑战记录</span><div>
           <div class="challenge-history-latest">${pastRowHtml(pastRows[0])}${
@@ -955,15 +990,15 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
   const circ = (2 * Math.PI * R).toFixed(1);
   const ring = (pct, value, unit, label, target) => `
     <div class="challenge-metric">
-      <div class="challenge-ring" role="img" aria-label="${label} ${value} ${unit}，目标 ${target} ${unit}，完成 ${Math.round(pct)}%">
+      <div class="challenge-ring" role="img" aria-label="${escapeHtml(label + " " + value + " " + unit + "，目标 " + target + " " + unit + "，完成 " + Math.round(pct) + "%")}">
         <svg viewBox="0 0 120 120" aria-hidden="true">
           <circle class="ring-track" cx="60" cy="60" r="${R}"></circle>
           <circle class="ring-fill" cx="60" cy="60" r="${R}" stroke-dasharray="${circ}"
             stroke-dashoffset="${(circ * (1 - pct / 100)).toFixed(1)}"${pct <= 0 ? ' style="opacity:0"' : ''}></circle>
         </svg>
-        <div class="ring-center"><b>${value}<small>${unit}</small></b><span>${Math.round(pct)}% 已完成</span></div>
+        <div class="ring-center"><b>${escapeHtml(value)}<small>${unit}</small></b><span>${Math.round(pct)}% 已完成</span></div>
       </div>
-      <div class="challenge-metric-label">${label}<span>目标 ${target} ${unit}</span></div>
+      <div class="challenge-metric-label">${label}<span>目标 ${escapeHtml(target)} ${unit}</span></div>
     </div>`;
   const sectionHtml = (c, shared) => {
     const ch = c.challenge || {};
@@ -983,15 +1018,15 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
         <div class="challenge-info">
           <div class="challenge-period">
             <span>挑战周期</span>
-            <div><b>${ch.challengeDay} 天<span class="challenge-remaining">剩余 ${remainDays} 天</span></b>
+            <div><b>${escapeHtml(ch.challengeDay)} 天<span class="challenge-remaining">剩余 ${escapeHtml(remainDays)} 天</span></b>
               <p>${fmtDay(c.startTime)} — ${fmtDay(c.endTime)}</p></div>
           </div>
-          <div><span>达标条件</span><b>累计阅读 ${fmtDuration(ch.targetTime)} · 打卡 ${ch.targetDay} 天</b></div>
+          <div><span>达标条件</span><b>累计阅读 ${escapeHtml(fmtDuration(ch.targetTime))} · 打卡 ${escapeHtml(ch.targetDay)} 天</b></div>
           ${c.baseMedalPicUrl ? `
           <div><span>挑战勋章</span><b class="challenge-medal"><img src="${escapeHtml(c.baseMedalPicUrl)}" alt="挑战勋章" loading="lazy"><small>${c.status === 2 ? "已获得" : "完成挑战自动发放"}</small></b></div>` : ""}
-          <div><span>报名费用</span><b>${ch.price ? `¥${(ch.price / 100).toFixed(0)}<small>报名即得体验卡 ${ch.initRewardCard} 天</small>` : "免费"}</b></div>
-          ${(ch.reachRewardCard || ch.reachRewardCoin) ? `<div><span>达标奖励</span><b>体验卡 ${ch.reachRewardCard || 0} 天 或 书币 ${ch.reachRewardCoin || 0} 个</b></div>` : ""}
-          <div><span>全站数据</span><b>${c.challengingCnt ?? 0} 人参赛 · ${c.succCnt ?? 0} 人成功</b></div>
+          <div><span>报名费用</span><b>${ch.price ? `¥${(ch.price / 100).toFixed(0)}<small>报名即得体验卡 ${escapeHtml(ch.initRewardCard)} 天</small>` : "免费"}</b></div>
+          ${(ch.reachRewardCard || ch.reachRewardCoin) ? `<div><span>达标奖励</span><b>体验卡 ${escapeHtml(ch.reachRewardCard || 0)} 天 或 书币 ${escapeHtml(ch.reachRewardCoin || 0)} 个</b></div>` : ""}
+          <div><span>全站数据</span><b>${escapeHtml(c.challengingCnt ?? 0)} 人参赛 · ${escapeHtml(c.succCnt ?? 0)} 人成功</b></div>
         </div>
       </div>${shared}
     </div>`;
@@ -1046,6 +1081,7 @@ function renderChallenge(d) {
   $("#challenge-laststatus").textContent = cfg.last_status
     ? `上次执行（${cfg.last_run_date || "—"}):${cfg.last_status}`
     : "尚未执行过";
+  setChallengePanelEnabled(true);
 
   const grid = $("#challenge-books");
   grid.textContent = "";
@@ -1258,6 +1294,9 @@ function resetWeeklyUI() {
   $("#reading-time-progress-label").textContent = "";
   $("#reading-day-progress-label").textContent = "";
   $("#reading-rules").textContent = "";
+  // 开关是账号级状态,加载失败时不能残留上一账号的勾选。
+  const actAuto = $("#act-auto-claim");
+  if (actAuto) actAuto.checked = false;
 }
 
 async function loadWeekly() {
@@ -1493,7 +1532,7 @@ function renderWeekly() {
   const dayGrid = $("#reading-day-awards");
   dayGrid.textContent = "";
   for (const a of [...(w.readdayAwards || [])].sort(byGoal)) dayGrid.append(weeklyCard(a, w, readingPrefs));
-  $("#reading-day-progress-label").innerHTML = `本周已读 <b>${w.readingDay ?? 0} 天</b>`;
+  $("#reading-day-progress-label").innerHTML = `本周已读 <b>${escapeHtml(w.readingDay ?? 0)} 天</b>`;
 
   const rules = $("#reading-rules");
   rules.textContent = "";
@@ -1526,9 +1565,13 @@ async function saveRewardChoice(a, c, btn) {
   }
 }
 
-// 自动领取体验卡活动:保存失败时回滚勾选状态。
+// 自动领取体验卡活动:保存失败时回滚勾选状态;无账号时不发无效请求。
 $("#act-auto-claim").addEventListener("change", async (e) => {
   const enabled = e.target.checked;
+  if (!readingAlias) {
+    e.target.checked = !enabled;
+    return;
+  }
   try {
     await api(`/api/accounts/${encodeURIComponent(readingAlias)}/act/auto-claim`, {
       method: "POST",
@@ -1669,7 +1712,13 @@ const pushTypes = {
 };
 
 async function loadPushChannels() {
-  const channels = await api("/api/settings/push");
+  let channels;
+  try {
+    channels = await api("/api/settings/push");
+  } catch (err) {
+    $("#push-list").innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
+    return;
+  }
   const byType = {};
   for (const c of channels) byType[c.type] = c;
 
@@ -1776,4 +1825,10 @@ async function saveChannel(type, enabled, params, btn) {
 /* ---------- 启动 ---------- */
 
 renderIcons();
-loadAccounts();
+// URL 带合法视图 hash 时直达对应页(如刷新前停在「运行日志」),否则落在「我的账号」。
+const initialView = location.hash.slice(1);
+if (VIEW_NAMES.includes(initialView)) {
+  routeView(initialView);
+} else {
+  loadAccounts();
+}

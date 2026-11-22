@@ -268,16 +268,28 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 		var result *weread.FarmResult
 		var err error
 		retries := 0
+		heartbeats := 0
+		attemptCreds := creds
 		for {
 			attemptCtx, attemptCancel := context.WithTimeout(runCtx, time.Duration(task.Total-task.Done+10)*time.Minute)
-			result, _, err = s.client.FarmSession(attemptCtx, creds, task, func(done, total int, msg string) {
-				// 断点与日志每次心跳(30 秒)记一条,粒度 0.5 分钟。
+			var next *weread.Credentials
+			result, next, err = s.client.FarmSession(attemptCtx, attemptCreds, task, func(done, total int, msg string) {
+				heartbeats++
+				// 断点每次心跳(30 秒)落库,粒度 0.5 分钟,供续跑与页面进度;
+				// 日志放宽到约每 5 分钟一条,避免长会话刷爆运行日志留存。
 				if err := store.SaveReadingRunState(s.db, vid, today, fmt.Sprintf("正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2), &store.RunProgress{BookID: task.BookID, Done: done, Total: total}); err != nil {
 					s.logf("error", "farm", vid, "阅读进度保存失败: %v", err)
 				}
-				s.logf("info", "farm", vid, "正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2)
+				if heartbeats == 1 || heartbeats%10 == 0 {
+					s.logf("info", "farm", vid, "正在阅读%s%.1f/%d 分钟", book, float64(done)*0.5, total/2)
+				}
 			}, ctrl)
 			attemptCancel()
+			if next != nil {
+				// 会话中途可能已轮换凭据(经 OnRefresh 落库):重试沿用最新一代,
+				// 不拿开场旧值硬闯可能已被消费的 refreshToken。
+				attemptCreds = next
+			}
 			if err == nil || retries >= maxRetries || ctrl.Stopped() || runCtx.Err() != nil {
 				break
 			}
@@ -320,8 +332,9 @@ func (s *Server) startFarm(vid string, task weread.FarmTask, creds *weread.Crede
 			s.notifyFarmResult(vid, "error", "阅读会话失败",
 				fmt.Sprintf("%s自动阅读失败(已重试 %d 次):%v;明日将自动重试", book, retries, err))
 		case result.Err != "":
+			// 断点已在收尾时清除:当日视为结束,再次执行从零计时,文案与行为保持一致。
 			s.notifyFarmResult(vid, "warn", "阅读中断",
-				fmt.Sprintf("%s记录 %s 后中断:%s;进度已保留,可在页面继续", book, minutesText, result.Err))
+				fmt.Sprintf("%s记录 %s 后中断:%s;当日任务结束,再次执行将重新计时", book, minutesText, result.Err))
 		default:
 			body := fmt.Sprintf("%s\n已阅读 %s", s.readingBookTitle(vid, task.BookID), minutesText)
 			// 账号勾选了周奖励偏好时,顺手把本周奖励状态并进同一条推送(一次查询)。
@@ -404,6 +417,11 @@ func (s *Server) tickFarm(ctx context.Context) {
 	for _, cfg := range cfgs {
 		if ctx.Err() != nil {
 			return
+		}
+		// 会话进行中(如跨午夜未收尾)先跳过:触发路径本来就起不来
+		// (errFarmAlreadyRunning),提前跳过省掉每 30 秒一轮的无效查询与日志。
+		if s.farmRunning(cfg.Vid) {
+			continue
 		}
 		if cfg.LastRunDate == today {
 			continue

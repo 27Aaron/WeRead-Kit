@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/27Aaron/weread-kit/internal/store"
@@ -19,7 +20,8 @@ import (
 
 func main() {
 	loadDotEnv(".env")
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	// SIGTERM 一并捕获:systemd/裸进程的默认 kill 信号,不捕就跳过优雅退出。
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	dbPath := os.Getenv("WEREAD_DB")
 	if dbPath == "" {
@@ -57,15 +59,29 @@ func main() {
 		fmt.Fprintln(os.Stderr, "警告: "+msg)
 	}
 	srv := &http.Server{Addr: addr, Handler: app.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	// Shutdown 一开始 ListenAndServe 就会返回,必须等排空真正结束再收尾,
+	// 否则 in-flight 请求会撞上已关闭的 DB。
+	shutdownDone := make(chan struct{})
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
+		close(shutdownDone)
 	}()
 	fmt.Printf("weread-kit Web UI: http://%s\n", addr)
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		fmt.Fprintf(os.Stderr, "Web 服务失败: %v\n", err)
+	listenErr := srv.ListenAndServe()
+	serverFailed := listenErr != nil && !errors.Is(listenErr, http.ErrServerClosed)
+	if serverFailed {
+		fmt.Fprintf(os.Stderr, "Web 服务失败: %v\n", listenErr)
+	} else {
+		<-shutdownDone
+	}
+	if serverFailed {
+		// os.Exit 会跳过 defer:先显式收尾再带非零码退出,让 systemd/docker 能识别失败。
+		app.Close()
+		db.Close()
+		os.Exit(1)
 	}
 }
 
