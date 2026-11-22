@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.5.0] - 2026-11-23
+
 ### 修复
 
 - 凭据刷新单飞缓存按代际复用:持有已被消费的旧代凭据的调用方直接拿回最新一代,不再重复请求刷新接口(此前仅精确匹配同一份旧凭据时才复用,隔代调用会用已轮换的 refreshToken 再次请求);阅读会话失败重试同样改用上一场会话返回的最新凭据
@@ -323,6 +325,7 @@
 - 多平台二进制发布(linux/darwin/windows × amd64/arm64)、Docker 多架构镜像、Nix flake 开发环境
 - MIT 许可
 
+[v0.5.0]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.5.0
 [v0.4.6]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.6
 [v0.4.5]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.5
 [v0.4.4]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.4
