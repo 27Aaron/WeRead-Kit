@@ -1,5 +1,4 @@
-// 「我的阅读」页书币余额接口的单测:桩化官方 /pay/balance,覆盖正常返回、
-// 上游业务错误与未知账号。
+// 「我的阅读」页接口的单测。
 package web
 
 import (
@@ -33,7 +32,6 @@ func newBalanceServer(t *testing.T, respond func(path string) *http.Response) *S
 	return &Server{db: db, client: client}
 }
 
-// getBalance 直调 handler 发一次余额请求,返回响应记录器。
 func getBalance(s *Server, vid string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodGet, "/api/accounts/"+vid+"/balance", nil)
 	req.SetPathValue("vid", vid)
@@ -83,8 +81,8 @@ func TestAccountBalance(t *testing.T) {
 }
 
 // TestAutoClaimSuppressesRejectedChoice 覆盖调度器对 -2417 的抑制:官方拒绝
-// 某档位的奖品选择后(如墨水屏会话领 7 天书币,issue #102),同一领取窗口内
-// 只记一条日志、不再重复请求;非 -2417 的错误仍逐轮记录。
+// 某档位的奖品选择后,同一领取窗口内只记一条日志、不再重复请求;
+// 非 -2417 的错误仍逐轮记录。
 func TestAutoClaimSuppressesRejectedChoice(t *testing.T) {
 	queryBody := `{"readdayAwards":[{"awardLevelId":13,"awardStatus":1,"awardChoices":[{"choiceType":1,"awardNum":2}]}],"readtimeAwards":[]}`
 	db, err := store.Open(filepath.Join(t.TempDir(), "test.db"))

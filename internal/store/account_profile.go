@@ -7,8 +7,7 @@ import (
 	"time"
 )
 
-// UpdateProfile 仅更新 Web UI 渲染所需的身份字段(昵称/头像/用户 ID)。
-// 备注为空时自动以昵称填充一次;用户手动设置的备注不会被同步覆盖。
+// UpdateProfile 只更新 Web UI 渲染所需的身份字段;备注为空时以昵称填充一次,手动设置的备注不会被覆盖。
 func UpdateProfile(db *sql.DB, vid, name, avatar, userVid string) error {
 	name = strings.TrimSpace(name)
 	userVid = strings.TrimSpace(userVid)
@@ -30,8 +29,8 @@ func UpdateProfile(db *sql.DB, vid, name, avatar, userVid string) error {
 	return nil
 }
 
-// SaveDetailsCache 僅持久化介面渲染所需的少量快取欄位。
-// 某一路為空(本次採集失敗)時保留舊快取,避免一次網路抖動清空書架與會員卡。
+// SaveDetailsCache 只持久化界面渲染所需的少量缓存字段;
+// 某一路为空(本次采集失败)时保留旧缓存,避免一次网络抖动清空书架与会员卡。
 func SaveDetailsCache(db *sql.DB, vid string, profile, card, shelf []byte) error {
 	profile = compactJSON(profile, []string{"userVid", "name", "avatar"})
 	card = compactJSON(card, []string{"startTime", "expiredTime", "expired", "remainTime"})

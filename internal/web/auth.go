@@ -34,8 +34,8 @@ func loadOrCreateSessionKey(db *sql.DB) (string, error) {
 	return key, store.SetSetting(db, sessionKeySetting, key)
 }
 
-// sessionToken 的簽章同時涵蓋目前帳號密碼:修改 WEREAD_USERNAME/WEREAD_PASSWORD
-// 並重新啟動後,先前簽發的會話立即失效,無需等待 7 天過期。
+// sessionToken 的签章同时涵盖当前账号密码:修改 WEREAD_USERNAME/WEREAD_PASSWORD
+// 并重新启动后,先前签发的会话立即失效,无需等待 7 天过期。
 func (s *Server) sessionToken(expires int64) string {
 	stamp := strconv.FormatInt(expires, 10)
 	mac := hmac.New(sha256.New, s.sessionKey)

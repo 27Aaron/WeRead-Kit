@@ -11,22 +11,22 @@ import (
 )
 
 const (
-	// refreshReuseWindow 內重複提交同一份舊憑據的刷新請求直接沿用上次結果。
+	// refreshReuseWindow 内重复提交同一份旧凭据的刷新请求直接沿用上次结果。
 	refreshReuseWindow = 5 * time.Minute
-	// refreshTimeout 是單次刷新請求的上限,獨立於呼叫方 ctx。
+	// refreshTimeout 是单次刷新请求的上限,独立于调用方 ctx。
 	refreshTimeout = 20 * time.Second
 )
 
 // Refresh 用 refreshToken 换新 accessToken。
 //
 // 服务端可能同时轮换 refreshToken:返回值里的 RefreshToken 为空表示沿用旧的,
-// 非空表示已轮换——调用方必须把返回的凭据立刻持久化,丢了轮换值就只能重新扫码。
+// 非空表示已轮换。调用方必须立刻持久化返回的凭据,丢了轮换值就只能重新扫码。
 func (c *Client) Refresh(ctx context.Context, creds *Credentials) (*Credentials, error) {
 	if creds == nil || creds.RefreshToken == "" || creds.DeviceID == "" {
 		return nil, errors.New("凭据不完整,无法刷新")
 	}
 
-	// 同一帳號同一時刻只允許一次刷新。微信讀書可能輪換 refreshToken,
+	// 同一账号同一时刻只允许一次刷新。微信读书可能轮换 refreshToken,
 	// 重复消费旧 Token 会让后一个请求覆盖前一个请求刚保存的新凭据。
 	source := cloneCredentials(creds)
 	for {
@@ -38,8 +38,8 @@ func (c *Client) Refresh(ctx context.Context, creds *Credentials) (*Credentials,
 		if call != nil {
 			select {
 			case <-call.done:
-				// 上一次刷新已結束:持有同一份舊憑據的呼叫在沿用窗口內直接拿結果,
-				// 不再用已被輪換掉的 refreshToken 重複請求。
+				// 上一次刷新已结束:持有同一份旧凭据的调用在沿用窗口内直接拿结果,
+				// 不再用已被轮换掉的 refreshToken 重复请求。
 				if call.err == nil && sameCredentials(call.source, source) && time.Since(call.finished) < refreshReuseWindow {
 					c.refreshMu.Unlock()
 					return cloneCredentials(call.next), nil
@@ -66,8 +66,8 @@ func (c *Client) Refresh(ctx context.Context, creds *Credentials) (*Credentials,
 		c.refreshes[creds.Vid] = call
 		c.refreshMu.Unlock()
 
-		// 請求送出後服務端就可能已輪換 refreshToken:呼叫方中途取消(如瀏覽器斷開)
-		// 也要等到結果並交給 OnRefresh 落庫,否則新 Token 遺失只能重新掃碼。
+		// 请求送出后服务端就可能已轮换 refreshToken:调用方中途取消(如浏览器断开)
+		// 也要等到结果并交给 OnRefresh 落库,否则新 Token 遗失只能重新扫码。
 		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), refreshTimeout)
 		next, err := c.refresh(rctx, creds)
 		cancel()

@@ -13,8 +13,7 @@ import (
 	"github.com/27Aaron/weread-kit/internal/weread"
 )
 
-// stubTransport 让 web 层测试能把官方接口桩在 RoundTripper 上,
-// 模式与 internal/weread 的单测一致。
+// stubTransport 官方接口桩,模式与 internal/weread 的单测一致。
 type stubTransport func(*http.Request) (*http.Response, error)
 
 func (f stubTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
@@ -66,7 +65,6 @@ func TestChallengeJoinValidation(t *testing.T) {
 	}
 }
 
-// TestChallengeJoinUnknownAccount 未知账号返回 404。
 func TestChallengeJoinUnknownAccount(t *testing.T) {
 	s := newChallengeServer(t, func(r *http.Request) (*http.Response, error) {
 		t.Fatal("未知账号不应触达官方接口")
@@ -87,7 +85,7 @@ func TestChallengeJoinAlreadyJoined(t *testing.T) {
 	}
 }
 
-// TestChallengeJoinSuccess 报名成功返回 200 并落一条审计日志。
+// TestChallengeJoinSuccess 报名成功后落一条审计日志。
 func TestChallengeJoinSuccess(t *testing.T) {
 	s := newChallengeServer(t, func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path != "/challenge/join" {

@@ -121,7 +121,6 @@ func TestClaimSendInfiniteOnceClaimsWhenAvailable(t *testing.T) {
 	}
 }
 
-// TestClaimSendInfiniteSkipsWhenDisabled 开关关闭时不发起任何请求。
 func TestClaimSendInfiniteSkipsWhenDisabled(t *testing.T) {
 	s, calls := newActServer(t, func(cmd, source string) (int, string) {
 		return http.StatusOK, `{}`
@@ -132,7 +131,6 @@ func TestClaimSendInfiniteSkipsWhenDisabled(t *testing.T) {
 	}
 }
 
-// TestClaimSendInfiniteAlreadyReceived 已领后不再重复领取。
 func TestClaimSendInfiniteAlreadyReceived(t *testing.T) {
 	s, calls := newActServer(t, func(cmd, source string) (int, string) {
 		return http.StatusOK, `{"received":1,"day":1}`

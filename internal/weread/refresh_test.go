@@ -105,8 +105,8 @@ func TestRenewWebCookieMergesRotatedCookie(t *testing.T) {
 	}
 }
 
-// TestRefreshReusesResultForStaleCredentials 涵蓋「上一次刷新已結束,另一個呼叫方
-// 仍持有舊憑據」的情形:應直接沿用結果,而不是再用已被輪換掉的 refreshToken 請求一次。
+// TestRefreshReusesResultForStaleCredentials 涵盖「上一次刷新已结束,另一个调用方
+// 仍持有旧凭据」的情形:应直接沿用结果,而不是再用已被轮换掉的 refreshToken 请求一次。
 func TestRefreshReusesResultForStaleCredentials(t *testing.T) {
 	var calls atomic.Int32
 	var persisted []*Credentials
@@ -135,15 +135,15 @@ func TestRefreshReusesResultForStaleCredentials(t *testing.T) {
 	}
 }
 
-// TestRefreshPersistsEvenIfCallerCancels 驗證呼叫方中途取消時,已送出的刷新仍會完成並落庫:
-// 服務端可能已輪換 refreshToken,丟掉結果就只能重新掃碼。
+// TestRefreshPersistsEvenIfCallerCancels 验证调用方中途取消时,已送出的刷新仍会完成并落库:
+// 服务端可能已轮换 refreshToken,丢掉结果就只能重新扫码。
 func TestRefreshPersistsEvenIfCallerCancels(t *testing.T) {
 	persisted := make(chan *Credentials, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	client := NewClient()
 	client.OnRefresh = func(next *Credentials) { persisted <- next }
 	client.HTTP.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		cancel() // 請求已到達服務端後,呼叫方斷開
+		cancel() // 请求已到达服务端后,调用方断开
 		if err := r.Context().Err(); err != nil {
 			return nil, err
 		}

@@ -101,7 +101,7 @@ func (rw *WeeklyRewards) TodayReadSeconds(now time.Time) (int, bool) {
 	if len(days) > 7 {
 		days = days[len(days)-7:]
 	}
-	idx := (int(now.Weekday()) + 6) % 7 // 今天是周几(0=周一),与前端柱状图同口径
+	idx := (int(now.Weekday()) + 6) % 7 // 0=周一
 	if idx >= len(days) {
 		return 0, false
 	}

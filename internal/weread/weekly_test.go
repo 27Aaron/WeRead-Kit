@@ -5,10 +5,8 @@ import (
 	"time"
 )
 
-// TestWeeklyRewardsTodayReadSeconds 校验本周每日明细的「今天」取值:
-// readDays 为周一→周日,下标与前端周柱状图一致((getDay()+6)%7);
-// 超过 7 项取最后 7 项,缺失或长度不足时 ok=false 由调用方兜底。
-// 固定用 2026-11-16(周一)..2026-11-22(周日)这一周,避免依赖运行日期。
+// TestWeeklyRewardsTodayReadSeconds 固定用 2026-11-16(周一)..2026-11-22(周日)这一周,
+// 避免依赖运行日期;取值口径见 TodayReadSeconds。
 func TestWeeklyRewardsTodayReadSeconds(t *testing.T) {
 	week := []int{60, 120, 0, 300, 30, 0, 600} // 周一..周日
 	twoWeeks := append([]int{1, 2, 3, 4, 5, 6, 7}, week...)

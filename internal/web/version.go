@@ -46,8 +46,8 @@ func newerVersion(latest, current string) bool {
 	return false
 }
 
-// 每次開啟頁面都會查詢版本;GitHub 未驗證介面每 IP 每小時僅 60 次,
-// 成功結果快取 1 小時,失敗結果快取 5 分鐘,避免多分頁/頻繁重新整理被限流。
+// 每次打开页面都会查询版本;GitHub 未验证接口每 IP 每小时仅 60 次,
+// 成功结果缓存 1 小时,失败结果缓存 5 分钟,避免多分页/频繁刷新被限流。
 const (
 	versionCacheTTL     = time.Hour
 	versionFailCacheTTL = 5 * time.Minute
@@ -86,7 +86,7 @@ func (s *Server) latestRelease(ctx context.Context) *latestRelease {
 	if !c.checkedAt.IsZero() && time.Since(c.checkedAt) < ttl {
 		return c.release
 	}
-	// 結果供所有請求共用,不隨單一瀏覽器請求取消而記成失敗。
+	// 结果供所有请求共用,不随单一浏览器请求取消而记成失败。
 	c.release, c.checkedAt = fetchLatestRelease(context.WithoutCancel(ctx)), time.Now()
 	return c.release
 }

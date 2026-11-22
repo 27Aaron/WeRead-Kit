@@ -14,7 +14,6 @@ import (
 	"time"
 )
 
-// 支持的渠道类型标识。
 const (
 	TypeBark       = "bark"
 	TypeTelegram   = "telegram"
@@ -52,8 +51,8 @@ func DefaultParams(chType string) map[string]string {
 
 var httpClient = &http.Client{Timeout: 15 * time.Second}
 
-// do 送出請求並檢查狀態碼。Bark/Telegram/Server醬的密鑰都在 URL 路徑裡,
-// 而 *url.Error 會把完整 URL 拼進錯誤文字;這裡剝掉 URL,避免密鑰寫進日誌。
+// do 检查状态码;Bark/Telegram/Server酱的密钥都在 URL 路径里,
+// *url.Error 会把完整 URL 拼进错误文字,这里剥掉 URL,避免密钥写进日志。
 func do(req *http.Request) ([]byte, error) {
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -70,7 +69,6 @@ func do(req *http.Request) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 }
 
-// postJSON 送出 JSON 請求並解析回應。
 func postJSON(ctx context.Context, rawURL string, payload any) ([]byte, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {

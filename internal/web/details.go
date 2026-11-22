@@ -44,7 +44,7 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 採集途中的續期已由 OnRefresh 落庫。
+	// 采集途中的续期已由 OnRefresh 落库。
 	d, err := s.client.Details(r.Context(), toWeread(c))
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, err)
@@ -65,18 +65,18 @@ func (s *Server) handleAccountDetails(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// persistDetails 把一次採集結果寫入詳情快取與資料快取;失敗項記入 d.Errs。
-// 快取寫入失敗不影響本次回傳,前端下次仍可強制刷新。
+// persistDetails 把采集结果写入详情缓存与资料缓存;失败项记入 d.Errs。
+// 缓存写入失败不影响本次返回,前端下次仍可强制刷新。
 func persistDetails(db *sql.DB, vid string, d *weread.Details) {
 	var shelfJSON []byte
 	if _, failed := d.Errs["shelf"]; !failed {
-		// 書架拉取失敗時傳空,保留舊快取而不是寫入空書架。
+		// 书架拉取失败时传空,保留旧缓存而不是写入空书架。
 		shelfJSON, _ = json.Marshal(d.Shelf)
 	}
 	if err := store.SaveDetailsCache(db, vid, d.User, d.Card, shelfJSON); err != nil {
 		d.Errs["cache"] = "缓存写入失败: " + err.Error()
 	}
-	// 同步顯示名稱/頭像快取(獨立於詳情快取,列表頁用)。
+	// 同步显示名称/头像缓存(独立于详情缓存,列表页用)。
 	if len(d.User) > 0 {
 		if err := saveProfile(db, vid, d.User); err != nil {
 			d.Errs["profile"] = "保存用户资料失败"

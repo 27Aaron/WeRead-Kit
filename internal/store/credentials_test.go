@@ -17,7 +17,6 @@ func openTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-// TestSaveDetailsCacheKeepsOldOnPartialFailure 保證某一路採集失敗(傳空)時保留舊快取。
 func TestSaveDetailsCacheKeepsOldOnPartialFailure(t *testing.T) {
 	db := openTestDB(t)
 	if err := Save(db, &Credential{Vid: "v1", RefreshToken: "rt", DeviceID: "dev"}); err != nil {
@@ -38,8 +37,6 @@ func TestSaveDetailsCacheKeepsOldOnPartialFailure(t *testing.T) {
 	}
 }
 
-// TestUpdateTokensDoesNotResurrectDeletedAccount 保證續期落庫只更新現有帳號,
-// 與刪除並行時不會把帳號插回來。
 func TestUpdateTokensDoesNotResurrectDeletedAccount(t *testing.T) {
 	db := openTestDB(t)
 	if err := UpdateTokens(db, "gone", "at", "rt", "dev"); !errors.Is(err, ErrNotFound) {
@@ -61,8 +58,7 @@ func TestUpdateTokensDoesNotResurrectDeletedAccount(t *testing.T) {
 	}
 }
 
-// TestDeleteRemovesAccountSettings 保證刪除帳號時清掉以 ":<vid>" 結尾的帳號級設定,
-// 且不誤刪其他帳號或全域設定。
+// 回归:只清理以 ":<vid>" 结尾的账号级设置,不误删其他账号或全局设置。
 func TestDeleteRemovesAccountSettings(t *testing.T) {
 	db := openTestDB(t)
 	for _, vid := range []string{"1", "11"} {

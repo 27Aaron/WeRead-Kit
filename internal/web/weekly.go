@@ -16,8 +16,8 @@ import (
 	"github.com/27Aaron/weread-kit/internal/weread"
 )
 
-// weeklyClaimPrefKey 是账号奖励预约在 weread_setting 表中的键前缀,
-// 完整键为 weeklyClaimPrefKey+vid,值为 {"档位ID": 奖品类型} 的 JSON。
+// weeklyClaimPrefKey 是账号奖励预约在 weread_setting 的键前缀,
+// 值为 {"档位ID": 奖品类型} 的 JSON。
 const weeklyClaimPrefKey = "weekly_claim_pref:"
 
 // handleWeeklyRewards 返回指定账号的周阅读奖励、阅读统计与领取预约。
@@ -181,7 +181,6 @@ func (s *Server) StartWeeklyClaimScheduler(ctx context.Context) {
 	}()
 }
 
-// autoClaimOnce 执行一轮自动领取。
 func (s *Server) autoClaimOnce(ctx context.Context) {
 	accounts, err := store.List(s.db)
 	if err != nil {
@@ -289,7 +288,7 @@ func (s *Server) weeklyCall(ctx context.Context, vid string, op func(*weread.Cre
 	creds := toWeread(c)
 	data, err := op(creds)
 	if errors.Is(err, weread.ErrSessionExpired) {
-		// 續期結果由 client.OnRefresh 落庫。
+		// 续期结果由 client.OnRefresh 落库。
 		next, rerr := s.client.Refresh(ctx, creds)
 		if rerr != nil {
 			return nil, nil, fmt.Errorf("会话已过期且续期失败: %w", rerr)
