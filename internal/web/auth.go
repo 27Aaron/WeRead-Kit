@@ -49,6 +49,35 @@ func (s *Server) validSession(token string) bool {
 	return ok && err == nil && expires > time.Now().Unix() && hmac.Equal([]byte(token), []byte(s.sessionToken(expires)))
 }
 
+// 登录失败退避:连续失败 3 次起指数加时(5s/10s/20s…封顶 1 分钟),
+// 成功即清零。单用户本地工具,挡住脚本速刷即可,不做按 IP 区分。
+const maxLoginBackoff = time.Minute
+
+func (s *Server) loginLocked() bool {
+	s.loginMu.Lock()
+	defer s.loginMu.Unlock()
+	return s.loginFailures >= 3 && time.Now().Before(s.loginLockUntil)
+}
+
+func (s *Server) loginMarkResult(ok bool) {
+	s.loginMu.Lock()
+	defer s.loginMu.Unlock()
+	if ok {
+		s.loginFailures = 0
+		s.loginLockUntil = time.Time{}
+		return
+	}
+	s.loginFailures++
+	if s.loginFailures < 3 {
+		return
+	}
+	wait := (1 << (s.loginFailures - 3)) * 5 * time.Second
+	if wait > maxLoginBackoff {
+		wait = maxLoginBackoff
+	}
+	s.loginLockUntil = time.Now().Add(wait)
+}
+
 func (s *Server) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/login" || r.URL.Path == "/favicon.png" || r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || (s.username == "" && s.password == "") {
@@ -69,9 +98,16 @@ func (s *Server) auth(next http.Handler) http.Handler {
 }
 
 func (s *Server) handleLoginPost(w http.ResponseWriter, r *http.Request) {
-	if r.ParseForm() == nil && s.username != "" && s.password != "" &&
+	if s.loginLocked() {
+		store.AddLog(s.db, "warn", "auth", "", "Web 登录失败:失败次数过多已临时锁定,请稍后再试")
+		http.Redirect(w, r, "/login?error=1", http.StatusSeeOther)
+		return
+	}
+	ok := r.ParseForm() == nil && s.username != "" && s.password != "" &&
 		subtle.ConstantTimeCompare([]byte(r.Form.Get("username")), []byte(s.username)) == 1 &&
-		subtle.ConstantTimeCompare([]byte(r.Form.Get("password")), []byte(s.password)) == 1 {
+		subtle.ConstantTimeCompare([]byte(r.Form.Get("password")), []byte(s.password)) == 1
+	s.loginMarkResult(ok)
+	if ok {
 		expires := time.Now().Add(webSessionTTL)
 		http.SetCookie(w, &http.Cookie{Name: "weread_session", Value: s.sessionToken(expires.Unix()), Path: "/", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode, Expires: expires, MaxAge: int(webSessionTTL.Seconds())})
 		http.Redirect(w, r, "/", http.StatusSeeOther)

@@ -17,6 +17,10 @@ import (
 // 并给前端足够时间读到最终状态。
 const sessionTTL = 15 * time.Minute
 
+// maxLoginSessions 限制同时在途的扫码会话数:每个会话背后是一个对微信的
+// 长轮询 goroutine,开放监听模式下防止无上限的资源放大。
+const maxLoginSessions = 5
+
 // loginSession 表示一次进行中的扫码登录;扫码前不知道账号身份,确认后按 creds.Vid 定位账号。
 type loginSession struct {
 	confirmURL string
@@ -42,6 +46,12 @@ func newLoginManager(db *sql.DB, client *weread.Client) *loginManager {
 
 func (m *loginManager) start() (string, error) {
 	m.gc()
+	m.mu.Lock()
+	if len(m.sessions) >= maxLoginSessions {
+		m.mu.Unlock()
+		return "", errors.New("登录会话过多,请稍后再试")
+	}
+	m.mu.Unlock()
 	id, err := newSessionID()
 	if err != nil {
 		return "", err

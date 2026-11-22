@@ -37,11 +37,15 @@ type Server struct {
 	// 避免调度器在同一领取窗口内反复重试被拒的奖品选择(issue #102)。
 	weeklyBlockMu sync.Mutex
 	weeklyBlocks  map[string]string
-	farmWG        sync.WaitGroup
-	closing       bool
-	ctx           context.Context
-	cancel        context.CancelFunc
-	version       versionCache
+	// Web 登录失败退避状态(连续失败计数与锁定期),见 auth.go 的 loginMarkResult。
+	loginMu        sync.Mutex
+	loginFailures  int
+	loginLockUntil time.Time
+	farmWG         sync.WaitGroup
+	closing        bool
+	ctx            context.Context
+	cancel         context.CancelFunc
+	version        versionCache
 }
 
 func New(db *sql.DB) *Server {
