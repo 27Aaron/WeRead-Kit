@@ -34,6 +34,11 @@ func UpdateProfile(db *sql.DB, vid, name, avatar, userVid string) error {
 func SaveDetailsCache(db *sql.DB, vid string, profile, card, shelf []byte) error {
 	profile = compactJSON(profile, []string{"userVid", "name", "avatar"})
 	card = compactJSON(card, []string{"startTime", "expiredTime", "expired", "remainTime"})
+	// 三路全空即本次采集全部失败:旧缓存原样保留,时间戳也不能刷新,
+	// 否则详情页会把陈旧数据当"刚拉取"展示。
+	if len(profile) == 0 && len(card) == 0 && len(shelf) == 0 {
+		return nil
+	}
 	res, err := db.Exec(`UPDATE weread_account SET
 			profile = COALESCE(NULLIF(?, ''), profile),
 			card = COALESCE(NULLIF(?, ''), card),

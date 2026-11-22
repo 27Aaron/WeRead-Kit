@@ -35,6 +35,19 @@ func TestSaveDetailsCacheKeepsOldOnPartialFailure(t *testing.T) {
 	if got.Profile != `{"name":"n"}` || got.Card != `{"expired":0}` || got.Shelf != `[{"bookId":"b1"}]` {
 		t.Fatalf("cache overwritten by empty fetch: profile=%q card=%q shelf=%q", got.Profile, got.Card, got.Shelf)
 	}
+	// 三路全空也不能刷新时间戳:否则详情页会把陈旧缓存当"刚拉取"展示。
+	if _, err := db.Exec(`UPDATE weread_account SET details_cached_at = 1600000000 WHERE vid = 'v1'`); err != nil {
+		t.Fatalf("backdate: %v", err)
+	}
+	if err := SaveDetailsCache(db, "v1", nil, nil, nil); err != nil {
+		t.Fatalf("SaveDetailsCache(empty) 2: %v", err)
+	}
+	if got, err = Load(db, "v1"); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.DetailsCachedAt != 1600000000 {
+		t.Fatalf("empty fetch refreshed details_cached_at: got %d, want 1600000000", got.DetailsCachedAt)
+	}
 }
 
 func TestUpdateTokensDoesNotResurrectDeletedAccount(t *testing.T) {
