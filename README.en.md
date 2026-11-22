@@ -14,7 +14,7 @@ The web console is in Chinese only. Menu names below are followed by their Chine
 
 ## Features
 
-- **Daily reading challenge**: reads from your book list at a set time for a set number of minutes each day. When you pick several books, one is chosen at random. By default the run first checks the day: if you have already read at least 1 minute, the run is skipped and only fires when you forgot to read (can be turned off). You can also start a run by hand, and a run interrupted by a crash resumes on the next start.
+- **Daily reading challenge**: reads at a set time for a set number of minutes each day, checking first — if you have already read at least 1 minute, the run is skipped and only fires when you forgot to read (can be turned off). The book list is optional: leave it empty to read a random book from your whole shelf each day, or pick books to choose from. You can also start a run by hand, and a run interrupted by a crash resumes on the next start.
 - **Automatic reward claims**: pick a reward tier and prize once, and the same prize is claimed every week as soon as it is unlocked.
 - **Notifications**: Bark, Telegram, ServerChan (Server酱) and PushPlus, sent when a run completes, is interrupted or fails.
 - **Local account storage**: log in by scanning a QR code with WeChat. Credentials and settings stay in a local SQLite database.
@@ -86,7 +86,7 @@ Requires Go 1.26 or later. `nix develop` provides a ready development shell.
 ## Getting started
 
 1. **Add an account**: go to My Accounts (我的账号), click Add Account (添加账户), and scan the QR code with WeChat.
-2. **Set up the reading challenge**: open Reading Challenge (阅读挑战), select at least one book, set the daily start time and duration, and save.
+2. **Set up the reading challenge**: open Reading Challenge (阅读挑战), optionally pick books (leave empty to read a random shelf book each day), set the daily start time and duration, and save.
 3. **Turn on the schedule**: enable the daily reading switch (每天自动参与阅读挑战). Runs follow the schedule — by default it checks first and only reads when you have not read that day (configurable); an unfinished run resumes after a crash or restart.
 4. **Choose rewards**: on My Reading (我的阅读), pick a prize for a reward tier. The same prize is claimed automatically every week.
 5. **Set up notifications**: fill in a channel under Notifications (推送设置) and send a test message.

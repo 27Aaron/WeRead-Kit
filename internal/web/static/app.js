@@ -1061,7 +1061,8 @@ function renderChallenge(d) {
   const grid = $("#challenge-books");
   grid.textContent = "";
   if (!challengeBooks.length) {
-    grid.innerHTML = '<p class="empty">书架为空，先在详情里刷新数据。</p>';
+    // 书架缓存为空不阻塞使用:未选书单时会话启动与每日调度都会实时拉书架随机选。
+    grid.innerHTML = '<p class="empty">书架缓存为空，可在详情页刷新数据；不影响「从书架随机阅读」。</p>';
     return;
   }
   for (const b of challengeBooks) {
@@ -1122,10 +1123,6 @@ $("#challenge-account").addEventListener("change", (e) => {
 
 $("#challenge-save").addEventListener("click", async () => {
   if (!challengeAlias) return;
-  if (!challengePicked.size) {
-    toast("请至少选择一本书籍再保存", "error");
-    return;
-  }
   const btn = $("#challenge-save");
   setBusy(btn, true);
   try {
@@ -1156,10 +1153,7 @@ $("#challenge-save").addEventListener("click", async () => {
 
 async function runChallengeNow() {
   if (!challengeAlias) return;
-  if (!challengeSavedBooks.length) {
-    toast("请先选择要阅读的书籍，并点「保存配置」", "error");
-    return;
-  }
+  // 未选书单时也允许执行:服务端会实时拉书架随机选一本。
   const btn = $("#challenge-run");
   setBusy(btn, true);
   try {

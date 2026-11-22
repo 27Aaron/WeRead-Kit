@@ -69,6 +69,17 @@ func TestReadingConfigValidation(t *testing.T) {
 	if want := []string{"b1", "b2"}; !reflect.DeepEqual(cfg.BookIDs, want) {
 		t.Fatalf("book_ids = %v, want %v", cfg.BookIDs, want)
 	}
+	// 空书单合法:留空表示「每天从书架随机挑一本」,保存后再读回验证。
+	if post(`{"enabled":true,"book_ids":[],"minutes":30,"run_at":"03:00"}`) != http.StatusOK {
+		t.Fatal("empty book_ids: want 200")
+	}
+	cfg, err = store.GetReadingConfig(db, "v1")
+	if err != nil {
+		t.Fatalf("GetReadingConfig: %v", err)
+	}
+	if len(cfg.BookIDs) != 0 {
+		t.Fatalf("empty book_ids saved as %v, want empty", cfg.BookIDs)
+	}
 }
 
 // newReadingServer 构造直调调度器的最小 Server:临时库 + 桩化官方接口,
@@ -236,5 +247,103 @@ func TestTickFarmSkipDisabledRunsAnyway(t *testing.T) {
 	}
 	if !strings.Contains(cfg.LastStatus, "正在阅读") {
 		t.Fatalf("status = %q, want farm started with skip disabled", cfg.LastStatus)
+	}
+}
+
+// shelfStubBody 生成书架桩响应:两本可读书目。
+const shelfStubBody = `{"books":[{"bookId":"sb1","title":"书一"},{"bookId":"sb2","title":"书二"}]}`
+
+// emptyBookListConfig 存一份启用了调度但未选书单的配置。
+func emptyBookListConfig(t *testing.T, s *Server) {
+	t.Helper()
+	if err := store.SaveReadingConfig(s.db, &store.ReadingConfig{Vid: "v1", Enabled: true, BookIDs: []string{}, Minutes: 30, RunAt: "00:00"}); err != nil {
+		t.Fatalf("SaveReadingConfig: %v", err)
+	}
+}
+
+// TestTickFarmEmptyBookListPicksFromShelf 校验未选书单时从书架随机选一本:
+// 到点实时拉一次书架并正常启动会话。
+func TestTickFarmEmptyBookListPicksFromShelf(t *testing.T) {
+	shelfCalls := 0
+	s := newReadingServer(t, stubTransport(func(r *http.Request) (*http.Response, error) {
+		switch r.URL.Path {
+		case "/weekly/exchange":
+			// 今天没读过(0 秒,低于门槛):照常进入调度。
+			return stubResp(http.StatusOK, weeklyStubBody(t, 0)), nil
+		case "/shelf/sync":
+			shelfCalls++
+			return stubResp(http.StatusOK, shelfStubBody), nil
+		default:
+			return stubResp(http.StatusInternalServerError, "{}"), nil
+		}
+	}))
+	emptyBookListConfig(t, s)
+	s.tickFarm(context.Background())
+	if shelfCalls != 1 {
+		t.Fatalf("shelf/sync calls = %d, want 1", shelfCalls)
+	}
+	cfg, err := store.GetReadingConfig(s.db, "v1")
+	if err != nil {
+		t.Fatalf("GetReadingConfig: %v", err)
+	}
+	if cfg.LastRunDate != time.Now().Format("2006-01-02") || !strings.Contains(cfg.LastStatus, "正在阅读") {
+		t.Fatalf("run state = %s %q, want farm started with a shelf book", cfg.LastRunDate, cfg.LastStatus)
+	}
+}
+
+// TestTickFarmEmptyBookListShelfFailureSkipsDay 校验书架获取失败时的兜底:
+// 记下当日已处理并跳过(持续状态,避免每 30 秒重复打失败请求),次轮不再拉书架。
+func TestTickFarmEmptyBookListShelfFailureSkipsDay(t *testing.T) {
+	shelfCalls := 0
+	s := newReadingServer(t, stubTransport(func(r *http.Request) (*http.Response, error) {
+		switch r.URL.Path {
+		case "/weekly/exchange":
+			return stubResp(http.StatusOK, weeklyStubBody(t, 0)), nil
+		case "/shelf/sync":
+			shelfCalls++
+			return stubResp(http.StatusInternalServerError, "{}"), nil
+		default:
+			return stubResp(http.StatusInternalServerError, "{}"), nil
+		}
+	}))
+	emptyBookListConfig(t, s)
+	s.tickFarm(context.Background())
+	s.tickFarm(context.Background())
+	if shelfCalls != 1 {
+		t.Fatalf("shelf/sync calls = %d, want 1 (day marked after first failure)", shelfCalls)
+	}
+	cfg, err := store.GetReadingConfig(s.db, "v1")
+	if err != nil {
+		t.Fatalf("GetReadingConfig: %v", err)
+	}
+	if !strings.Contains(cfg.LastStatus, "书架获取失败") {
+		t.Fatalf("status = %q, want shelf failure noted", cfg.LastStatus)
+	}
+	if s.farmRunning("v1") {
+		t.Fatal("farm should not start when shelf fetch fails")
+	}
+}
+
+// TestReadingRunEmptyBookListUsesShelf 校验「立即执行」在未选书单时实时拉书架随机选一本。
+func TestReadingRunEmptyBookListUsesShelf(t *testing.T) {
+	s := newReadingServer(t, stubTransport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path == "/shelf/sync" {
+			return stubResp(http.StatusOK, shelfStubBody), nil
+		}
+		return stubResp(http.StatusInternalServerError, "{}"), nil
+	}))
+	emptyBookListConfig(t, s)
+	req := httptest.NewRequest(http.MethodPost, "/api/accounts/v1/reading/run", nil)
+	req.SetPathValue("vid", "v1")
+	rec := httptest.NewRecorder()
+	s.handleReadingRun(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s, want 200", rec.Code, rec.Body.String())
+	}
+	var out struct {
+		Started bool `json:"started"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil || !out.Started {
+		t.Fatalf("body = %s, want started=true", rec.Body.String())
 	}
 }
