@@ -208,6 +208,11 @@ func (s *Server) autoClaimOnce(ctx context.Context) {
 			if a.AwardStatus != weread.AwardStatusClaimable {
 				continue
 			}
+			// 本周已被官方拒绝过的档位直接跳过:仅日志去重挡不住注定失败的请求,
+			// 被风控盯上的账号不值得每 5 分钟再敲一次。
+			if s.weeklyBlocked(acc.Vid, a.AwardLevelID) {
+				continue
+			}
 			choice, ok := prefs[strconv.Itoa(a.AwardLevelID)]
 			if !ok {
 				continue
@@ -217,12 +222,11 @@ func (s *Server) autoClaimOnce(ctx context.Context) {
 			}); err != nil {
 				if errors.Is(err, weread.ErrAwardChoiceRejected) {
 					// 官方拒绝该档位的奖品选择(如墨水屏会话领 7 天书币,issue #102):
-					// 本领取窗口内只记一条日志,后续轮次静默跳过,等待下周窗口重置。
-					if s.markWeeklyBlocked(acc.Vid, a.AwardLevelID) {
-						s.logf("warn", "reading", acc.Vid,
-							"自动领取被官方拒绝(%s → %s): 本周内不再重试;可将该档偏好改为体验卡继续自动领取,或在手机 App 内手动领取书币;保留偏好,官方恢复后自动生效",
-							a.AwardLevelDesc, weeklyChoiceName(choice))
-					}
+					// 标记本周已拒,后续轮次在领取前即被 weeklyBlocked 拦下,等待下周窗口重置。
+					s.markWeeklyBlocked(acc.Vid, a.AwardLevelID)
+					s.logf("warn", "reading", acc.Vid,
+						"自动领取被官方拒绝(%s → %s): 本周内不再重试;可将该档偏好改为体验卡继续自动领取,或在手机 App 内手动领取书币;保留偏好,官方恢复后自动生效",
+						a.AwardLevelDesc, weeklyChoiceName(choice))
 					continue
 				}
 				s.logf("warn", "reading", acc.Vid, "自动领取失败(%s): %v", a.AwardLevelDesc, err)
@@ -255,9 +259,19 @@ func weeklyChoiceName(choice int) string {
 	return "书币"
 }
 
-// markWeeklyBlocked 把账号的某档位标记为本周已拒;首次标记返回 true(需要记日志),
-// 同一 ISO 周内的后续调用返回 false。跨周后键过期,重新允许尝试一次。
-func (s *Server) markWeeklyBlocked(vid string, level int) bool {
+// weeklyBlocked 查询账号某档位本周是否已被官方拒绝(领取前预检用),
+// 跨周后过期,重新允许尝试。
+func (s *Server) weeklyBlocked(vid string, level int) bool {
+	year, week := time.Now().ISOWeek()
+	key := fmt.Sprintf("%s|%d", vid, level)
+	s.weeklyBlockMu.Lock()
+	defer s.weeklyBlockMu.Unlock()
+	return s.weeklyBlocks[key] == strconv.Itoa(year)+"-W"+strconv.Itoa(week)
+}
+
+// markWeeklyBlocked 把账号某档位标记为本周已拒。领取前有 weeklyBlocked 预检,
+// 同一窗口内不会二次进入领取路径,本函数每周每档位只会被调到一次。
+func (s *Server) markWeeklyBlocked(vid string, level int) {
 	year, week := time.Now().ISOWeek()
 	key := fmt.Sprintf("%s|%d", vid, level)
 	s.weeklyBlockMu.Lock()
@@ -265,12 +279,7 @@ func (s *Server) markWeeklyBlocked(vid string, level int) bool {
 	if s.weeklyBlocks == nil {
 		s.weeklyBlocks = map[string]string{}
 	}
-	weekKey := strconv.Itoa(year) + "-W" + strconv.Itoa(week)
-	if s.weeklyBlocks[key] == weekKey {
-		return false
-	}
-	s.weeklyBlocks[key] = weekKey
-	return true
+	s.weeklyBlocks[key] = strconv.Itoa(year) + "-W" + strconv.Itoa(week)
 }
 
 // fmtCoin 书币展示:上游余额带小数(如 1.00),去掉多余尾零(1.00 → 1,0.50 → 0.5)。

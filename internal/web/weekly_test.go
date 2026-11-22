@@ -116,8 +116,8 @@ func TestAutoClaimSuppressesRejectedChoice(t *testing.T) {
 	s.autoClaimOnce(ctx)
 	s.autoClaimOnce(ctx)
 
-	if claims != 2 {
-		t.Fatalf("领取请求数 = %d, want 2(每轮一次)", claims)
+	if claims != 1 {
+		t.Fatalf("领取请求数 = %d, want 1(第二轮应被 weeklyBlocks 预检拦下)", claims)
 	}
 	logs, err := store.ListLogs(db, "v1", "warn", 10)
 	if err != nil {
