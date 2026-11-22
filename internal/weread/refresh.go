@@ -11,8 +11,6 @@ import (
 )
 
 const (
-	// refreshReuseWindow 内重复提交同一份旧凭据的刷新请求直接沿用上次结果。
-	refreshReuseWindow = 5 * time.Minute
 	// refreshTimeout 是单次刷新请求的上限,独立于调用方 ctx。
 	refreshTimeout = 20 * time.Second
 )
@@ -38,9 +36,11 @@ func (c *Client) Refresh(ctx context.Context, creds *Credentials) (*Credentials,
 		if call != nil {
 			select {
 			case <-call.done:
-				// 上一次刷新已结束:持有同一份旧凭据的调用在沿用窗口内直接拿结果,
-				// 不再用已被轮换掉的 refreshToken 重复请求。
-				if call.err == nil && sameCredentials(call.source, source) && time.Since(call.finished) < refreshReuseWindow {
+				// 上一次刷新已成功结束:调用方手里的凭据若不是最新一代,其
+				// refreshToken 很可能已被这条链路消费过,绝不能拿它再打 /login,
+				// 直接交还最新一代(进程内所有轮换都经此 client 并已落库)。
+				// 手里就是最新一代说明是正常的到期续期,走真实刷新。
+				if call.err == nil && !sameCredentials(call.next, source) {
 					c.refreshMu.Unlock()
 					return cloneCredentials(call.next), nil
 				}

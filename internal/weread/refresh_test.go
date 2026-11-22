@@ -2,6 +2,7 @@ package weread
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -60,6 +61,57 @@ func TestRefreshCoalescesConcurrentRequests(t *testing.T) {
 		if next == nil || next.AccessToken != "new-access" || next.RefreshToken != "new-refresh" {
 			t.Fatalf("unexpected refreshed credentials: %#v", next)
 		}
+	}
+}
+
+// TestRefreshHandsLatestGenerationToStaleCaller 校验单飞缓存的代际语义:
+// 持有已被消费的更旧代际的调用方直接拿回最新一代,不再打 /login
+// (旧 refreshToken 重复消费可能被服务端拒绝甚至整链作废);
+// 手里就是最新一代的调用方属于正常到期续期,照常发起真实刷新。
+func TestRefreshHandsLatestGenerationToStaleCaller(t *testing.T) {
+	var calls atomic.Int32
+	client := NewClient()
+	client.HTTP.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		n := calls.Add(1)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(fmt.Sprintf(`{"vid":"v1","accessToken":"access-%d","refreshToken":"refresh-%d"}`, n, n))),
+			Header:     make(http.Header),
+		}, nil
+	})
+	ctx := context.Background()
+	stale := &Credentials{Vid: "v1", AccessToken: "old-access", RefreshToken: "old-refresh", DeviceID: "device"}
+
+	first, err := client.Refresh(ctx, stale)
+	if err != nil {
+		t.Fatalf("Refresh: %v", err)
+	}
+	if first.AccessToken != "access-1" || first.RefreshToken != "refresh-1" {
+		t.Fatalf("first = %#v", first)
+	}
+
+	// 同一份已被消费的旧凭据再次刷新:交还最新一代,不发请求。
+	again, err := client.Refresh(ctx, stale)
+	if err != nil {
+		t.Fatalf("Refresh(stale): %v", err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("stale re-refresh issued a /login request (calls = %d)", calls.Load())
+	}
+	if !sameCredentials(again, first) {
+		t.Fatalf("stale caller got %#v, want latest generation %#v", again, first)
+	}
+
+	// 手里是最新一代:正常续期路径,发起真实刷新。
+	next, err := client.Refresh(ctx, first)
+	if err != nil {
+		t.Fatalf("Refresh(latest): %v", err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("latest-generation refresh did not issue a request (calls = %d)", calls.Load())
+	}
+	if next.AccessToken != "access-2" || next.RefreshToken != "refresh-2" {
+		t.Fatalf("next = %#v", next)
 	}
 }
 
