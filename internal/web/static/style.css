@@ -1,34 +1,36 @@
 /* ---------- 设计令牌 ---------- */
 :root {
   color-scheme: light;
-  --bg: #f1ece8;
-  /* 页面:暖灰,卡片靠更亮一档浮起来,不再靠描边 */
-  --surface: #fffcfa;
+  --bg: #f4f3ee;
+  /* 页面:暖纸色,白卡片靠更亮一档浮起来,不再靠描边 */
+  --surface: #ffffff;
   /* 卡片 */
-  --surface-2: #efe8e2;
+  --surface-2: #ece9df;
   /* 卡片里的小块、次级按钮 */
-  --chrome: #e6dfd8;
+  --chrome: #ece9df;
   /* 侧栏:比页面再沉一档,和内容分开 */
-  --text: #17171a;
-  --text-dim: #6e6e76;
-  /* 次级文字:对 --surface 对比度约 5:1,满足 WCAG AA */
+  --text: #1f1e1b;
+  --text-dim: #6c665e;
+  /* 次级文字:对侧栏约 4.7:1,对卡片约 5.7:1 */
   --border: color-mix(in srgb, var(--text) 10%, transparent);
   /* 分隔线:同一道半透明线,换表面也不变浓 */
-  --border-strong: #85858c;
-  /* 输入控件边界:对 --surface 对比度 3.2:1(WCAG 1.4.11) */
-  --accent: #007aff;
-  --accent-strong: #0066d6;
-  --accent-soft: #e8f1ff;
+  --border-strong: #877f73;
+  /* 输入控件边界:对侧栏约 3.2:1(WCAG 1.4.11) */
+  --accent: #a14f32;
+  /* 赤陶。色板 #c15f3c 同色相加深,小字和按钮白字才过 4.5:1 */
+  --accent-strong: #8f462d;
+  --accent-soft: #f4eae6;
   --on-accent: #ffffff;
-  --ok: #14803c;
-  --warn: #9d4f00;
-  --err: #d70015;
+  --ok: #556e49;
+  /* 绿、黄、红取色板的色相,加深到能当小字 */
+  --warn: #81621d;
+  --err: #ae4538;
   --radius-sm: 12px;
   --radius: 16px;
   --radius-block: 20px;
   --radius-card: 28px;
-  --shadow: 0 1px 2px rgba(28, 22, 16, 0.05), 0 10px 28px rgba(28, 22, 16, 0.06);
-  --shadow-float: 0 12px 40px rgba(28, 22, 16, 0.16);
+  --shadow: 0 1px 2px rgba(31, 30, 27, 0.05), 0 10px 28px rgba(31, 30, 27, 0.06);
+  --shadow-float: 0 12px 40px rgba(31, 30, 27, 0.16);
   --glass: color-mix(in srgb, var(--surface) 82%, transparent);
   --glass-edge: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
   --scroll-track: transparent;
@@ -41,27 +43,28 @@
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #14110e;
+  --bg: #121212;
   /* 页面最深;往上只提亮,深色里再嵌更暗会像一个洞 */
-  --surface: #26221f;
-  --surface-2: #342f2b;
-  --chrome: #1c1916;
-  --text: #f7f4f1;
-  --text-dim: #aea79f;
-  /* 次级文字:对 --surface 对比度约 6:1,满足 WCAG AA */
+  --surface: #1f1e1b;
+  --surface-2: #2a2824;
+  --chrome: #191919;
+  --text: #f4f3ee;
+  --text-dim: #a79b8b;
+  /* 次级文字:对卡片约 6.1:1,满足 WCAG AA */
   --border: color-mix(in srgb, var(--text) 12%, transparent);
-  --border-strong: #7d7166;
-  /* 输入控件边界:对 --surface 对比度约 3.1:1(WCAG 1.4.11) */
-  --accent: #ff9a49;
-  --accent-strong: #ffaf6b;
-  --accent-soft: #3f332a;
-  --on-accent: #2f1a08;
-  --ok: #3fae4e;
-  --warn: #ffc53d;
-  --err: #ff5c49;
+  --border-strong: #817569;
+  /* 输入控件边界:对浅一档的块约 3.3:1(WCAG 1.4.11) */
+  --accent: #de7356;
+  --accent-strong: #e2856b;
+  --accent-soft: #322621;
+  --on-accent: #1f1e1b;
+  --ok: #9caf88;
+  --warn: #d8b86a;
+  --err: #dc7568;
+  /* 色板红略提亮,贴在浅一档的块上仍过 4.5:1 */
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.28);
   --shadow-float: 0 16px 44px rgba(0, 0, 0, 0.46);
-  --glass: color-mix(in srgb, #3a342e 80%, transparent);
+  --glass: color-mix(in srgb, #2a2824 86%, transparent);
   --glass-edge: inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent);
   --scroll-track: transparent;
   --scroll-thumb: color-mix(in srgb, var(--text-dim) 48%, transparent);
@@ -73,8 +76,11 @@ html[data-theme="dark"] {
 *::before,
 *::after {
   box-sizing: border-box;
-  /* 切换深浅主题时颜色渐变过去,不整屏闪一下;组件自己的 transition 会覆盖这里。 */
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+html {
+  /* 根节点也铺底色。只铺 body 时,切换主题会先露出浏览器默认画布,闪一下。 */
+  background: var(--bg);
 }
 
 body {
@@ -188,7 +194,7 @@ select:focus-visible {
   display: flex;
   flex-direction: column;
   background: var(--chrome);
-  border-right: 1px solid var(--border);
+  /* 靠底色和页面分开。1px 竖线在深色里会像一道切口。 */
   padding: 28px 16px 20px;
 }
 
@@ -242,7 +248,7 @@ select:focus-visible {
 
 .nav-item.active {
   position: relative;
-  background: color-mix(in srgb, var(--text) 8%, transparent);
+  background: var(--surface);
   color: var(--accent);
 }
 
@@ -301,7 +307,7 @@ select:focus-visible {
 
 .theme-toggle:hover {
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: var(--surface);
 }
 
 /* ---------- 主区 ---------- */
@@ -685,10 +691,12 @@ main {
   width: 20px;
   height: 20px;
   left: 3px;
-  top: 3px;
+  top: 50%;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  /* 阴影放在正中。向下偏移会把圆点底下的轨道压暗,看起来偏上。 */
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+  transform: translateY(-50%);
   transition: transform 0.18s;
 }
 
@@ -697,7 +705,7 @@ main {
 }
 
 .switch input:checked+i::before {
-  transform: translateX(20px);
+  transform: translate(20px, -50%);
 }
 
 .empty {
@@ -1081,7 +1089,7 @@ main {
 }
 
 .dialog::backdrop {
-  background: rgba(20, 16, 12, 0.46);
+  background: rgba(18, 17, 16, 0.46);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -1962,7 +1970,7 @@ main {
   }
 
   .nav-item.active {
-    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    background: var(--surface);
   }
 
   .nav-item.active::before {
@@ -3389,7 +3397,7 @@ button {
 }
 
 .dialog[open]::backdrop {
-  background: rgba(20, 16, 12, 0.46);
+  background: rgba(18, 17, 16, 0.46);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
