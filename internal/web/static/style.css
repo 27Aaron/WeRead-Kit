@@ -31,8 +31,10 @@
   --radius-card: 28px;
   --shadow: 0 1px 2px rgba(31, 30, 27, 0.05), 0 10px 28px rgba(31, 30, 27, 0.06);
   --shadow-float: 0 12px 40px rgba(31, 30, 27, 0.16);
-  --glass: color-mix(in srgb, var(--surface) 82%, transparent);
-  --glass-edge: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
+  /* 浮层只模糊底下的内容,再罩一层淡底。不另画高光。 */
+  --glass: color-mix(in srgb, #f7f4ee 72%, transparent);
+  --glass-line: color-mix(in srgb, #1f1e1b 10%, transparent);
+  --glass-blur: blur(36px) saturate(1.5);
   --scroll-track: transparent;
   --scroll-thumb: color-mix(in srgb, var(--text-dim) 34%, transparent);
   --scroll-thumb-hover: var(--accent);
@@ -64,8 +66,9 @@ html[data-theme="dark"] {
   /* 色板红略提亮,贴在浅一档的块上仍过 4.5:1 */
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.28);
   --shadow-float: 0 16px 44px rgba(0, 0, 0, 0.46);
-  --glass: color-mix(in srgb, #2a2824 86%, transparent);
-  --glass-edge: inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent);
+  --glass: color-mix(in srgb, #141210 68%, transparent);
+  --glass-line: color-mix(in srgb, #fff 10%, transparent);
+  --glass-blur: blur(36px) saturate(1.4);
   --scroll-track: transparent;
   --scroll-thumb: color-mix(in srgb, var(--text-dim) 48%, transparent);
   --scroll-thumb-hover: var(--accent);
@@ -628,7 +631,7 @@ main {
   background: var(--glass);
   border: 0;
   border-radius: var(--radius);
-  box-shadow: var(--glass-edge), var(--shadow-float);
+  box-shadow: var(--shadow-float);
   backdrop-filter: blur(18px) saturate(1.7);
   -webkit-backdrop-filter: blur(18px) saturate(1.7);
   z-index: 60;
@@ -894,7 +897,7 @@ main {
   border: 0;
   border-radius: var(--radius);
   background: var(--glass);
-  box-shadow: var(--glass-edge), var(--shadow-float);
+  box-shadow: var(--shadow-float);
   backdrop-filter: blur(16px) saturate(1.6);
   -webkit-backdrop-filter: blur(16px) saturate(1.6);
   font-size: 12px;
@@ -1083,7 +1086,7 @@ main {
   max-width: calc(100% - 32px);
   background: var(--glass);
   color: var(--text);
-  box-shadow: var(--glass-edge), var(--shadow-float);
+  box-shadow: var(--shadow-float);
   backdrop-filter: blur(22px) saturate(1.7);
   -webkit-backdrop-filter: blur(22px) saturate(1.7);
 }
@@ -1821,7 +1824,7 @@ main {
   padding: 12px 18px;
   border-radius: 999px;
   font-size: 13px;
-  box-shadow: var(--glass-edge), var(--shadow-float);
+  box-shadow: var(--shadow-float);
   backdrop-filter: blur(16px) saturate(1.6);
   -webkit-backdrop-filter: blur(16px) saturate(1.6);
   z-index: 60;
@@ -1879,6 +1882,25 @@ main {
     align-items: center;
     gap: 8px;
     padding: 0 14px;
+    /* 模糊放在伪元素上。放在侧栏本身会把里面 position:fixed 的底坞困在顶栏里。 */
+    background: transparent;
+  }
+
+  .sidebar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: var(--glass);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    pointer-events: none;
+  }
+
+  .sidebar > :not(.nav) {
+    position: relative;
+    z-index: 1;
   }
 
   /* 顶栏保留主题切换:图标按钮排在菜单按钮左侧 */
@@ -1942,11 +1964,11 @@ main {
     padding: 6px;
     transform: translateX(-50%);
     border-radius: 28px;
+    border: 1px solid var(--glass-line);
     background: var(--glass);
-    border: 1px solid color-mix(in srgb, #fff 16%, transparent);
-    box-shadow: var(--glass-edge), var(--shadow-float);
-    backdrop-filter: blur(18px) saturate(1.8);
-    -webkit-backdrop-filter: blur(18px) saturate(1.8);
+    box-shadow: var(--shadow-float);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
   }
 
   .nav-label {
@@ -1967,6 +1989,8 @@ main {
     border-radius: 20px;
     font-size: 11px;
     line-height: 1.2;
+    /* 坞是透的,灰字压在亮封面上会糊掉。 */
+    color: var(--text);
   }
 
   .nav-item.active {
@@ -1975,6 +1999,13 @@ main {
 
   .nav-item.active::before {
     display: none;
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .sidebar::before,
+    .nav {
+      background: var(--chrome);
+    }
   }
 
   .nav-item .nav-icon {
@@ -3018,7 +3049,7 @@ button {
   padding: 0;
   background: var(--glass);
   color: var(--text);
-  box-shadow: var(--glass-edge), var(--shadow-float);
+  box-shadow: var(--shadow-float);
   backdrop-filter: blur(22px) saturate(1.7);
   -webkit-backdrop-filter: blur(22px) saturate(1.7);
 }
@@ -3037,6 +3068,31 @@ button {
   width: 32px;
   height: 32px;
   border-radius: 50%;
+}
+
+/* 对话框、菜单、版本弹窗、提示:同一层玻璃,只模糊底下的内容。卡片不参与。 */
+.dd-menu,
+.version-popover,
+.dialog,
+.toast {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.toast.error {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--err) 55%, transparent), var(--shadow-float);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .dd-menu,
+  .version-popover,
+  .dialog,
+  .toast {
+    background: var(--surface);
+  }
 }
 
 @media (max-width: 780px) {
