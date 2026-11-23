@@ -348,6 +348,9 @@ function syncThemeUI() {
   $("#theme-label").textContent = dark ? "浅色" : "深色";
   $("#theme-toggle [data-icon]").dataset.icon = dark ? "sun" : "moon";
   renderIcons($("#theme-toggle"));
+  // 手机地址栏跟随应用主题。手动选的主题可能与系统不一致,所以两个 meta 都写成当前底色。
+  const color = dark ? "#14110e" : "#f1ece8";
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => (m.content = color));
 }
 syncThemeUI();
 
@@ -971,7 +974,7 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
   // 自动参与开关(账号级)只渲染一次,放在最后一个面板尾部。
   const autoRow = `
       <label class="challenge-auto-row">
-        <input type="checkbox" id="challenge-auto-join"${autoJoin ? " checked" : ""}>
+        <span class="switch"><input type="checkbox" id="challenge-auto-join"${autoJoin ? " checked" : ""}><i></i></span>
         <span>挑战结束后自动参与下一期（免费 21 天挑战，勋章与奖励由官方自动发放）</span>
       </label>`;
   const statusText = (c) => (c.status === 1 ? "进行中" : c.status === 2 ? "已完成" : "已结束");
@@ -1489,7 +1492,10 @@ function renderWeekBars(root, readDays) {
     col.setAttribute("aria-label", `周${label}:${value}`);
     col.dataset.tip = `周${label} · ${value}`;
     const bar = document.createElement("i");
-    bar.style.height = (sec > 0 ? Math.max(3, Math.round((sec / max) * 28)) : 2) + "px";
+    // 柱高上限与样式里槽的高度一致(40px)。
+    bar.style.height = (sec > 0 ? Math.max(4, Math.round((sec / max) * 40)) : 2) + "px";
+    bar.style.animationDelay = i * 35 + "ms";
+    if (sec <= 0) bar.className = "zero";
     const name = document.createElement("b");
     name.textContent = label;
     col.append(bar, name);
