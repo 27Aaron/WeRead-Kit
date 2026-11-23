@@ -14,7 +14,7 @@
       localStorage.getItem("weread-theme") ||
       (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   </script>
-  <!-- 今楷的 @font-face 与页面样式一起解析。外链样式表异步插入时，会先画出系统字体再跳成今楷。 -->
+  <!-- 今楷的 @font-face 与页面一起解析。地址由服务端加上版本号，加载过一次就走缓存，不再先画系统字体再换今楷。 -->
   <link rel="stylesheet" href="/font.css" />
   <link rel="stylesheet" href="/style.css" />
   <script>

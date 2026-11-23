@@ -85,7 +85,8 @@ func (s *Server) loginMarkResult(ok bool) {
 
 func (s *Server) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/login" || r.URL.Path == "/favicon.png" || r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || (s.username == "" && s.password == "") {
+		// 登录页在拿到会话之前就要画出今楷，字库样式不能被挡在登录后面。
+		if r.URL.Path == "/login" || r.URL.Path == "/favicon.png" || r.URL.Path == "/font.css" || r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || (s.username == "" && s.password == "") {
 			next.ServeHTTP(w, r)
 			return
 		}

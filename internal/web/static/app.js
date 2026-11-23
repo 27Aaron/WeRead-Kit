@@ -167,47 +167,27 @@ function confirmAction({ title = "确认操作", message = "", confirmText = "�
 let currentView = "accounts";
 // 每个页面记住自己的滚动位置。共用一个 scrollY 时，从长页切到短页会猛地跳到顶。
 const viewScroll = {};
-// 首屏那一次路由不播过渡，避免一进来就淡一下。
-let viewTransitionsReady = false;
 
 const VIEW_NAMES = ["accounts", "reading", "challenge", "logs", "settings"];
 
 function setView(view) {
-  // 先记下目标页。过渡的回调是异步的，routeView 里紧接着的 openReading
-  // 会再调一次 setView；若这时还没改 currentView，就会把上一次过渡打断，页面闪一下。
+  // 页面一直留在文档里，只是藏起来。再交叉淡入一次，已经画好的内容会亮一下。
   if (currentView === view) return;
   const previous = currentView;
   currentView = view;
   viewScroll[previous] = window.scrollY;
-  const apply = () => {
-    // hash 与视图互相同步:刷新/前进后退保持在当前页,#challenge 这类深链可直接打开。
-    if (location.hash !== "#" + view) location.hash = view;
-    for (const name of VIEW_NAMES) {
-      $("#view-" + name).classList.toggle("hidden", view !== name);
-    }
-    $$(".nav-item").forEach((el) => {
-      const active = el.dataset.view === view;
-      el.classList.toggle("active", active);
-      if (active) el.setAttribute("aria-current", "page");
-      else el.removeAttribute("aria-current");
-    });
-  };
-  const go = () => {
-    apply();
-    window.scrollTo(0, viewScroll[view] || 0);
-  };
-  // 硬切 display:none 时，手机底部的模糊坞会闪一帧。用主区快照交叉淡入盖住这一帧。
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (viewTransitionsReady && !reduce && typeof document.startViewTransition === "function") {
-    try {
-      // 快速连点会打断上一次过渡，finished 的拒绝不是故障。
-      document.startViewTransition(go).finished.catch(() => {});
-      return;
-    } catch {
-      // 上一次过渡还没结束，直接换页。
-    }
+  // hash 与视图互相同步:刷新/前进后退保持在当前页,#challenge 这类深链可直接打开。
+  if (location.hash !== "#" + view) location.hash = view;
+  for (const name of VIEW_NAMES) {
+    $("#view-" + name).classList.toggle("hidden", view !== name);
   }
-  go();
+  $$(".nav-item").forEach((el) => {
+    const active = el.dataset.view === view;
+    el.classList.toggle("active", active);
+    if (active) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  });
+  window.scrollTo(0, viewScroll[view] || 0);
 }
 
 /* ---------- 窄屏导航按钮 ---------- */
@@ -878,10 +858,10 @@ async function openChallenge() {
   $("#challenge-panel").classList.remove("hidden");
   $("#challenge-empty").classList.add("hidden");
   $("#challenge-banner").classList.remove("hidden");
-  // 官方挑战面板由数据决定是否展示:加载期间保持隐藏,避免"闪现再消失"造成抖动。
-  $("#official-challenge-wrap").hidden = true;
   if (pickedAlias && accounts.some((a) => a.vid === pickedAlias)) challengeAlias = pickedAlias;
   if (!accounts.some((a) => a.vid === challengeAlias)) challengeAlias = accounts[0].vid;
+  // 同一账号的圆环已经画过就留着。先藏起来再等接口，缓存的面板会灭一下再冒出来。
+  if (officialRenderedFor !== challengeAlias) $("#official-challenge-wrap").hidden = true;
   for (const a of accounts) {
     const opt = document.createElement("option");
     opt.value = a.vid;
@@ -1924,4 +1904,3 @@ if (VIEW_NAMES.includes(initialView)) {
 } else {
   loadAccounts();
 }
-requestAnimationFrame(() => { viewTransitionsReady = true; });
