@@ -349,7 +349,7 @@ function syncThemeUI() {
   $("#theme-toggle [data-icon]").dataset.icon = dark ? "sun" : "moon";
   renderIcons($("#theme-toggle"));
   // 手机地址栏跟随应用主题。手动选的主题可能与系统不一致,所以两个 meta 都写成当前底色。
-  const color = dark ? "#14110e" : "#f1ece8";
+  const color = dark ? "#121212" : "#f4f3ee";
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => (m.content = color));
 }
 syncThemeUI();
