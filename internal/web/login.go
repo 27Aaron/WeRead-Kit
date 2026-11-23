@@ -17,8 +17,10 @@ import (
 // 并给前端足够时间读到最终状态。
 const sessionTTL = 15 * time.Minute
 
-// maxLoginSessions 限制同时在途的扫码会话数:每个会话背后是一个对微信的
+// maxLoginSessions 限制同时在途(尚未结束)的扫码会话数:每个会话背后是一个对微信的
 // 长轮询 goroutine,开放监听模式下防止无上限的资源放大。
+// 已结束的会话仍保留到 sessionTTL,供前端读到最终状态,但不占用这个名额;
+// 否则连续刷新二维码或短时间内连加几个账号会被误伤 15 分钟。
 const maxLoginSessions = 5
 
 // loginSession 表示一次进行中的扫码登录;扫码前不知道账号身份,确认后按 creds.Vid 定位账号。
@@ -44,26 +46,37 @@ func newLoginManager(db *sql.DB, client *weread.Client) *loginManager {
 	return &loginManager{sessions: map[string]*loginSession{}, db: db, client: client}
 }
 
+// sessionInFlight 表示扫码还没出最终结果,背后的长轮询仍占着资源。
+func sessionInFlight(status string) bool {
+	return status == "pending" || status == "scanned"
+}
+
 func (m *loginManager) start() (string, error) {
 	m.gc()
-	m.mu.Lock()
-	if len(m.sessions) >= maxLoginSessions {
-		m.mu.Unlock()
-		return "", errors.New("登录会话过多,请稍后再试")
-	}
-	m.mu.Unlock()
 	id, err := newSessionID()
 	if err != nil {
 		return "", err
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	sess := &loginSession{
 		status:    "pending",
 		createdAt: time.Now(),
+		cancel:    cancel,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	sess.cancel = cancel
 
+	// 名额检查与登记必须在同一把锁里:先放开再插入时,并发请求会一起越过上限。
 	m.mu.Lock()
+	inFlight := 0
+	for _, existing := range m.sessions {
+		if sessionInFlight(existing.status) {
+			inFlight++
+		}
+	}
+	if inFlight >= maxLoginSessions {
+		m.mu.Unlock()
+		cancel()
+		return "", errors.New("登录会话过多,请稍后再试")
+	}
 	m.sessions[id] = sess
 	m.mu.Unlock()
 
