@@ -1294,6 +1294,7 @@ function resetWeeklyUI() {
     "reading-stat-coin", "reading-stat-coin-sub"]) {
     $("#" + id).textContent = "—";
   }
+  delete $("#reading-stat-week-detail").dataset.days;
   $("#reading-time-progress-label").textContent = "";
   $("#reading-day-progress-label").textContent = "";
   $("#reading-rules").textContent = "";
@@ -1467,6 +1468,10 @@ function weeklyCard(a, weekly, prefs) {
 function renderWeekBars(root, readDays) {
   const labels = ["一", "二", "三", "四", "五", "六", "日"];
   const days = readDays.slice(-labels.length);
+  // 切回阅读页会再拉一次数据。天数没变就别拆掉重画,否则柱子会闪一下。
+  const signature = days.join(",");
+  if (root.dataset.days === signature) return;
+  root.dataset.days = signature;
   const offset = labels.length - days.length;
   root.textContent = "";
   if (!days.length || days.every((s) => !s)) {
@@ -1491,14 +1496,16 @@ function renderWeekBars(root, readDays) {
     col.setAttribute("tabindex", "0");
     col.setAttribute("aria-label", `周${label}:${value}`);
     col.dataset.tip = `周${label} · ${value}`;
-    const bar = document.createElement("i");
-    // 柱高上限与样式里槽的高度一致(40px)。
-    bar.style.height = (sec > 0 ? Math.max(4, Math.round((sec / max) * 40)) : 2) + "px";
-    bar.style.animationDelay = i * 35 + "ms";
-    if (sec <= 0) bar.className = "zero";
     const name = document.createElement("b");
     name.textContent = label;
-    col.append(bar, name);
+    col.append(name);
+    // 没有阅读的日子只留空槽。2px 的底条看着像多出来的一道线。
+    if (sec > 0) {
+      const bar = document.createElement("i");
+      // 柱高上限与样式里槽的高度一致(40px)。
+      bar.style.height = Math.max(4, Math.round((sec / max) * 40)) + "px";
+      col.insertBefore(bar, name);
+    }
     bars.append(col);
   });
 }
