@@ -4,8 +4,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#fbf7f8" />
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#100e0b" />
+  <meta name="theme-color" content="#f1ece8" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14110e" />
   <title>微信读书</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
   <script>
@@ -35,19 +35,19 @@
       <div id="version-popover" class="version-popover hidden" role="status"></div>
     </div>
     <nav class="nav">
-      <a class="nav-item active" href="#accounts" data-view="accounts">
+      <a class="nav-item active" href="#accounts" data-view="accounts" aria-label="我的账号">
         <span class="nav-icon" data-icon="users-round"></span><span class="nav-label">我的账号</span><span class="nav-short">账号</span>
       </a>
-      <a class="nav-item" href="#reading" data-view="reading">
+      <a class="nav-item" href="#reading" data-view="reading" aria-label="我的阅读">
         <span class="nav-icon" data-icon="gift"></span><span class="nav-label">我的阅读</span><span class="nav-short">阅读</span>
       </a>
-      <a class="nav-item" href="#challenge" data-view="challenge">
+      <a class="nav-item" href="#challenge" data-view="challenge" aria-label="阅读挑战">
         <span class="nav-icon" data-icon="book-open"></span><span class="nav-label">阅读挑战</span><span class="nav-short">挑战</span>
       </a>
-      <a class="nav-item" href="#logs" data-view="logs">
+      <a class="nav-item" href="#logs" data-view="logs" aria-label="运行日志">
         <span class="nav-icon" data-icon="scroll-text"></span><span class="nav-label">运行日志</span><span class="nav-short">日志</span>
       </a>
-      <a class="nav-item" href="#settings" data-view="settings">
+      <a class="nav-item" href="#settings" data-view="settings" aria-label="推送设置">
         <span class="nav-icon" data-icon="settings-2"></span><span class="nav-label">推送设置</span><span class="nav-short">推送</span>
       </a>
     </nav>
@@ -99,7 +99,7 @@
           <div class="page-actions">
             <label class="act-mini" title="热门书单、飙升榜等送体验卡的活动，出现可领奖励时自动领取">
               自动领体验卡
-              <span class="switch switch-sm"><input type="checkbox" id="act-auto-claim" aria-label="自动领取体验卡活动" /><i></i></span>
+              <span class="switch"><input type="checkbox" id="act-auto-claim" aria-label="自动领取体验卡活动" /><i></i></span>
             </label>
             <label class="field">账号
               <select id="reading-account" class="select"></select>

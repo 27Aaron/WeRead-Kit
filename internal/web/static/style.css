@@ -69,8 +69,12 @@ html[data-theme="dark"] {
 }
 
 /* ---------- 基础重置 ---------- */
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+  /* 切换深浅主题时颜色渐变过去,不整屏闪一下;组件自己的 transition 会覆盖这里。 */
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 body {
@@ -458,7 +462,7 @@ main {
   border-radius: 999px;
   background: var(--surface-2);
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
@@ -690,8 +694,6 @@ main {
 
 .switch input:checked+i {
   background: var(--accent);
-  /* 选中态加一圈柔光,开关像被「点亮」。 */
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 42%, transparent);
 }
 
 .switch input:checked+i::before {
@@ -746,7 +748,8 @@ main {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
   gap: 12px;
-  padding: 14px;
+  /* 间距与 .reward-grid 一致,加载完成时卡片不跳位。 */
+  padding: 18px 20px 22px;
 }
 
 .skeleton-cards.covers {
@@ -756,7 +759,7 @@ main {
 }
 
 .skeleton-card {
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-block);
   background: var(--surface-2);
   animation: skeleton-pulse 1.4s ease-in-out infinite;
 }
@@ -795,7 +798,7 @@ main {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
-  padding: 16px;
+  padding: 0;
 }
 
 #view-accounts > .panel {
@@ -806,12 +809,13 @@ main {
 
 #view-accounts .panel-bar {
   border-bottom: 0;
-  padding: 0 4px 4px;
+  /* 面板是透明的,标题和账号卡与页头左缘对齐。 */
+  padding: 0 0 12px;
   min-height: 0;
 }
 
 #view-accounts .empty {
-  margin: 0 16px 16px;
+  margin: 0;
   background: var(--surface);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow);
@@ -1129,9 +1133,10 @@ main {
 }
 
 #qr-img {
-  width: 220px;
-  height: 220px;
-  max-width: 100%;
+  /* 二维码尽量放大,手机上更好扫;原图 360px,放大后仍然清晰。 */
+  width: min(100%, 256px);
+  height: auto;
+  aspect-ratio: 1;
   object-fit: contain;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -1345,7 +1350,7 @@ main {
   align-items: center;
   gap: 24px;
   flex-wrap: wrap;
-  padding: 18px 22px;
+  padding: 18px 20px;
   background: var(--surface);
   border: 0;
   border-radius: var(--radius-card);
@@ -1578,14 +1583,54 @@ main {
 .logs-header,
 .log-row {
   display: grid;
-  grid-template-columns: 20% 12% 14% 16% minmax(0, 1fr);
+  /* 每一行是各自的网格,列宽必须是定值才能上下对齐。 */
+  grid-template-columns: 124px 52px 88px 104px minmax(0, 1fr);
   gap: 20px;
   align-items: center;
-  padding: 0 32px;
+  padding: 0 20px;
+}
+
+/* 支持子网格时,所有行共用一组按内容收窄的列:前四列不再占掉一半宽度,
+   省下的都给最常被截断的内容列。 */
+@supports (grid-template-columns: subgrid) {
+  @media (min-width: 781px) {
+    .logs-list {
+      display: grid;
+      column-gap: 20px;
+      grid-template-columns: max-content max-content minmax(64px, max-content) minmax(56px, max-content) minmax(0, 1fr);
+    }
+
+    #logs-rows {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: subgrid;
+    }
+
+    .logs-header,
+    .log-row,
+    #logs-rows > * {
+      grid-column: 1 / -1;
+    }
+
+    .logs-header,
+    .log-row {
+      grid-template-columns: subgrid;
+    }
+
+    /* 警告和错误级别加一层同色淡底,一屏日志里先被看到;info 保持素净。 */
+    .log-warn .log-level,
+    .log-error .log-level {
+      justify-self: start;
+      padding: 1px 8px;
+      border-radius: 999px;
+      background: color-mix(in srgb, currentColor 14%, transparent);
+    }
+  }
 }
 
 .logs-header {
-  /* 表头留在滚动容器内并吸顶:与数据行共用同一列宽,不会错位 */
+  /* 表头留在滚动容器内并吸顶:与数据行共用同一列宽,不会错位。
+     底色与卡片同色,滚动时遮住下方滚过的行。 */
   position: sticky;
   top: 0;
   z-index: 2;
@@ -1593,7 +1638,7 @@ main {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-dim);
-  background: var(--surface-2);
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
@@ -1653,12 +1698,18 @@ main {
   color: var(--err);
 }
 
+/* 来源和账号列按内容定宽,但过长的来源名或昵称截断,不来抢内容列。 */
 .log-source {
   color: var(--text-dim);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .log-alias {
   color: var(--text-dim);
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1976,6 +2027,14 @@ main {
     white-space: normal;
   }
 
+  /* 「来源: serve」这类字段整体换行,不在字段内部折断。 */
+  .log-row > span:not(.log-msg) {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .push-list {
     grid-template-columns: 1fr;
   }
@@ -2024,23 +2083,62 @@ main {
 
 /* ---------- 我的阅读 ---------- */
 
-/* 间距节奏与运行日志页一致。 */
+/* 间距节奏与运行日志页一致。统计卡的列数按内容宽度判断,所以这里是容器。 */
 #view-reading {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  container-type: inline-size;
 }
 
 #view-reading .page-head {
   margin-bottom: 0;
 }
 
-/* 单卡至少约 240px,否则「23 小时 2 分钟」会在五等分里从字中间断开。
-   放得下几列由 auto-fit 决定,窄屏自然收成两列或一列。 */
+/* 五张卡排成填满的行:首卡(本周阅读时长)占两列当主卡。
+   两列时是「主卡 | 2 + 2」,三列时是「主卡 + 1 | 3」,任何宽度都不剩孤卡。 */
 .reading-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.reading-stats .stat:first-child {
+  grid-column: 1 / -1;
+}
+
+@container (min-width: 740px) {
+  .reading-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reading-stats .stat:first-child {
+    grid-column: span 2;
+  }
+
+  /* 主卡的数字比其余卡大一号,一眼看得出哪张是本周重点。 */
+  .reading-stats .stat:first-child .stat-value {
+    font-size: 36px;
+  }
+}
+
+@container (max-width: 479px) {
+  .reading-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reading-stats .stat:first-child {
+    grid-column: auto;
+  }
+
+  /* 单列时卡片上下相邻,不用再等高对齐:说明紧跟数字,每张卡矮一截。 */
+  .reading-stats .stat {
+    justify-content: flex-start;
+  }
+
+  .reading-stats .stat-sub {
+    min-height: 0;
+  }
 }
 
 .reading-stats .stat {
@@ -2097,13 +2195,16 @@ main {
   line-height: 1.25;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+  /* 很长的时长放不下一行时,两行长度接近,不留下孤字。 */
+  text-wrap: balance;
 }
 
-/* 本周每日阅读的迷你柱状图:柱高表示当天时长,下方是星期。 */
+/* 本周每日阅读的柱状图:七个等宽的槽,柱子从槽底升起。
+   没有阅读的日子留下空槽,一眼看得出这是完整的一周。 */
 .week-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
   width: 100%;
   padding-top: 10px;
 }
@@ -2115,13 +2216,32 @@ main {
 
 .week-bar {
   position: relative;
-  flex: 1 1 0;
   min-width: 0;
+  /* 槽高 40 + 间距 4 + 星期 11。每格等高,柱底和提示才有同一个基准。 */
+  height: 55px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
   gap: 4px;
+}
+
+/* 槽:全高的淡色轨道,与柱子同宽;今天这一格换成强调色淡底。 */
+.week-bar::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: min(56%, 36px);
+  height: 40px;
+  transform: translateX(-50%);
+  /* 小圆角的柱槽;上下全圆会看成药丸,不像图表。 */
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.week-bar.today::before {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 /* 悬停或键盘聚焦时显示当天时长;触屏点按聚焦同样可见。 */
@@ -2150,15 +2270,29 @@ main {
 }
 
 .week-bar i {
+  position: relative;
   display: block;
-  width: 62%;
-  max-width: 18px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--text-dim) 42%, transparent);
+  width: min(56%, 36px);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text-dim) 62%, transparent);
+  /* 载入时从槽底逐日升起;延迟由脚本按星期给。 */
+  transform-origin: 50% 100%;
+  animation: bar-rise 0.45s cubic-bezier(0.2, 0, 0, 1) backwards;
+}
+
+@keyframes bar-rise {
+  from {
+    transform: scaleY(0);
+  }
 }
 
 .week-bar.today i {
   background: var(--accent);
+}
+
+/* 没有阅读的日子只剩槽底一道淡淡的痕迹。 */
+.week-bar i.zero {
+  background: color-mix(in srgb, var(--text) 14%, transparent);
 }
 
 .week-bar b {
@@ -2276,7 +2410,7 @@ main {
   justify-content: center;
   min-width: 0;
   padding: 7px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -2319,7 +2453,7 @@ main {
 
 .reward-btn.claimable {
   border-color: var(--accent);
-  background: linear-gradient(180deg, var(--accent-strong), var(--accent));
+  background: var(--accent);
   color: var(--on-accent);
 }
 
@@ -2335,7 +2469,9 @@ main {
 
 .reading-rules {
   margin: 0;
-  padding: 14px 18px 14px 32px;
+  /* 条文自带序号,不再另加圆点;文字与标题左缘对齐。 */
+  padding: 14px 20px 18px;
+  list-style: none;
   color: var(--text-dim);
   font-size: 13px;
   line-height: 1.9;
@@ -2368,7 +2504,8 @@ main {
 }
 
 .official-challenge-body {
-  padding: 28px;
+  /* 左右与同页的配置行、面板标题同一条线(20px),上下仍用段间距。 */
+  padding: 28px 20px;
   display: flex;
   flex-direction: column;
 }
@@ -2543,7 +2680,7 @@ main {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   /* 与段间距同节奏:分隔线上下各 28px。 */
   margin-top: 28px;
   padding-top: 28px;
@@ -2551,10 +2688,6 @@ main {
   color: var(--text-dim);
   font-size: 13px;
   cursor: pointer;
-}
-
-.challenge-auto-row input {
-  accent-color: var(--accent);
 }
 
 /* 「我的阅读」页头的体验卡活动自动领取开关:紧凑单行,完整说明放在 title 悬浮提示里。 */
@@ -2566,21 +2699,6 @@ main {
   font-size: 12px;
   white-space: nowrap;
   cursor: pointer;
-}
-
-/* 紧凑开关:.switch 的缩小版,配合页头小控件。 */
-.switch-sm {
-  width: 36px;
-  height: 20px;
-}
-
-.switch-sm i::before {
-  width: 14px;
-  height: 14px;
-}
-
-.switch-sm input:checked+i::before {
-  transform: translateX(16px);
 }
 
 /* 挑战面板的往期战绩行。 */
@@ -2652,7 +2770,7 @@ main {
 
 @container (max-width: 680px) {
   .official-challenge-body {
-    padding: 24px;
+    padding: 24px 20px;
   }
 
   .challenge-section-grid {
@@ -2674,7 +2792,7 @@ main {
 
 @container (max-width: 360px) {
   .official-challenge-body {
-    padding: 20px 16px;
+    padding: 20px;
   }
 
   .challenge-rings {
@@ -2794,7 +2912,7 @@ main {
 
 .push-card {
   border-radius: var(--radius-card);
-  padding: 20px 22px;
+  padding: 20px;
 }
 
 @media (max-width: 780px) {
@@ -2818,7 +2936,16 @@ main {
     padding-inline: 16px;
   }
 
-  .reward-grid {
+  .reward-grid,
+  .official-challenge-body,
+  .config-row,
+  .books-head,
+  .book-grid,
+  .panel-foot,
+  .banner,
+  .reading-rules,
+  .logs-header,
+  .log-row {
     padding-inline: 16px;
   }
 }
@@ -2954,7 +3081,8 @@ button {
 /* 笔记本宽度：压缩列表列间距，保留操作空间 */
 @media (min-width: 781px) and (max-width: 1100px) {
   main { padding-inline: 24px; }
-  .logs-header, .log-row { padding-inline: 18px; gap: 12px; }
+  .logs-header, .log-row { padding-inline: 20px; gap: 12px; }
+  .logs-list { column-gap: 12px; }
   .challenge-info { padding-left: 18px; }
 }
 
@@ -2978,7 +3106,9 @@ button {
 /* 极窄屏：所有内容使用单列并减少装饰性空间 */
 @media (max-width: 380px) {
   main { padding-inline: 12px; }
-  .panel-bar, .panel-foot { padding-inline: 14px; }
+  .panel-bar, .panel-foot,
+  .official-challenge-body, .config-row, .books-head, .book-grid,
+  .banner, .reading-rules, .logs-header, .log-row { padding-inline: 14px; }
   .challenge-rings { gap: 8px; }
   .challenge-ring { max-width: 122px; }
   .challenge-metric-label { font-size: 12px; }
@@ -2997,6 +3127,15 @@ button {
   top: 21px;
   margin: 0;
   line-height: 1;
+}
+
+/* 手机顶栏里 logo 缩到 28px,版本号跟着挪到应用名正下方。
+   定位基准是 .brand(顶栏内垂直居中),所以 top 比桌面上的 21px 小。 */
+@media (max-width: 780px) {
+  .brand-version-wrap {
+    left: 37px;
+    top: 14px;
+  }
 }
 
 .brand-link {
@@ -3087,11 +3226,6 @@ button {
 }
 
 @media (max-width: 640px) {
-  .brand-version-wrap {
-    left: 37px;
-    top: 14px;
-  }
-
   .version-popover {
     left: auto;
     right: 0;
@@ -3135,5 +3269,191 @@ button {
   .field-inline input,
   .search {
     min-height: 44px;
+  }
+}
+
+/* ---------- 窄侧栏(笔记本宽度) ---------- */
+/* 216px 的侧栏在这个宽度占到四分之一以上,内容被挤得放不下;收成 88px,
+   每项只留图标加短标签,把宽度让给内容。写在品牌区规则之后,才盖得过那里的定位。 */
+@media (min-width: 781px) and (max-width: 1100px) {
+  .sidebar {
+    width: 88px;
+    padding: 18px 12px 16px;
+    align-items: center;
+  }
+
+  .brand {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+  }
+
+  .brand-text {
+    display: none;
+  }
+
+  .brand-version-wrap {
+    position: static;
+  }
+
+  .nav {
+    width: 100%;
+    margin-top: 20px;
+    gap: 6px;
+  }
+
+  .nav-item {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 0 8px;
+    border-radius: 14px;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .nav-item .nav-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .nav-label {
+    display: none;
+  }
+
+  .nav-short {
+    display: block;
+  }
+
+  /* 窄条里不画左缘色条,选中项靠底色和文字色区分。 */
+  .nav-item.active::before {
+    display: none;
+  }
+
+  .sidebar-foot {
+    width: 100%;
+    padding: 12px 0 0;
+  }
+
+  .theme-toggle {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  #theme-label {
+    display: none;
+  }
+
+  .workspace {
+    margin-left: 88px;
+  }
+}
+
+/* ---------- 过渡与反馈 ---------- */
+
+/* 对话框:打开时从略小、略低处浮起,背后同步压暗;关闭时倒着收回去。
+   allow-discrete 让 display 和顶层停留到动画结束。先写一版不带它的过渡,
+   读不懂 allow-discrete 的浏览器退回这一版:打开仍有动画,关闭直接消失。 */
+.dialog {
+  opacity: 0;
+  translate: 0 10px;
+  scale: 0.96;
+  transition: opacity 0.18s ease, translate 0.24s cubic-bezier(0.2, 0, 0, 1), scale 0.24s cubic-bezier(0.2, 0, 0, 1);
+  transition:
+    opacity 0.18s ease,
+    translate 0.24s cubic-bezier(0.2, 0, 0, 1),
+    scale 0.24s cubic-bezier(0.2, 0, 0, 1),
+    overlay 0.24s allow-discrete,
+    display 0.24s allow-discrete;
+}
+
+.dialog[open] {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+}
+
+.dialog::backdrop {
+  background: transparent;
+  backdrop-filter: blur(0);
+  -webkit-backdrop-filter: blur(0);
+  transition: background 0.24s ease, backdrop-filter 0.24s ease;
+  transition:
+    background 0.24s ease,
+    backdrop-filter 0.24s ease,
+    overlay 0.24s allow-discrete,
+    display 0.24s allow-discrete;
+}
+
+.dialog[open]::backdrop {
+  background: rgba(20, 16, 12, 0.46);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+@starting-style {
+  .dialog[open] {
+    opacity: 0;
+    translate: 0 10px;
+    scale: 0.96;
+  }
+
+  .dialog[open]::backdrop {
+    background: transparent;
+    backdrop-filter: blur(0);
+    -webkit-backdrop-filter: blur(0);
+  }
+}
+
+/* 下拉菜单和版本弹窗:从触发器处轻轻展开。 */
+.dd.open .dd-menu,
+.version-popover:not(.hidden) {
+  animation: pop-in 0.16s cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    translate: 0 -6px;
+    scale: 0.97;
+  }
+}
+
+/* 按下时轻微收一下,触摸屏上也有「点到了」的反馈。
+   这些组件各自的 transition 不含 scale,这里统一补上;按下时收得快,松开时慢慢回。 */
+.btn,
+.dd-toggle,
+.reward-btn,
+.theme-toggle,
+.dialog-close,
+.nav-item {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, scale 0.15s ease;
+}
+
+.btn:active:not(:disabled),
+.dd-toggle:active,
+.reward-btn:active:not(:disabled),
+.theme-toggle:active,
+.dialog-close:active,
+.nav-item:active {
+  scale: 0.97;
+  transition-duration: 0.06s;
+}
+
+/* 手机顶栏:版本弹窗贴着左缘展开,不会被屏幕左边裁掉;关闭按钮放大到好点。 */
+@media (max-width: 780px) {
+  .version-popover {
+    left: 0;
+    right: auto;
+  }
+
+  .dialog-close {
+    width: 40px;
+    height: 40px;
+    top: 6px;
+    right: 8px;
   }
 }
