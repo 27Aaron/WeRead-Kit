@@ -134,8 +134,9 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
     localStorage.getItem("weread-theme") ||
     (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
 </script>
-<link rel="stylesheet" href="https://gw.alipayobjects.com/os/k/jinkai/style.css" crossorigin="anonymous" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="/font.css">
 <style>
+html.font-fallback{--font-sans:system-ui,sans-serif}
 :root{color-scheme:light;--bg:#f6f4ef;--surface:#fffdf9;--text:#2a2620;--text-dim:#746e65;--border:#e6e1d5;--border-strong:#948a77;--accent:#b45309;--accent-strong:#8a3e06;--accent-soft:#f7ead7;--err:#b91c1c;--shadow:0 16px 45px rgba(76,59,36,.12);--font-sans:"TsangerJinKai02",system-ui,sans-serif}
 html[data-theme="dark"]{color-scheme:dark;--bg:#171512;--surface:#201d19;--text:#eae5da;--text-dim:#a39c8f;--border:#383329;--border-strong:#736a5a;--accent:#e0a458;--accent-strong:#f0b869;--accent-soft:#332a1c;--err:#f87171;--shadow:0 16px 45px rgba(0,0,0,.35)}
 *{box-sizing:border-box}
@@ -158,6 +159,20 @@ button[type=submit]:hover{background:var(--accent-strong)}
 button[type=submit]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .error{padding:10px 12px;border-radius:8px;background:color-mix(in srgb,var(--err) 12%,transparent);color:var(--err);font-size:13px;margin-bottom:12px}
 </style>
+<script>
+  // 与主界面一致：字库没在绘制前就绪就改走系统字体，不要先系统字体再换今楷。
+  (function () {
+    var sample = '400 15px "TsangerJinKai02"';
+    var text = "欢迎回来";
+    var done = function (ok) {
+      if (ok || document.fonts.check(sample, text)) return;
+      document.documentElement.classList.add("font-fallback");
+    };
+    var ready = document.fonts.load(sample, text).then(function () { return true; }, function () { return false; });
+    var timed = new Promise(function (resolve) { setTimeout(function () { resolve(false); }, 700); });
+    Promise.race([ready, timed]).then(done);
+  })();
+</script>
 </head>
 <body>
 <main class="card">

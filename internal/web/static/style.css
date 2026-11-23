@@ -74,6 +74,11 @@ html[data-theme="dark"] {
   --scroll-thumb-hover: var(--accent);
 }
 
+/* 字库在时限内没到：整页改走系统字体，并且不再中途换回去。 */
+html.font-fallback {
+  --font-sans: system-ui, sans-serif;
+}
+
 /* ---------- 基础重置 ---------- */
 *,
 *::before,
@@ -327,6 +332,45 @@ main {
   width: 100%;
   margin: 0 auto;
   padding: 24px 36px;
+  /* 换页时只淡主区。整页快照如果跟着交叉淡入，底栏的选中项会和上一页叠在一起。 */
+  view-transition-name: console-main;
+}
+
+::view-transition-old(console-main),
+::view-transition-new(console-main) {
+  animation-duration: 120ms;
+  animation-timing-function: ease-out;
+}
+
+/* 顶栏和底栏直接用新状态，不参与 plus-lighter 叠化。 */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(root) {
+  display: none;
+}
+
+/* 主区快照盖满自己的盒子，会把压在上面的底栏一起盖住。底栏单独一层，停在淡入之上。 */
+::view-transition-group(bottom-nav) {
+  z-index: 100;
+  animation: none;
+}
+
+::view-transition-image-pair(bottom-nav) {
+  isolation: auto;
+}
+
+::view-transition-old(bottom-nav),
+::view-transition-new(bottom-nav) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(bottom-nav) {
+  display: none;
 }
 
 .view.hidden {
@@ -1969,6 +2013,8 @@ main {
     box-shadow: var(--shadow-float);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
+    /* 和主区分开截。否则主区淡入的那一层会盖住这条坞，松手时它再冒出来。 */
+    view-transition-name: bottom-nav;
   }
 
   .nav-label {
