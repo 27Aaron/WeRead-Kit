@@ -949,6 +949,11 @@ main {
   background: var(--surface);
 }
 
+/* 搜索没命中的行是藏起来不是删掉,别让它再占位。 */
+.account-row[hidden] {
+  display: none;
+}
+
 .account-row .avatar {
   grid-area: ava;
 }
@@ -1069,6 +1074,11 @@ main {
 
 .badge.missing {
   color: var(--warn);
+}
+
+/* 当前账号:各页默认跟着它走,标出来免得切页后忘了用的是哪个。 */
+.badge.current {
+  color: var(--accent);
 }
 
 @keyframes badge-pulse {
