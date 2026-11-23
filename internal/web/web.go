@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -76,8 +77,13 @@ func (s *Server) Handler() http.Handler {
 		panic("web: embedded static missing: " + err.Error())
 	}
 	mux := http.NewServeMux()
-	// 静态资源禁用浏览器缓存:改版后强刷不再是必要操作(本地应用,无性能顾虑)。
+	// 页面本身不缓存，改版后打开就是新的。样式、脚本和图标的地址带版本号，加载过就可以长期缓存。
 	mux.HandleFunc("GET /login", s.handleLoginPage)
+	mux.HandleFunc("GET /{$}", s.handleAppPage)
+	mux.HandleFunc("GET /font.css", versionedStatic(sub, "font.css"))
+	mux.HandleFunc("GET /style.css", versionedStatic(sub, "style.css"))
+	mux.HandleFunc("GET /app.js", versionedStatic(sub, "app.js"))
+	mux.HandleFunc("GET /favicon.png", versionedStatic(sub, "favicon.png"))
 	mux.HandleFunc("GET /api/version", s.handleVersion)
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /readyz", s.handleReady)
@@ -122,7 +128,7 @@ func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("error") == "1" {
 		errMsg = `<div class="error" role="alert">账号或密码错误，请重试</div>`
 	}
-	html := `<!doctype html><html lang="zh-CN">
+	html := versionAssetURLs(`<!doctype html><html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -204,11 +210,40 @@ button[type=submit]:focus-visible{outline:2px solid var(--accent);outline-offset
   });
 </script>
 </body>
-</html>`
+</html>`)
 	w.Write([]byte(html))
 }
 
-// noStore 为所有静态资源响应附加禁用缓存的头。
+func (s *Server) handleAppPage(w http.ResponseWriter, r *http.Request) {
+	b, err := staticFiles.ReadFile("static/index.html")
+	if err != nil {
+		http.Error(w, "页面缺失", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("content-type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(versionAssetURLs(string(b))))
+}
+
+// versionAssetURLs 给页面里的静态地址加上当前版本。版本一变地址就变，旧缓存失效。
+func versionAssetURLs(html string) string {
+	for _, name := range []string{"font.css", "style.css", "app.js", "favicon.png"} {
+		html = strings.ReplaceAll(html, `"/`+name+`"`, `"/`+name+`?v=`+Version+`"`)
+	}
+	return html
+}
+
+// versionedStatic 只在 ?v= 等于当前版本时改成长期缓存。
+// 地址不带版本或版本不对时，外层 noStore 留下的 no-store 继续生效。
+func versionedStatic(sub fs.FS, name string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("v") == Version {
+			w.Header().Set("cache-control", "public, max-age=31536000, immutable")
+		}
+		http.ServeFileFS(w, r, sub, name)
+	}
+}
+
+// noStore 给页面和接口加上不缓存的头，避免改版后还要强制刷新。
 func noStore(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("cache-control", "no-store")
