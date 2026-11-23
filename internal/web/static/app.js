@@ -162,6 +162,83 @@ function confirmAction({ title = "确认操作", message = "", confirmText = "�
   });
 }
 
+/* ---------- 页面数据缓存 ---------- */
+
+// 切到某个页面就会重新拉一次数据。手机上网络一慢,页面先空一下再补上,
+// 看着就是一闪一闪;网络抖一下还会把已经加载好的内容换成报错。
+// 这里记住每个页面上次拿到的数据:还在有效期内就直接复用,不再发请求;
+// 过期了就在后台悄悄刷新,回来的内容没变就不动 DOM。
+const freshData = new Map();
+
+function isFresh(key, ttl) {
+  const at = freshData.get(key);
+  return at !== undefined && Date.now() - at < ttl;
+}
+function markFresh(key) {
+  freshData.set(key, Date.now());
+}
+function dropFresh(key) {
+  freshData.delete(key);
+}
+
+// 下拉选项:内容没变就不重建。自绘下拉靠 MutationObserver 同步按钮文案,
+// 重建一次文案会闪一下,行内正在输入的焦点也会丢。
+function syncOptions(sel, options, value) {
+  const sig = options.map((o) => `${o.value}\t${o.text}`).join("\n");
+  if (sel.dataset.sig === sig) {
+    if (sel.value !== value) {
+      sel.value = value;
+      sel.ddSync?.(); // 选项没变但选中项变了,按钮上的文字也得跟上
+    }
+    return;
+  }
+  sel.dataset.sig = sig;
+  sel.textContent = "";
+  for (const o of options) {
+    const opt = document.createElement("option");
+    opt.value = o.value;
+    opt.textContent = o.text;
+    sel.append(opt);
+  }
+  sel.value = value;
+  sel.ddSync?.();
+}
+
+/* ---------- 当前账号 ---------- */
+
+// 最近一次选中的账号。阅读页、挑战页都跟着它走,切页面不再各自回到第一个账号;
+// 记在 localStorage 里,刷新页面后也还记得上次用的是哪个。
+const PICKED_KEY = "weread-account";
+let pickedAlias = null;
+try {
+  pickedAlias = localStorage.getItem(PICKED_KEY) || null;
+} catch (_) {
+  pickedAlias = null;
+}
+
+function setPickedAlias(vid) {
+  pickedAlias = vid || null;
+  try {
+    if (pickedAlias) localStorage.setItem(PICKED_KEY, pickedAlias);
+    else localStorage.removeItem(PICKED_KEY);
+  } catch (_) {
+    // 隐私模式下存不了就算了,页面内的同步照样生效。
+  }
+}
+
+// 各页打开时决定用哪个账号:先跟上次的记忆,记忆里的账号已经不在列表里
+// 就退回本页原来那个,再不行才用列表里的第一个。
+function resolvePicked(accounts, current) {
+  const list = accounts || [];
+  if (!list.length) return current || null;
+  let vid = null;
+  if (pickedAlias && list.some((a) => a.vid === pickedAlias)) vid = pickedAlias;
+  else if (current && list.some((a) => a.vid === current)) vid = current;
+  else vid = list[0].vid;
+  setPickedAlias(vid);
+  return vid;
+}
+
 /* ---------- 视图切换 ---------- */
 
 let currentView = "accounts";
@@ -291,6 +368,8 @@ function enhanceSelect(sel) {
   });
   // 程序化设置 sel.value 后派发 change，即可同步按钮文案。
   sel.addEventListener("change", sync);
+  // 只改 value 不派发 change 时(比如换个账号接着往下走),也要把文案刷上。
+  sel.ddSync = sync;
   document.addEventListener("click", (e) => {
     if (!dd.contains(e.target)) close();
   });
@@ -392,14 +471,25 @@ let listRequest = 0;
 // 账号列表上次画出来的内容。没变就别拆掉重画，头像和输入框会闪一下。
 let accountsSig = "";
 
-async function loadAccounts() {
+async function loadAccounts(force = false) {
+  // 刚拉过就不重复请求:切页时账号列表基本没变。
+  if (!force && isFresh("accounts", 15000)) {
+    renderAccounts();
+    return;
+  }
   const request = ++listRequest;
   try {
     allAccounts = await api("/api/accounts");
     if (request !== listRequest) return;
+    markFresh("accounts");
     renderAccounts();
   } catch (err) {
     if (request !== listRequest) return;
+    // 已经有内容就别清空:手机上网络偶尔抖一下,不该把加载好的列表换成报错。
+    if (allAccounts.length) {
+      toast(`账号列表刷新失败：${err.message}`, "error");
+      return;
+    }
     allAccounts = [];
     $("#account-list").textContent = "";
     $("#account-count").textContent = "0";
@@ -431,114 +521,187 @@ function renderAccounts() {
   }
 
   const sig = query + "\n" + accounts.map((a) =>
-    [a.vid, a.remark || "", a.name || "", a.avatar || "", a.has_access_token ? 1 : 0, a.rotated_at || ""].join("\t")
+    [a.vid, a.remark || "", a.name || "", a.avatar || "", a.has_access_token ? 1 : 0, a.rotated_at || "",
+      a.vid === pickedAlias ? 1 : 0].join("\t")
   ).join("\n");
   if (sig === accountsSig) return;
   accountsSig = sig;
+  reconcileAccountRows(accounts);
+}
 
+// 一行账号只随这几个字段变。备注是行内可改的,单独就地更新,不进签名,
+// 否则改完备注重画整行,输入框会跟着失焦。
+function accountRowSig(a) {
+  return [a.vid, a.name || "", a.avatar || "", a.has_access_token ? 1 : 0, a.rotated_at || "",
+    a.vid === pickedAlias ? 1 : 0].join("\t");
+}
+
+// 已经画出来的行就地复用,只补差异。整张列表重建一次,头像就得重新解码,
+// 列表会跟着闪一下;搜索时每敲一个字都闪一次,手机上尤其明显。
+function reconcileAccountRows(accounts) {
   const list = $("#account-list");
-  list.textContent = "";
+  const rows = new Map();
+  for (const row of list.children) rows.set(row.dataset.vid, row);
+  const wanted = new Set(accounts.map((a) => a.vid));
+  // 搜索没命中的行先藏起来,不要删:留着这个节点,头像还是解码好的,
+  // 撤掉搜索时不用再重新加载一遍,列表也就不会闪。
+  for (const [vid, row] of rows) row.hidden = !wanted.has(vid);
+  let cursor = visibleRow(list, null);
   for (const a of accounts) {
-    const row = document.createElement("div");
-    row.className = "account-row";
-
-    const avatar = document.createElement("div");
-    avatar.className = "avatar";
-    if (a.avatar) {
-      const img = document.createElement("img");
-      img.src = a.avatar;
-      img.alt = "";
-      img.loading = "lazy";
-      avatar.append(img);
+    let row = rows.get(a.vid);
+    const rowSig = accountRowSig(a);
+    if (!row) {
+      row = buildAccountRow(a);
+    } else if (row.dataset.sig !== rowSig) {
+      const old = row;
+      const fresh = buildAccountRow(a);
+      old.replaceWith(fresh);
+      row = fresh;
+      // 顶替的这行正好占着 cursor 的位置,cursor 得跟着挪到新行上。
+      // 不然 cursor 还指着已经摘掉的旧行,insertBefore 会抛"不是子节点"。
+      if (cursor === old) cursor = fresh;
     } else {
-      avatar.textContent = Array.from(displayName(a))[0] || "读";
+      // 备注可能在别处被改过,同步一下输入框;正在输入时不打断。
+      const input = row.querySelector(".account-name");
+      const want = a.remark || a.name || a.vid;
+      if (input && document.activeElement !== input && input.value !== want) input.value = want;
     }
-
-    const info = document.createElement("div");
-    info.className = "account-info";
-    const name = document.createElement("input");
-    name.className = "account-name";
-    name.value = a.remark || a.name || a.vid;
-    name.placeholder = "点击设置备注";
-    name.setAttribute("aria-label", `账号 ${displayName(a)} 的备注`);
-    name.maxLength = 100;
-    name.title = "点击修改备注";
-    name.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") name.blur();
-      if (e.key === "Escape") {
-        name.value = a.remark || a.name || a.vid;
-        name.blur();
-      }
-    });
-    name.addEventListener("change", async () => {
-      try {
-        await api(`/api/accounts/${encodeURIComponent(a.vid)}/remark`, {
-          method: "PUT",
-          body: JSON.stringify({ remark: name.value.trim() }),
-        });
-        a.remark = name.value.trim();
-        toast("备注已保存", "ok");
-      } catch (err) {
-        name.value = displayName(a);
-        toast(`保存失败：${err.message}`, "error");
-      }
-    });
-    const sub = document.createElement("div");
-    sub.className = "account-sub";
-    sub.textContent = `ID ${a.vid}`;
-    info.append(name, sub);
-    row.append(avatar, info);
-
-    const cred = document.createElement("div");
-    cred.className = "account-meta";
-    const badge = document.createElement("span");
-    badge.className = "badge " + (a.has_access_token ? "ok" : "missing");
-    badge.textContent = a.has_access_token ? "凭据有效" : "待刷新";
-    badge.title = "表示本地是否保存凭据，不代表实时登录状态";
-    const rotated = document.createElement("span");
-    rotated.className = "account-time";
-    rotated.textContent = fmtTime(a.rotated_at);
-    cred.append(badge, rotated);
-
-    const ops = document.createElement("div");
-    ops.className = "ops";
-    const detailBtn = button("详情", "btn", () => showDetails(a));
-    detailBtn.setAttribute("aria-label", `查看账号 ${displayName(a)} 详情`);
-    const refreshBtn = button("刷新", "btn", async () => {
-      setBusy(refreshBtn, true);
-      try {
-        await api(`/api/accounts/${encodeURIComponent(a.vid)}/refresh`, { method: "POST" });
-        toast(`已刷新 ${displayName(a)}`, "ok");
-        await loadAccounts();
-      } catch (err) {
-        toast(`刷新失败：${err.message}`, "error");
-        setBusy(refreshBtn, false);
-      }
-    });
-    refreshBtn.setAttribute("aria-label", `刷新账号 ${displayName(a)}`);
-    const delBtn = button("删除", "btn danger", async () => {
-      const okDelete = await confirmAction({
-        title: "删除账号",
-        message: `确定删除账号「${displayName(a)}」？仅删除本地凭据，不影响微信读书账号。`,
-        confirmText: "删除",
-      });
-      if (!okDelete) return;
-      try {
-        await api(`/api/accounts/${encodeURIComponent(a.vid)}`, { method: "DELETE" });
-        toast("已删除", "ok");
-        await loadAccounts();
-      } catch (err) {
-        toast(`删除失败：${err.message}`, "error");
-      }
-    });
-    delBtn.setAttribute("aria-label", `删除账号 ${displayName(a)}`);
-    ops.append(detailBtn, refreshBtn, delBtn);
-
-    row.append(cred, ops);
-    // info 占满剩余宽度,操作区靠右
-    info.style.flex = "1";
-    list.append(row);
+    rows.set(a.vid, row);
+    // 已经在正确位置就别动它,免得把行摘下来再挂上,输入框会跟着失焦。
+    if (row === cursor) {
+      cursor = visibleRow(list, row);
+    } else if (cursor === null) {
+      if (row !== list.lastElementChild) list.append(row);
+    } else if (row.nextElementSibling !== cursor) {
+      list.insertBefore(row, cursor);
+    }
   }
+}
+
+// 下一个该排的行:跳过藏起来的。
+function visibleRow(list, after) {
+  let node = after ? after.nextElementSibling : list.firstElementChild;
+  while (node && node.hidden) node = node.nextElementSibling;
+  return node;
+}
+
+function buildAccountRow(a) {
+  const row = document.createElement("div");
+  row.className = "account-row";
+  row.dataset.vid = a.vid;
+  row.dataset.sig = accountRowSig(a);
+
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  if (a.avatar) {
+    const img = document.createElement("img");
+    img.src = a.avatar;
+    img.alt = "";
+    img.loading = "lazy";
+    avatar.append(img);
+  } else {
+    avatar.textContent = Array.from(displayName(a))[0] || "读";
+  }
+
+  const info = document.createElement("div");
+  info.className = "account-info";
+  const name = document.createElement("input");
+  name.className = "account-name";
+  name.value = a.remark || a.name || a.vid;
+  name.placeholder = "点击设置备注";
+  name.setAttribute("aria-label", `账号 ${displayName(a)} 的备注`);
+  name.maxLength = 100;
+  name.title = "点击修改备注";
+  name.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") name.blur();
+    if (e.key === "Escape") {
+      name.value = a.remark || a.name || a.vid;
+      name.blur();
+    }
+  });
+  name.addEventListener("change", async () => {
+    try {
+      await api(`/api/accounts/${encodeURIComponent(a.vid)}/remark`, {
+        method: "PUT",
+        body: JSON.stringify({ remark: name.value.trim() }),
+      });
+      a.remark = name.value.trim();
+      toast("备注已保存", "ok");
+    } catch (err) {
+      name.value = displayName(a);
+      toast(`保存失败：${err.message}`, "error");
+    }
+  });
+  const sub = document.createElement("div");
+  sub.className = "account-sub";
+  sub.textContent = `ID ${a.vid}`;
+  info.append(name, sub);
+  row.append(avatar, info);
+
+  const cred = document.createElement("div");
+  cred.className = "account-meta";
+  const badge = document.createElement("span");
+  badge.className = "badge " + (a.has_access_token ? "ok" : "missing");
+  badge.textContent = a.has_access_token ? "凭据有效" : "待刷新";
+  badge.title = "表示本地是否保存凭据，不代表实时登录状态";
+  const rotated = document.createElement("span");
+  rotated.className = "account-time";
+  rotated.textContent = fmtTime(a.rotated_at);
+  cred.append(badge, rotated);
+  // 当前账号:阅读页与挑战页跟着它走,一眼能看出切过去会用哪个。
+  if (a.vid === pickedAlias) {
+    const cur = document.createElement("span");
+    cur.className = "badge current";
+    cur.textContent = "当前账号";
+    cur.title = "「我的阅读」与「阅读挑战」默认跟着这个账号";
+    cred.append(cur);
+  }
+
+  const ops = document.createElement("div");
+  ops.className = "ops";
+  const detailBtn = button("详情", "btn", () => {
+    // 打开谁就看谁,别的页面也跟着切到这个账号。
+    setPickedAlias(a.vid);
+    renderAccounts();
+    showDetails(a);
+  });
+  detailBtn.setAttribute("aria-label", `查看账号 ${displayName(a)} 详情`);
+  const refreshBtn = button("刷新", "btn", async () => {
+    setBusy(refreshBtn, true);
+    try {
+      await api(`/api/accounts/${encodeURIComponent(a.vid)}/refresh`, { method: "POST" });
+      toast(`已刷新 ${displayName(a)}`, "ok");
+      await loadAccounts(true);
+    } catch (err) {
+      toast(`刷新失败：${err.message}`, "error");
+      setBusy(refreshBtn, false);
+    }
+  });
+  refreshBtn.setAttribute("aria-label", `刷新账号 ${displayName(a)}`);
+  const delBtn = button("删除", "btn danger", async () => {
+    const okDelete = await confirmAction({
+      title: "删除账号",
+      message: `确定删除账号「${displayName(a)}」？仅删除本地凭据，不影响微信读书账号。`,
+      confirmText: "删除",
+    });
+    if (!okDelete) return;
+    try {
+      await api(`/api/accounts/${encodeURIComponent(a.vid)}`, { method: "DELETE" });
+      toast("已删除", "ok");
+      // 删掉的正好是当前账号,记忆要一起清掉。
+      if (pickedAlias === a.vid) setPickedAlias(null);
+      await loadAccounts(true);
+    } catch (err) {
+      toast(`删除失败：${err.message}`, "error");
+    }
+  });
+  delBtn.setAttribute("aria-label", `删除账号 ${displayName(a)}`);
+  ops.append(detailBtn, refreshBtn, delBtn);
+
+  row.append(cred, ops);
+  // info 占满剩余宽度,操作区靠右
+  info.style.flex = "1";
+  return row;
 }
 
 function button(text, cls, onClick) {
@@ -670,7 +833,8 @@ $("#login-start").addEventListener("click", startLogin);
 $("#login-close").addEventListener("click", () => $("#login-dialog").close());
 $("#login-dialog").addEventListener("close", () => {
   resetLoginUI();
-  loadAccounts();
+  // 刚扫码登录完,列表一定要重新拉。
+  loadAccounts(true);
 });
 
 /* ---------- 账号详情 ---------- */
@@ -843,7 +1007,6 @@ async function openChallenge() {
   setView("challenge");
   const accounts = allAccounts.length ? allAccounts : await api("/api/accounts").catch(() => []);
   const sel = $("#challenge-account");
-  sel.textContent = "";
   if (!accounts.length) {
     $("#challenge-panel").classList.add("hidden");
     $("#official-challenge-wrap").hidden = true;
@@ -858,29 +1021,30 @@ async function openChallenge() {
   $("#challenge-panel").classList.remove("hidden");
   $("#challenge-empty").classList.add("hidden");
   $("#challenge-banner").classList.remove("hidden");
-  if (pickedAlias && accounts.some((a) => a.vid === pickedAlias)) challengeAlias = pickedAlias;
-  if (!accounts.some((a) => a.vid === challengeAlias)) challengeAlias = accounts[0].vid;
+  // 跟上次的账号:切到本页时还接着上次选的那个,不回退到列表里的第一个。
+  challengeAlias = resolvePicked(accounts, challengeAlias);
   // 同一账号的圆环已经画过就留着。先藏起来再等接口，缓存的面板会灭一下再冒出来。
   if (officialRenderedFor !== challengeAlias) $("#official-challenge-wrap").hidden = true;
-  for (const a of accounts) {
-    const opt = document.createElement("option");
-    opt.value = a.vid;
-    opt.textContent = displayName(a);
-    sel.append(opt);
-  }
-  sel.value = challengeAlias;
+  // 账号没变就不重建下拉:重建一次自绘下拉的文案会闪一下。
+  syncOptions(sel, accounts.map((a) => ({ value: a.vid, text: displayName(a) })), challengeAlias);
   await loadChallenge();
 }
 
 async function loadChallenge() {
   if (!challengeAlias) return;
   const vid = challengeAlias;
-  if (challengeRenderedFor !== vid) {
+  const firstLoad = challengeRenderedFor !== vid;
+  if (firstLoad) {
     challengeBooksSig = "";
     $("#challenge-books").innerHTML = skeletonCardsHTML(18, 190, true);
     // 首次加载/加载失败期间禁用配置区:表单里还是上一账号的值,
     // 放开保存会把 A 的配置写进 B。
     setChallengePanelEnabled(false);
+  } else if (isFresh(challengeCacheKey(vid), 30000)) {
+    // 数据还新鲜,不用重画。回到本页时保持原样,不来回闪。
+    // 官方面板有自己的一份缓存,还是要让它自己判断要不要拉。
+    loadOfficialChallenge();
+    return;
   }
   try {
     // GET details 走本地缓存,书架与阅读配置一次拿全。
@@ -888,6 +1052,7 @@ async function loadChallenge() {
     if (vid !== challengeAlias) return; // 等待期间账号已切换,丢弃旧响应
     challengeRenderedFor = vid;
     renderChallenge(d);
+    markFresh(challengeCacheKey(vid));
   } catch (err) {
     if (vid !== challengeAlias) return; // 迟到的错误响应不得覆盖当前账号
     if (challengeRenderedFor !== vid) {
@@ -897,6 +1062,11 @@ async function loadChallenge() {
     }
   }
   loadOfficialChallenge();
+}
+
+// 挑战数据的新鲜度按账号算,换账号就得重新拉。
+function challengeCacheKey(vid) {
+  return `challenge:${vid}`;
 }
 
 // 首次加载与失败期间整体禁用挑战配置区,渲染成功后恢复。
@@ -918,6 +1088,9 @@ async function loadOfficialChallenge() {
     officialSig = "";
     wrap.hidden = true;
     wrap.textContent = "";
+  } else if (isFresh(officialCacheKey(vid), 30000)) {
+    // 刚拉过,面板保持原样。
+    return;
   }
   try {
     // 挑战进度与历史战绩并行拉取;历史失败不阻塞主面板(catch 吞掉记 null)。
@@ -928,10 +1101,15 @@ async function loadOfficialChallenge() {
     if (vid !== challengeAlias) return; // 等待期间账号已切换,丢弃旧响应
     officialRenderedFor = vid;
     renderOfficialChallenge(((d.challenge || {}).challengeList || []), !!d.auto_join, h);
+    markFresh(officialCacheKey(vid));
   } catch (err) {
     // 面板属辅助信息,首次加载失败保持隐藏;详情留给控制台。
     console.warn("官方挑战进度加载失败:", err.message);
   }
+}
+
+function officialCacheKey(vid) {
+  return `official:${vid}`;
 }
 
 // 自动参与下一期:开关只落库,执行由调度器负责;失败时回滚勾选。
@@ -966,7 +1144,19 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
   }
   // 往期战绩默认只显示最近一条,其余折叠,避免长列表撑爆面板。
   const pastRows = (historyData && historyData.history && historyData.history.challenges) || [];
-  const officialKey = JSON.stringify([active, autoJoin, pastRows]);
+  // 长周期在前。
+  const ordered = [...active].sort((a, b) => ((b.challenge || {}).challengeDay || 0) - ((a.challenge || {}).challengeDay || 0));
+  // 签名只算真正画出来的字段。currentTime、remainTimes、todayJoinCount 每秒都在变,
+  // 算进去等于每次回页都把整个面板拆了重画,圆环和勋章会跟着闪一下。
+  const officialKey = JSON.stringify([
+    ordered.map((c) => [
+      c.id || "", c.status || 0, c.readDays || 0, (c.readDateList || []).length, c.readTime || 0,
+      c.remainDays ?? 0, c.startTime || 0, c.endTime || 0, c.challenge || {},
+      c.baseMedalPicUrl || "", c.challengingCnt || 0, c.succCnt || 0,
+    ]),
+    autoJoin,
+    pastRows.map((h) => [h.startTime || 0, h.endTime || 0, h.challengeDay || 0, h.status || 0]),
+  ]);
   // 同一份进度重进时别拆掉面板重画，圆环和勋章会闪一下。
   if (officialKey === officialSig && wrap.childElementCount && !wrap.hidden) return;
   officialSig = officialKey;
@@ -1002,8 +1192,6 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
       </label>`;
   const statusText = (c) => (c.status === 1 ? "进行中" : c.status === 2 ? "已完成" : "已结束");
 
-  // 长周期在前。
-  const ordered = [...active].sort((a, b) => ((b.challenge || {}).challengeDay || 0) - ((a.challenge || {}).challengeDay || 0));
   // 往期战绩与自动参与开关是 21 天挑战专属;列表里没有 21 天时挂第一个 section。
   const sharedIndex = Math.max(0, ordered.findIndex((c) => c.id === "ChallengeLongTermFree"));
   const badge = ordered.some((c) => c.status === 1) ? "进行中" : statusText(ordered[0]);
@@ -1166,18 +1354,24 @@ function renderChallenge(d) {
 }
 
 // 「立即执行」与「停止阅读」是同一个按钮：按会话状态切换文案、图标与配色。
+// 状态没变就不重画:换掉 innerHTML 会把图标重新生成一遍,看着会闪一下。
+let challengeBtnRunning = null;
 function updateChallengeButtons(running) {
-  challengeRunning = !!running;
+  running = !!running;
+  challengeRunning = running;
+  if (challengeBtnRunning === running) return;
+  challengeBtnRunning = running;
   const btn = $("#challenge-run");
-  btn.classList.toggle("danger", challengeRunning);
-  btn.innerHTML = challengeRunning
+  btn.classList.toggle("danger", running);
+  btn.innerHTML = running
     ? `<span class="nav-icon">${iconSvg("square")}</span>停止阅读`
     : `<span class="nav-icon">${iconSvg("play")}</span>立即执行`;
 }
 
 $("#challenge-account").addEventListener("change", (e) => {
   challengeAlias = e.target.value;
-  pickedAlias = challengeAlias;
+  setPickedAlias(challengeAlias);
+  renderAccounts();
   stopChallengePolling();
   loadChallenge();
 });
@@ -1276,14 +1470,12 @@ async function stopChallenge() {
 $("#challenge-run").addEventListener("click", () => (challengeRunning ? stopChallenge() : runChallengeNow()));
 $("#challenge-goto-accounts").addEventListener("click", () => {
   setView("accounts");
-  loadAccounts();
+  loadAccounts(true);
 });
 
 /* ---------- 我的阅读（周阅读奖励） ---------- */
 
 let readingAlias = null;
-// 最近一次手动选择的账号:阅读页与挑战页共用,切页面互相跟随。
-let pickedAlias = null;
 let readingData = null;
 let readingCard = null;
 let readingPrefs = {};
@@ -1296,7 +1488,6 @@ async function openReading() {
   setView("reading");
   const accounts = allAccounts.length ? allAccounts : await api("/api/accounts").catch(() => []);
   const sel = $("#reading-account");
-  sel.textContent = "";
   if (!accounts.length) {
     $("#reading-empty").classList.remove("hidden");
     $$("#view-reading .panel, #reading-stats").forEach((el) => el.classList.add("hidden"));
@@ -1306,15 +1497,10 @@ async function openReading() {
   }
   $("#reading-empty").classList.add("hidden");
   $$("#view-reading .panel, #reading-stats").forEach((el) => el.classList.remove("hidden"));
-  if (pickedAlias && accounts.some((a) => a.vid === pickedAlias)) readingAlias = pickedAlias;
-  if (!accounts.some((a) => a.vid === readingAlias)) readingAlias = accounts[0].vid;
-  for (const a of accounts) {
-    const opt = document.createElement("option");
-    opt.value = a.vid;
-    opt.textContent = displayName(a);
-    sel.append(opt);
-  }
-  sel.value = readingAlias;
+  // 跟上次的账号:切到本页时还接着上次选的那个,不回退到列表里的第一个。
+  readingAlias = resolvePicked(accounts, readingAlias);
+  // 账号没变就不重建下拉:重建一次自绘下拉的文案会闪一下。
+  syncOptions(sel, accounts.map((a) => ({ value: a.vid, text: displayName(a) })), readingAlias);
   await loadWeekly();
 }
 
@@ -1348,6 +1534,9 @@ async function loadWeekly() {
     resetWeeklyUI();
     $("#reading-time-awards").innerHTML = skeletonCardsHTML(5, 148);
     $("#reading-day-awards").innerHTML = skeletonCardsHTML(3, 148);
+  } else if (isFresh(weeklyCacheKey(vid), 30000)) {
+    // 数据还新鲜,不用重画。回到本页时保持原样,不来回闪。
+    return;
   }
   loadBalance(vid, request, firstLoad);
   try {
@@ -1360,6 +1549,7 @@ async function loadWeekly() {
     if (actAuto) actAuto.checked = !!d.act_auto;
     weeklyRenderedFor = vid;
     renderWeekly();
+    markFresh(weeklyCacheKey(vid));
   } catch (err) {
     if (request !== weeklyRequest) return;
     if (firstLoad) {
@@ -1368,9 +1558,15 @@ async function loadWeekly() {
       $("#reading-time-awards").innerHTML = `<p class="empty">${msg}</p>`;
       $("#reading-day-awards").innerHTML = `<p class="empty">${msg}</p>`;
     } else {
+      // 已经有内容就别换成报错:手机上网络偶尔抖一下,不该把加载好的面板冲掉。
       toast(`刷新失败：${err.message}`, "error");
     }
   }
+}
+
+// 周数据的新鲜度按账号算,换账号就得重新拉。
+function weeklyCacheKey(vid) {
+  return `weekly:${vid}`;
 }
 
 // 书币余额独立请求,失败不阻塞奖励面板;vid 与 request 在发起时捕获,
@@ -1650,12 +1846,13 @@ $("#act-auto-claim").addEventListener("change", async (e) => {
 
 $("#reading-account").addEventListener("change", (e) => {
   readingAlias = e.target.value;
-  pickedAlias = readingAlias;
+  setPickedAlias(readingAlias);
+  renderAccounts();
   loadWeekly();
 });
 $("#reading-goto-accounts").addEventListener("click", () => {
   setView("accounts");
-  loadAccounts();
+  loadAccounts(true);
 });
 
 /* ---------- 运行日志 ---------- */
@@ -1667,29 +1864,24 @@ async function openLogs() {
   setView("logs");
   const sel = $("#log-alias");
   const current = sel.value;
-  sel.textContent = "";
-  const all = document.createElement("option");
-  all.value = "";
-  all.textContent = "全部账号";
-  sel.append(all);
   const accounts = allAccounts.length ? allAccounts : await api("/api/accounts").catch(() => []);
-  for (const a of accounts) {
-    const opt = document.createElement("option");
-    opt.value = a.vid;
-    opt.textContent = displayName(a);
-    sel.append(opt);
-  }
-  sel.value = current;
+  // 账号没变就不重建下拉:重建一次自绘下拉的文案会闪一下。
+  syncOptions(sel, [{ value: "", text: "全部账号" }]
+    .concat(accounts.map((a) => ({ value: a.vid, text: displayName(a) }))), current);
   await loadLogs();
-  if (!logsTimer) logsTimer = setInterval(() => { if (currentView === "logs" && !document.hidden) loadLogs(true); }, 10000);
+  if (!logsTimer) logsTimer = setInterval(() => { if (currentView === "logs" && !document.hidden) loadLogs(true, true); }, 10000);
 }
 
-async function loadLogs(silent = false) {
+async function loadLogs(silent = false, force = false) {
   const params = new URLSearchParams({ limit: "200" });
   if ($("#log-alias").value) params.set("vid", $("#log-alias").value);
   if ($("#log-level").value) params.set("level", $("#log-level").value);
+  const cacheKey = `logs:${params}`;
+  // 刚拉过就不用再拉一次:页面上本来就有每 10 秒一次的自动刷新。
+  if (!force && isFresh(cacheKey, 10000)) return;
   try {
     const logs = await api(`/api/logs?${params}`);
+    markFresh(cacheKey);
     $("#logs-updated").textContent = `更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
     // 自动刷新时内容没变就不重建 200 条 DOM,也不打断用户滚动位置。
     const key = `${params}|${logs.length}|${logs[0]?.id ?? ""}`;
@@ -1749,7 +1941,7 @@ $("#logs-clear").addEventListener("click", async () => {
   try {
     await api("/api/logs", { method: "DELETE" });
     toast("日志已清空", "ok");
-    loadLogs();
+    loadLogs(false, true);
   } catch (err) {
     toast(`清空失败：${err.message}`, "error");
   }
@@ -1779,14 +1971,22 @@ const pushTypes = {
 let pushSig = "";
 
 async function loadPushChannels() {
+  // 刚拉过就不重复请求:切页时推送配置基本没变。
+  if (isFresh("push", 60000)) return;
   let channels;
   try {
     channels = await api("/api/settings/push");
   } catch (err) {
+    // 已经有卡片就别换成报错:手机上网络偶尔抖一下,不该把填好的表单冲掉。
+    if ($("#push-list").querySelector(".push-card")) {
+      toast(`推送配置刷新失败：${err.message}`, "error");
+      return;
+    }
     pushSig = "";
     $("#push-list").innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
     return;
   }
+  markFresh("push");
   const byType = {};
   for (const c of channels) byType[c.type] = c;
 
@@ -1887,6 +2087,9 @@ async function saveChannel(type, enabled, params, btn) {
       method: "POST",
       body: JSON.stringify({ type, enabled, params }),
     });
+    // 配置变了,缓存作废,下次回到本页要重新拉。
+    dropFresh("push");
+    pushSig = "";
     toast(enabled ? "已开启" : "配置已保存（未开启）", "ok");
   } catch (err) {
     toast(`保存失败：${err.message}`, "error");

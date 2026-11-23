@@ -7,9 +7,11 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"hash/fnv"
 	"io/fs"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -224,19 +226,37 @@ func (s *Server) handleAppPage(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(versionAssetURLs(string(b))))
 }
 
-// versionAssetURLs 给页面里的静态地址加上当前版本。版本一变地址就变，旧缓存失效。
+// versionAssetURLs 给页面里的静态地址加上内容指纹。内容变了地址就变了,
+// 浏览器不会再拿旧缓存;地址不变就还能长期缓存。
 func versionAssetURLs(html string) string {
 	for _, name := range []string{"font.css", "style.css", "app.js", "favicon.png"} {
-		html = strings.ReplaceAll(html, `"/`+name+`"`, `"/`+name+`?v=`+Version+`"`)
+		html = strings.ReplaceAll(html, `"/`+name+`"`, `"/`+name+`?v=`+assetVersion(name)+`"`)
 	}
 	return html
 }
 
-// versionedStatic 只在 ?v= 等于当前版本时改成长期缓存。
-// 地址不带版本或版本不对时，外层 noStore 留下的 no-store 继续生效。
+// assetVersion 按文件内容算一个短指纹。之前用应用版本号做地址,
+// 本地改完 app.js 刷新还是旧代码:地址没变,浏览器就一直用一年期的 immutable 缓存。
+var assetVersions sync.Map // 文件名 -> 指纹
+
+func assetVersion(name string) string {
+	if v, ok := assetVersions.Load(name); ok {
+		return v.(string)
+	}
+	h := fnv.New64a()
+	if b, err := staticFiles.ReadFile("static/" + name); err == nil {
+		_, _ = h.Write(b)
+	}
+	v := strconv.FormatUint(h.Sum64(), 36)
+	assetVersions.Store(name, v)
+	return v
+}
+
+// versionedStatic 只在 ?v= 等于当前内容指纹时改成长期缓存。
+// 地址不带指纹或指纹不对时，外层 noStore 留下的 no-store 继续生效。
 func versionedStatic(sub fs.FS, name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("v") == Version {
+		if r.URL.Query().Get("v") == assetVersion(name) {
 			w.Header().Set("cache-control", "public, max-age=31536000, immutable")
 		}
 		http.ServeFileFS(w, r, sub, name)

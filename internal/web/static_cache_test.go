@@ -27,9 +27,10 @@ func TestVersionedStaticCache(t *testing.T) {
 		return req
 	}
 
-	for _, name := range []string{"font.css", "style.css", "app.js", "favicon.png"} {
+	names := []string{"font.css", "style.css", "app.js", "favicon.png"}
+	for _, name := range names {
 		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, authed("/"+name+"?v="+Version))
+		h.ServeHTTP(rec, authed("/"+name+"?v="+assetVersion(name)))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s: want 200, got %d", name, rec.Code)
 		}
@@ -53,15 +54,15 @@ func TestVersionedStaticCache(t *testing.T) {
 	}
 
 	// 样式和脚本仍要登录。字库样式要给登录页用，不能被挡回去。
-	for _, path := range []string{"/style.css?v=" + Version, "/app.js?v=" + Version} {
+	for _, name := range []string{"style.css", "app.js"} {
 		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/"+name+"?v="+assetVersion(name), nil))
 		if rec.Code != http.StatusFound {
-			t.Fatalf("%s without cookie: want 302, got %d", path, rec.Code)
+			t.Fatalf("%s without cookie: want 302, got %d", name, rec.Code)
 		}
 	}
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/font.css?v="+Version, nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/font.css?v="+assetVersion("font.css"), nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("font.css without cookie: want 200, got %d", rec.Code)
 	}
@@ -80,8 +81,8 @@ func TestVersionedStaticCache(t *testing.T) {
 	if got := home.Header().Get("cache-control"); got != "no-store" {
 		t.Fatalf("home cache-control: want no-store, got %q", got)
 	}
-	for _, name := range []string{"font.css", "style.css", "app.js", "favicon.png"} {
-		if !strings.Contains(home.Body.String(), `"/`+name+`?v=`+Version+`"`) {
+	for _, name := range names {
+		if !strings.Contains(home.Body.String(), `"/`+name+`?v=`+assetVersion(name)+`"`) {
 			t.Fatalf("home: missing versioned %s", name)
 		}
 	}
@@ -95,8 +96,25 @@ func TestVersionedStaticCache(t *testing.T) {
 		t.Fatalf("login cache-control: want no-store, got %q", got)
 	}
 	for _, name := range []string{"font.css", "favicon.png"} {
-		if !strings.Contains(login.Body.String(), `"/`+name+`?v=`+Version+`"`) {
+		if !strings.Contains(login.Body.String(), `"/`+name+`?v=`+assetVersion(name)+`"`) {
 			t.Fatalf("login: missing versioned %s", name)
 		}
+	}
+}
+
+// 静态地址按内容算指纹,不跟应用版本走:
+// 本地改完 app.js 指纹就变了,刷新能拿到新代码,不会被旧缓存挡住。
+func TestAssetVersionFollowsContent(t *testing.T) {
+	for _, name := range []string{"font.css", "style.css", "app.js", "favicon.png"} {
+		v := assetVersion(name)
+		if v == "" {
+			t.Fatalf("%s: empty asset version", name)
+		}
+		if v != assetVersion(name) {
+			t.Fatalf("%s: asset version not stable", name)
+		}
+	}
+	if assetVersion("app.js") == assetVersion("style.css") {
+		t.Fatal("app.js and style.css share an asset version")
 	}
 }
