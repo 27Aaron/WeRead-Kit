@@ -109,6 +109,34 @@ func TestHandleLoginPost(t *testing.T) {
 	}
 }
 
+// TestLoginBackoffStaysCapped 连续失败很久也不能把锁定期算成 0、负数或超过 1 分钟。
+// 旧实现用 1<<n * time.Second,溢出后封顶比较失效,脚本可以继续速刷。
+func TestLoginBackoffStaysCapped(t *testing.T) {
+	s := &Server{}
+	for i := 0; i < 80; i++ {
+		s.loginMarkResult(false)
+		if i < 2 {
+			if s.loginLocked() {
+				t.Fatalf("after %d failures: locked too early", i+1)
+			}
+			continue
+		}
+		if !s.loginLocked() {
+			t.Fatalf("after %d failures: lock inactive", i+1)
+		}
+		s.loginMu.Lock()
+		until := s.loginLockUntil
+		s.loginMu.Unlock()
+		if d := time.Until(until); d <= 0 || d > maxLoginBackoff+time.Second {
+			t.Fatalf("after %d failures: backoff %s outside (0, %s]", i+1, d, maxLoginBackoff)
+		}
+	}
+	s.loginMarkResult(true)
+	if s.loginLocked() {
+		t.Fatal("successful login did not clear the lock")
+	}
+}
+
 func TestSessionInvalidatedByCredentialChange(t *testing.T) {
 	before := &Server{username: "u", password: "p", sessionKey: []byte("k")}
 	token := before.sessionToken(time.Now().Add(time.Hour).Unix())

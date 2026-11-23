@@ -71,7 +71,12 @@ func (s *Server) loginMarkResult(ok bool) {
 	if s.loginFailures < 3 {
 		return
 	}
-	wait := (1 << (s.loginFailures - 3)) * 5 * time.Second
+	// 失败次数本身不封顶。直接用 1<<n 再乘 time.Second,溢出后会变成 0 或负数,
+	// 下面的封顶比较对非正数不成立,锁定反而失效。这里逐次翻倍,到封顶即停。
+	wait := 5 * time.Second
+	for i := 3; i < s.loginFailures && wait < maxLoginBackoff; i++ {
+		wait *= 2
+	}
 	if wait > maxLoginBackoff {
 		wait = maxLoginBackoff
 	}
