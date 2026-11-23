@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [v0.5.2] - 2026-11-23
+
+### 修复
+
+- 切换控制台页面时不再整页闪一下:数据没变就不拆掉列表和表单重画,各页记住自己的滚动位置;只淡主区,手机底部菜单不再和上一页的选中项叠在一起
+- 今楷不再先画成系统字体再换过去:字体样式和页面一起加载,字库已缓存时第一笔就是今楷;约 700ms 内没就绪则改用系统字体,并且不再中途换回来
+
 ## [v0.5.1] - 2026-11-23
 
 ### 优化
@@ -350,6 +357,7 @@
 - 多平台二进制发布(linux/darwin/windows × amd64/arm64)、Docker 多架构镜像、Nix flake 开发环境
 - MIT 许可
 
+[v0.5.2]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.5.2
 [v0.5.1]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.5.1
 [v0.5.0]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.5.0
 [v0.4.6]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.4.6
