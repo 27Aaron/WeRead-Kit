@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [v0.5.3] - 2026-11-23
+
+### 修复
+
+- 换页不再闪一下:去掉交叉淡入,已经画好的账号列表和挑战圆环留在页面上。同一账号再进挑战页时,圆环不再先藏起来等接口
+- 样式、脚本和图标的地址带上版本号,加载过就长期缓存;页面本身仍不缓存,发新版后打开就是新的。今楷在缓存里直接使用,没有缓存就停在系统字体,不再中途替换
+
 ## [v0.5.2] - 2026-11-23
 
 ### 修复
@@ -357,6 +364,7 @@
 - 多平台二进制发布(linux/darwin/windows × amd64/arm64)、Docker 多架构镜像、Nix flake 开发环境
 - MIT 许可
 
+[v0.5.3]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.5.3
 [v0.5.2]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.5.2
 [v0.5.1]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.5.1
 [v0.5.0]: https://github.com/27Aaron/WeRead-Kit/releases/tag/v0.5.0
