@@ -14,9 +14,23 @@
       localStorage.getItem("weread-theme") ||
       (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   </script>
-  <!-- 第三方字体异步加载:CDN 无法连线(内网/离线部署)时不阻塞首屏,退回系统字体。 -->
-  <link rel="stylesheet" href="https://gw.alipayobjects.com/os/k/jinkai/style.css" crossorigin="anonymous" media="print" onload="this.media='all'" />
+  <!-- 今楷的 @font-face 与页面样式一起解析。外链样式表异步插入时，会先画出系统字体再跳成今楷。 -->
+  <link rel="stylesheet" href="/font.css" />
   <link rel="stylesheet" href="/style.css" />
+  <script>
+    // 字库没在绘制前就绪就改走系统字体，避免先系统字体、再换今楷。
+    (function () {
+      var sample = '400 15px "TsangerJinKai02"';
+      var text = "微信读书";
+      var done = function (ok) {
+        if (ok || document.fonts.check(sample, text)) return;
+        document.documentElement.classList.add("font-fallback");
+      };
+      var ready = document.fonts.load(sample, text).then(function () { return true; }, function () { return false; });
+      var timed = new Promise(function (resolve) { setTimeout(function () { resolve(false); }, 700); });
+      Promise.race([ready, timed]).then(done);
+    })();
+  </script>
 </head>
 
 <body>

@@ -165,22 +165,49 @@ function confirmAction({ title = "确认操作", message = "", confirmText = "�
 /* ---------- 视图切换 ---------- */
 
 let currentView = "accounts";
+// 每个页面记住自己的滚动位置。共用一个 scrollY 时，从长页切到短页会猛地跳到顶。
+const viewScroll = {};
+// 首屏那一次路由不播过渡，避免一进来就淡一下。
+let viewTransitionsReady = false;
 
 const VIEW_NAMES = ["accounts", "reading", "challenge", "logs", "settings"];
 
 function setView(view) {
+  // 先记下目标页。过渡的回调是异步的，routeView 里紧接着的 openReading
+  // 会再调一次 setView；若这时还没改 currentView，就会把上一次过渡打断，页面闪一下。
+  if (currentView === view) return;
+  const previous = currentView;
   currentView = view;
-  // hash 与视图互相同步:刷新/前进后退保持在当前页,#challenge 这类深链可直接打开。
-  if (location.hash !== "#" + view) location.hash = view;
-  for (const name of VIEW_NAMES) {
-    $("#view-" + name).classList.toggle("hidden", view !== name);
+  viewScroll[previous] = window.scrollY;
+  const apply = () => {
+    // hash 与视图互相同步:刷新/前进后退保持在当前页,#challenge 这类深链可直接打开。
+    if (location.hash !== "#" + view) location.hash = view;
+    for (const name of VIEW_NAMES) {
+      $("#view-" + name).classList.toggle("hidden", view !== name);
+    }
+    $$(".nav-item").forEach((el) => {
+      const active = el.dataset.view === view;
+      el.classList.toggle("active", active);
+      if (active) el.setAttribute("aria-current", "page");
+      else el.removeAttribute("aria-current");
+    });
+  };
+  const go = () => {
+    apply();
+    window.scrollTo(0, viewScroll[view] || 0);
+  };
+  // 硬切 display:none 时，手机底部的模糊坞会闪一帧。用主区快照交叉淡入盖住这一帧。
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (viewTransitionsReady && !reduce && typeof document.startViewTransition === "function") {
+    try {
+      // 快速连点会打断上一次过渡，finished 的拒绝不是故障。
+      document.startViewTransition(go).finished.catch(() => {});
+      return;
+    } catch {
+      // 上一次过渡还没结束，直接换页。
+    }
   }
-  $$(".nav-item").forEach((el) => {
-    const active = el.dataset.view === view;
-    el.classList.toggle("active", active);
-    if (active) el.setAttribute("aria-current", "page");
-    else el.removeAttribute("aria-current");
-  });
+  go();
 }
 
 /* ---------- 窄屏导航按钮 ---------- */
@@ -382,6 +409,8 @@ function toast(msg, type = "info") {
 
 let allAccounts = [];
 let listRequest = 0;
+// 账号列表上次画出来的内容。没变就别拆掉重画，头像和输入框会闪一下。
+let accountsSig = "";
 
 async function loadAccounts() {
   const request = ++listRequest;
@@ -420,6 +449,12 @@ function renderAccounts() {
     $("#empty-title").textContent = "从连接第一个账号开始";
     $("#empty-desc").textContent = "用微信扫一扫，即可把阅读账号添加到这里。";
   }
+
+  const sig = query + "\n" + accounts.map((a) =>
+    [a.vid, a.remark || "", a.name || "", a.avatar || "", a.has_access_token ? 1 : 0, a.rotated_at || ""].join("\t")
+  ).join("\n");
+  if (sig === accountsSig) return;
+  accountsSig = sig;
 
   const list = $("#account-list");
   list.textContent = "";
@@ -817,6 +852,7 @@ let challengeAlias = null;
 let challengeRenderedFor = null;
 // 已渲染官方挑战面板的账号,语义同上。
 let officialRenderedFor = null;
+let officialSig = "";
 let challengeBooks = [];
 const challengePicked = new Set();
 let challengeSavedBooks = [];
@@ -860,6 +896,7 @@ async function loadChallenge() {
   if (!challengeAlias) return;
   const vid = challengeAlias;
   if (challengeRenderedFor !== vid) {
+    challengeBooksSig = "";
     $("#challenge-books").innerHTML = skeletonCardsHTML(18, 190, true);
     // 首次加载/加载失败期间禁用配置区:表单里还是上一账号的值,
     // 放开保存会把 A 的配置写进 B。
@@ -898,6 +935,7 @@ async function loadOfficialChallenge() {
   const wrap = $("#official-challenge-wrap");
   // 同账号重进时保留已渲染面板,数据到达后原位替换。
   if (officialRenderedFor !== vid) {
+    officialSig = "";
     wrap.hidden = true;
     wrap.textContent = "";
   }
@@ -942,11 +980,16 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
   // 只展示有效挑战:id/status 齐全的才是真实参与记录,其余是官方接口的报名占位。
   const active = challengeList.filter((c) => c.id && c.status);
   if (!active.length) {
+    officialSig = "";
     wrap.hidden = true;
     return;
   }
   // 往期战绩默认只显示最近一条,其余折叠,避免长列表撑爆面板。
   const pastRows = (historyData && historyData.history && historyData.history.challenges) || [];
+  const officialKey = JSON.stringify([active, autoJoin, pastRows]);
+  // 同一份进度重进时别拆掉面板重画，圆环和勋章会闪一下。
+  if (officialKey === officialSig && wrap.childElementCount && !wrap.hidden) return;
+  officialSig = officialKey;
   const pastRowHtml = (h) => `<p>${fmtDay(h.startTime)} — ${fmtDay(h.endTime)} · ${escapeHtml(h.challengeDay)} 天 · <b class="${h.status === 2 ? "ok" : "dim"}">${h.status === 2 ? "挑战成功" : "未完成"}</b></p>`;
   const historyRow = pastRows.length
     ? `<div class="challenge-history"><span>挑战记录</span><div>
@@ -1048,12 +1091,12 @@ function renderOfficialChallenge(challengeList, autoJoin = false, historyData) {
   wireAutoJoinSwitch();
 }
 
+let challengeBooksSig = "";
+
 function renderChallenge(d) {
   challengeBooks = Array.isArray(d.books) ? d.books : [];
   const cfg = d.reading || {};
-  challengePicked.clear();
-  challengeSavedBooks = Array.isArray(cfg.book_ids) ? cfg.book_ids : [];
-  for (const id of challengeSavedBooks) challengePicked.add(id);
+  const savedIds = Array.isArray(cfg.book_ids) ? cfg.book_ids : [];
 
   $("#challenge-state").textContent = cfg.enabled ? "已开启" : "未开启";
   $("#challenge-banner").classList.toggle("on", !!cfg.enabled);
@@ -1087,6 +1130,16 @@ function renderChallenge(d) {
   setChallengePanelEnabled(true);
 
   const grid = $("#challenge-books");
+  const bookSig = [
+    savedIds.join(","),
+    challengeBooks.map((b) => [b.bookId, b.cover || "", b.title || "", b.author || b.authorName || ""].join("\t")).join("\n"),
+  ].join("\n");
+  // 书架没变就别拆掉重画，封面不会闪一下。未保存的勾选留在原地。
+  if (bookSig === challengeBooksSig && grid.childElementCount && !grid.querySelector(".skeleton-cards")) return;
+  challengeBooksSig = bookSig;
+  challengePicked.clear();
+  challengeSavedBooks = savedIds;
+  for (const id of savedIds) challengePicked.add(id);
   grid.textContent = "";
   if (!challengeBooks.length) {
     // 书架缓存为空不阻塞使用:未选书单时会话启动与每日调度都会实时拉书架随机选。
@@ -1257,6 +1310,7 @@ let readingPrefs = {};
 let weeklyRequest = 0;
 // 已渲染周数据的账号,语义同 challengeRenderedFor。
 let weeklyRenderedFor = null;
+let weeklySig = "";
 
 async function openReading() {
   setView("reading");
@@ -1310,6 +1364,7 @@ async function loadWeekly() {
   // 换账号或尚无数据才清空+骨架。
   const firstLoad = weeklyRenderedFor !== vid;
   if (firstLoad) {
+    weeklySig = "";
     resetWeeklyUI();
     $("#reading-time-awards").innerHTML = skeletonCardsHTML(5, 148);
     $("#reading-day-awards").innerHTML = skeletonCardsHTML(3, 148);
@@ -1328,6 +1383,7 @@ async function loadWeekly() {
   } catch (err) {
     if (request !== weeklyRequest) return;
     if (firstLoad) {
+      weeklySig = "";
       const msg = `加载失败：${escapeHtml(err.message)}`;
       $("#reading-time-awards").innerHTML = `<p class="empty">${msg}</p>`;
       $("#reading-day-awards").innerHTML = `<p class="empty">${msg}</p>`;
@@ -1512,6 +1568,21 @@ function renderWeekBars(root, readDays) {
 
 function renderWeekly() {
   const w = readingData || {};
+  const sig = JSON.stringify({
+    readingTime: w.readingTime,
+    readingDay: w.readingDay,
+    week: (w.weekReadDaysDetail || {}).readDays,
+    month: w.monthReadDaysDetail,
+    card: readingCard,
+    ic: w.infiniteCard,
+    prefs: readingPrefs,
+    timeAwards: w.readtimeAwards,
+    dayAwards: w.readdayAwards,
+    rules: w.rewardRules,
+  });
+  // 切回来又拉到同一份周数据时，奖励卡和柱子都别拆掉重画。
+  if (sig === weeklySig) return;
+  weeklySig = sig;
   $("#reading-stat-time").textContent = fmtDuration(w.readingTime);
   renderWeekBars($("#reading-stat-week-detail"), (w.weekReadDaysDetail || {}).readDays || []);
   $("#reading-stat-days").textContent = `${w.readingDay ?? 0} 天`;
@@ -1642,7 +1713,8 @@ async function loadLogs(silent = false) {
     $("#logs-updated").textContent = `更新于 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`;
     // 自动刷新时内容没变就不重建 200 条 DOM,也不打断用户滚动位置。
     const key = `${params}|${logs.length}|${logs[0]?.id ?? ""}`;
-    if (silent && key === logsRenderedKey) return;
+    // 切回本页时内容没变也不重建。silent 只用于自动刷新不打断滚动；这里两种都不拆 DOM。
+    if (key === logsRenderedKey && $("#logs-rows").childElementCount) return;
     logsRenderedKey = key;
     $("#logs-rows").textContent = "";
     if (!logs.length) {
@@ -1724,11 +1796,14 @@ const pushTypes = {
   },
 };
 
+let pushSig = "";
+
 async function loadPushChannels() {
   let channels;
   try {
     channels = await api("/api/settings/push");
   } catch (err) {
+    pushSig = "";
     $("#push-list").innerHTML = `<p class="empty">加载失败：${escapeHtml(err.message)}</p>`;
     return;
   }
@@ -1736,12 +1811,18 @@ async function loadPushChannels() {
   for (const c of channels) byType[c.type] = c;
 
   let enabledCount = 0;
+  for (const type of Object.keys(pushTypes)) if (byType[type]?.enabled) enabledCount++;
+  const summary = $("#push-summary");
+  if (summary) summary.textContent = `${enabledCount}/${Object.keys(pushTypes).length} 个渠道已开启`;
+  const sig = JSON.stringify(channels);
   const list = $("#push-list");
+  // 配置没变就保留表单，避免输入框和开关闪一下，也免得清掉还没保存的草稿。
+  if (sig === pushSig && list.querySelector(".push-card")) return;
+  pushSig = sig;
   list.textContent = "";
 
   for (const [type, meta] of Object.entries(pushTypes)) {
     const ch = byType[type] || { type, enabled: false, params: {} };
-    if (ch.enabled) enabledCount++;
     const saved = ch.params || {};
 
     const card = document.createElement("div");
@@ -1817,8 +1898,6 @@ async function loadPushChannels() {
 
     list.append(card);
   }
-  const summary = $("#push-summary");
-  if (summary) summary.textContent = `${enabledCount}/${Object.keys(pushTypes).length} 个渠道已开启`;
 }
 
 async function saveChannel(type, enabled, params, btn) {
@@ -1845,3 +1924,4 @@ if (VIEW_NAMES.includes(initialView)) {
 } else {
   loadAccounts();
 }
+requestAnimationFrame(() => { viewTransitionsReady = true; });
